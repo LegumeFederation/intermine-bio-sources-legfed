@@ -1,0 +1,143 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- genetics -->
+
+  <class name="QTL" extends="BioEntity" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <!-- these from feature_relationship, QTL is source, genetic marker is object, type is Nearest Marker, Flanking Marker Low or Flanking Marker High (not stored) -->
+    <collection name="geneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <!-- these from featureloc with the begin,end in cM being given by fmin/100,fmax/100 -->
+    <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
+    <!-- these from querying featureloc for genes that overlap full span of associated genetic markers -->
+    <collection name="overlappingGenes" referenced-type="Gene"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <!-- encapsulates a position (cM) on a linkage group -->
+  <class name="LinkageGroupPosition" is-interface="true">
+    <attribute name="position" type="java.lang.Double"/>
+    <reference name="linkageGroup" referenced-type="LinkageGroup"/>
+  </class>
+
+  <!-- encapsulates a range [begin,end] (cM) on a linkage group -->
+  <class name="LinkageGroupRange" is-interface="true">
+    <attribute name="begin" type="java.lang.Double"/>
+    <attribute name="end" type="java.lang.Double"/>
+    <reference name="linkageGroup" referenced-type="LinkageGroup"/>
+  </class>
+
+  <class name="LinkageGroup" extends="BioEntity" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="length" type="java.lang.Double"/>
+    <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
+    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
+    <collection name="QTLs" referenced-type="QTL"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <class name="GeneticMap" extends="BioEntity" is-interface="true">
+    <attribute name="description" type="java.lang.String"/>
+    <attribute name="unit" type="java.lang.String"/>
+    <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
+    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <class name="GeneFamily" extends="BioEntity" is-interface="true">
+    <collection name="genes" referenced-type="Gene" reverse-reference="geneFamily"/>
+  </class>
+
+  <!-- genetic markers are both genetic and genomic -->
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <!-- SNP, SSR, RFLP, etc. -->
+    <attribute name="type" type="java.lang.String"/>
+    <!-- this from feature_relationship -->
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="geneticMarkers"/>
+    <!-- these from featurepos -->
+    <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
+  </class>
+
+  <!-- genomics -->
+  
+  <class name="Polypeptide" is-interface="true" extends="BioEntity">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="length" type="java.lang.Integer"/>
+    <reference name="sequence" referenced-type="Sequence"/>
+    <!-- SequenceProcessor has a hack to relate polypeptides directly to genes via the shared mRNA -->
+    <reference name="gene" referenced-type="Gene" reverse-reference="polypeptides"/>
+    <reference name="MRNA" referenced-type="MRNA" reverse-reference="polypeptide"/>
+    <reference name="chromosome" referenced-type="Chromosome"/>
+    <reference name="chromosomeLocation" referenced-type="Location"/>
+    <reference name="supercontig" referenced-type="Supercontig"/>
+    <reference name="supercontigLocation" referenced-type="Location"/>
+    <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
+    <reference name="consensusRegionLocation" referenced-type="Location"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <class name="ProteinMatch" extends="BioEntity" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="length" type="java.lang.Integer"/>
+    <reference name="sequence" referenced-type="Sequence"/>
+    <reference name="polypeptide" referenced-type="Polypeptide"/>
+    <reference name="polypeptideLocation" referenced-type="Location"/>
+    <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
+    <reference name="consensusRegionLocation" referenced-type="Location"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <class name="ProteinHmmMatch" extends="ProteinMatch" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <reference name="polypeptideDomain" referenced-type="PolypeptideDomain"/>
+    <reference name="polypeptideDomainLocation" referenced-type="Location"/>
+  </class>
+
+  <class name="PolypeptideDomain" extends="BioEntity" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <class name="Supercontig" extends="SequenceFeature" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+  </class>
+
+  <class name="ConsensusRegion" extends="BioEntity" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="length" type="java.lang.Integer"/>
+    <reference name="sequence" referenced-type="Sequence"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+  
+  <class name="MRNA" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <!-- note MRNA extends Transcript, already has Gene reference -->
+    <reference name="polypeptide" referenced-type="Polypeptide" reverse-reference="MRNA"/>
+    <reference name="supercontig" referenced-type="Supercontig"/>
+    <reference name="supercontigLocation" referenced-type="Location"/>
+  </class>
+  
+  <class name="Exon" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <reference name="MRNA" referenced-type="MRNA"/>
+    <reference name="supercontig" referenced-type="Supercontig"/>
+    <reference name="supercontigLocation" referenced-type="Location"/>
+  </class>
+  
+  <class name="Gene" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="note" type="java.lang.String"/>
+    <attribute name="familyRepresentative" type="java.lang.String"/>
+    <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="gene"/>
+    <reference name="supercontig" referenced-type="Supercontig"/>
+    <reference name="supercontigLocation" referenced-type="Location"/>
+    <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
+  </class>
+
+  <class name="Chromosome" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+  </class>
+
+
+</classes>
