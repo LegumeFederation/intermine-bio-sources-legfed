@@ -1,10 +1,18 @@
 package org.intermine.bio.dataconversion;
 
-import java.util.Comparator;
+/*
+ * Copyright (C) 2015-2016 NCGR
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  See the LICENSE file for more
+ * information or http://www.gnu.org/copyleft/lesser.html.
+ *
+ */
 
 /**
  * Encapsulates a single tab-delimited CMap file record.
- * Native comparator is based on map_name, feature_start and feature_stop.
+ * Comparator is based on map_name, feature_start and feature_stop.
  *
  * @author Sam Hokin, NCGR
  */
@@ -23,7 +31,7 @@ public class CMapRecord implements Comparable {
     boolean is_landmark;
 
     /**
-     * Instantiate from a line from a CMap file. Do nothing if it's a comment.
+     * Instantiate from a line from a CMap file. Do nothing if it's a header line.
      */
     public CMapRecord(String line) {
 

@@ -31,18 +31,15 @@ import org.intermine.xml.full.Reference;
  * Store the various genetic data from the LegFed/LIS chado database.
  * These come from featuremap, featurepos, featureloc, feature_relationship and, of course, feature.
  *
+ * Since this processer deals only with chado data, Items are stored in maps with Integer keys equal to
+ * the chado feature.feature_id.
+ *
  * @author Sam Hokin, NCGR
  */
 public class GeneticProcessor extends ChadoProcessor {
 	
     private static final Logger LOG = Logger.getLogger(GeneticProcessor.class);
 
-    // set true for extra verbose debug lines
-    private static final boolean DEBUG = true;
-    
-    // count specific debug lines
-    private HashMap<String,Integer> debugLineMap = new HashMap<String,Integer>();
-    
     /**
      * Create a new GeneticProcessor
      * @param chadoDBConverter the ChadoDBConverter that is controlling this processor
@@ -223,8 +220,8 @@ public class GeneticProcessor extends ChadoProcessor {
         while (rs.next()) {
             String value = rs.getString("value");
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
-            geneFamily.setReference("organism", organism);
             geneFamily.setAttribute("primaryIdentifier", value);
+            geneFamily.setAttribute("secondaryIdentifier", value);
             geneFamilyMap.put(value, geneFamily);
         }
         rs.close();
@@ -267,7 +264,6 @@ public class GeneticProcessor extends ChadoProcessor {
                         // search for the PubMedId, hopefully find it with just first author
                         String[] authors = new String[1];
                         authors[0] = firstAuthor;
-                        if (DEBUG) LOG.info("Searching PubMed for "+journal+" ("+year+") "+firstAuthor);
                         pubMedId = PubMedSearch.getPubMedId(journal, Integer.parseInt(year), authors);
                     } catch (Exception ex) {
                         // do nothing
@@ -380,7 +376,6 @@ public class GeneticProcessor extends ChadoProcessor {
                 double end = rs.getDouble("fmax")/100.0;
                 Item linkageGroup = linkageGroupMap.get(new Integer(linkage_group_id));
                 if (linkageGroup!=null) {
-                    if (DEBUG) LOG.info("Assigning linkage group range for linkage group "+linkage_group_id+" and QTL "+feature_id+" with begin="+begin+", end="+end);
                     Item linkageGroupRange = getChadoDBConverter().createItem("LinkageGroupRange");
                     linkageGroupRange.setAttribute("begin", String.valueOf(begin));
                     linkageGroupRange.setAttribute("end", String.valueOf(end));
@@ -402,19 +397,16 @@ public class GeneticProcessor extends ChadoProcessor {
             int[] geneticMarkerIds = new int[3]; // there is one (nearest marker) or three (nearest, flanking low, flanking high)
             int k = 0; // index of geneticMarkerIds
             query = "SELECT * FROM feature_relationship WHERE subject_id="+subject_id;
-            if (DEBUG) LOG.info("executing query: "+query);
             rs = stmt.executeQuery(query);
             while (rs.next()) {
                 int object_id = rs.getInt("object_id"); // genetic marker
                 int type_id = rs.getInt("type_id"); // Nearest, Flanking Low, Flanking High; we don't store this at present
                 Item geneticMarker = geneticMarkerMap.get(new Integer(object_id));
                 if (geneticMarker!=null) {
-                    // add to QTL's geneticMarkers collection; reverse-reference will automatically associate qtl in genetic marker's QTLs collection
-                    qtl.addToCollection("geneticMarkers", geneticMarker);
+                    // add to QTL's associatedGeneticMarkers collection; reverse-reference will automatically associate qtl in genetic marker's QTLs collection
+                    qtl.addToCollection("associatedGeneticMarkers", geneticMarker);
                     // store genetic marker for gene finding to come
                     geneticMarkerIds[k++] = object_id;
-                } else if (DEBUG) {
-                    LOG.error("Genetic marker "+object_id+" found in feature_relationship is missing from geneticMarkerMap.");
                 }
             }
             rs.close(); // done collecting genetic markers
@@ -425,7 +417,6 @@ public class GeneticProcessor extends ChadoProcessor {
             int srcfeature_id = 0; // chromosome
             for (int l=0; l<k; l++) {
                 query = "SELECT * FROM featureloc WHERE feature_id="+geneticMarkerIds[l];
-                if (DEBUG) LOG.info("executing query: "+query);
                 rs = stmt.executeQuery(query);
                 while (rs.next()) {
                     int fmin = rs.getInt("fmin");
@@ -438,7 +429,6 @@ public class GeneticProcessor extends ChadoProcessor {
                 if (f1<f2) {
                     query = "SELECT featureloc.feature_id FROM featureloc,feature WHERE " +
                         "featureloc.feature_id=feature.feature_id AND type_id="+geneCVTermId+" AND srcfeature_id="+srcfeature_id+" AND fmin<"+f2+" AND fmax>"+f1;
-                    if (DEBUG) LOG.info("executing query: "+query);
                     rs = stmt.executeQuery(query);
                     while (rs.next()) {
                         int feature_id = rs.getInt("feature_id");
@@ -536,30 +526,6 @@ public class GeneticProcessor extends ChadoProcessor {
      */
     protected void finishedProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap) throws SQLException {
         // override in subclasses as necessary
-    }
-
-    /**
-     * Store and tally debug lines in debugLineMap.
-     * @param a string to be output
-     */
-    private void debugToLog(String output) {
-	if (debugLineMap.containsKey(output)) {
-	    int count = debugLineMap.get(output).intValue();
-	    count++;
-	    debugLineMap.put(output, new Integer(count));
-	} else {
-	    debugLineMap.put(output, new Integer(1));
-	}
-    }
-
-    /**
-     * Dump the debugLineMap and clear it.
-     */
-    private void logDebugLines() {
-	for (String debugLine : debugLineMap.keySet()) {
-	    LOG.info(debugLine+" {"+debugLineMap.get(debugLine).intValue()+"}");
-	}
-	debugLineMap.clear();
     }
 
 }

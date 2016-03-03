@@ -6,7 +6,7 @@
   <class name="QTL" extends="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <!-- these from feature_relationship, QTL is source, genetic marker is object, type is Nearest Marker, Flanking Marker Low or Flanking Marker High (not stored) -->
-    <collection name="geneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <!-- these from featureloc with the begin,end in cM being given by fmin/100,fmax/100 -->
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <!-- these from querying featureloc for genes that overlap full span of associated genetic markers -->
@@ -44,7 +44,9 @@
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
-  <class name="GeneFamily" extends="BioEntity" is-interface="true">
+  <class name="GeneFamily" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="secondaryIdentifier" type="java.lang.String"/>
     <collection name="genes" referenced-type="Gene" reverse-reference="geneFamily"/>
   </class>
 
@@ -54,7 +56,7 @@
     <!-- SNP, SSR, RFLP, etc. -->
     <attribute name="type" type="java.lang.String"/>
     <!-- this from feature_relationship -->
-    <collection name="QTLs" referenced-type="QTL" reverse-reference="geneticMarkers"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
     <!-- these from featurepos -->
     <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
   </class>
@@ -99,7 +101,7 @@
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
-  <class name="Supercontig" extends="SequenceFeature" is-interface="true">
+  <class name="Supercontig" extends="Chromosome" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
   </class>
 
@@ -139,5 +141,9 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
   </class>
 
+  <class name="SyntenicRegion" extends="SequenceFeature" is-interface="true">
+    <reference name="targetRegion" referenced-type="SequenceFeature"/>
+    <attribute name="medianKs" type="java.lang.Double"/>
+  </class>
 
 </classes>

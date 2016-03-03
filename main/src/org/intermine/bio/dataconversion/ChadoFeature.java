@@ -1,5 +1,15 @@
 package org.intermine.bio.dataconversion;
 
+/*
+ * Copyright (C) 2015-2016 NCGR
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  See the LICENSE file for more
+ * information or http://www.gnu.org/copyleft/lesser.html.
+ *
+ */
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -62,7 +72,6 @@ public class ChadoFeature {
 
     /**
      * Populate the attributes of a BioEntity Item with this feature's data.
-     * Skip secondaryIdentifier since it isn't provided in chado.feature.
      */
     public void populateBioEntity(Item bioEntity, Item organism) {
         bioEntity.setAttribute("chadoFeatureId", String.valueOf(feature_id));

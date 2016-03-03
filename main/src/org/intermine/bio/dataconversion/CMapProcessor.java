@@ -36,20 +36,16 @@ import org.intermine.xml.full.Reference;
 import org.intermine.xml.full.ReferenceList;
 
 /**
- * Store the genetic marker and QTL data from a CMap tab-delimited file.
- * NOTE: files are currently HARDCODED
+ * Store the genetic marker and QTL data from a CMap tab-delimited file, along with a GFF file containing 
+ * genetic markers and a QTL-markers file containing QTL-marker relations.
+ *
+ * NOTE: input text files are currently HARDCODED (Soybase)
  *
  * @author Sam Hokin, NCGR
  */
 public class CMapProcessor extends ChadoProcessor {
 	
     private static final Logger LOG = Logger.getLogger(CMapProcessor.class);
-
-    // set true for extra verbose debug lines
-    private static final boolean DEBUG = true;
-    
-    // count specific debug lines
-    private HashMap<String,Integer> debugLineMap = new HashMap<String,Integer>();
 
     // global scope for use in methods
     Item organism;
@@ -59,13 +55,16 @@ public class CMapProcessor extends ChadoProcessor {
 
     // NOTE: HARDCODED CMAP FILE
     String cMapFilename = "/home/intermine/data/Soybean-GmComposite2003.txt";
+
+    // NOTE: HARDCODED QTL-MARKERS FILE
+    String qtlMarkersFilename = "/home/intermine/data/SoyBase-QTL-markers.txt";
         
     // global for use in methods
-    Map<String,Item> chromosomeMap = new HashMap<String,Item>();
+    ItemMap chromosomeMap = new ItemMap();
     
     // global storage maps for relating QTLs to genetic markers, populated in methods
-    Map<String,Item> linkageGroupRangeMap = new HashMap<String,Item>();
-    Map<String,Item> linkageGroupPositionMap = new HashMap<String,Item>();
+    ItemMap linkageGroupRangeMap = new ItemMap();
+    ItemMap linkageGroupPositionMap = new ItemMap();
     
     /**
      * Create a new CMapProcessor
@@ -102,7 +101,7 @@ public class CMapProcessor extends ChadoProcessor {
             organismId = key.intValue();
         }
         OrganismData org = chadoToOrgData.get(organismId);
-        int organism_id = organismId.intValue();
+        int organism_id = organismId.intValue(); // chado organism.organism_id
         int taxonId = org.getTaxonId();
 
         // create organism Item - global so can be used in populate routines
@@ -111,14 +110,15 @@ public class CMapProcessor extends ChadoProcessor {
         store(organism);
         LOG.info("Created and stored organism Item for taxonId="+taxonId+".");
 
-        // ----------------------------------------------------------------------------------------------
-        // Load the GFF data into a map for easy retrieval when item found
-        // Also create chromosome Items from GFF, but updating primaryIdentifier to match chado values
-        // ----------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------------
+        // Load the GFF data into a map for easy retrieval when item found. Also create chromosome Items from GFF.
+        //
+        // NOTE: this is hardcoded for Soybase chromosomes: Soybase GFF and LIS chado don't use same chromosome IDs,
+        //       so we update primaryIdentifier to match chado values.
+        // -------------------------------------------------------------------------------------------------------------------
 
         Map<String,GFFRecord> gffMap = new HashMap<String,GFFRecord>();
 
-        // wrapped in try block due to I/O exceptions
         try {
             
             BufferedReader gffReader = new BufferedReader(new FileReader(gffFilename));
@@ -127,13 +127,21 @@ public class CMapProcessor extends ChadoProcessor {
             while ((gffLine=gffReader.readLine()) != null) {
                 GFFRecord gff = new GFFRecord(gffLine);
                 if (gff.seqid!=null && gff.attributeName!=null) {
+                    // NOTE: key is attributeName
                     gffMap.put(gff.attributeName, gff);
-                    if (!chromosomeMap.containsKey(gff.seqid)) {
-                        Item chromosome = getChadoDBConverter().createItem("Chromosome");
-                        String uniquename = gff.seqid.replace("Gm","Chr"); // chado uniquename
-                        chromosome.setReference("organism", organism);
-                        chromosome.setAttribute("primaryIdentifier", uniquename); // so we match up in SequenceProcessor
-                        chromosomeMap.put(gff.seqid, chromosome); // use gff.seqid since we'll get chromosome from gff record
+                    // create chromosome and add to chromosomeMap if needed; avoid scaffolds
+                    String name = gff.seqid.replace("Gm","glyma.Chr"); // chado chromosome name HARDCODED
+                    if (!chromosomeMap.containsSecondaryIdentifier(name)) {
+                        // create the chromosome Item from the chado record
+                        query = "SELECT * FROM feature WHERE type_id=43403 AND organism_id="+organism_id+" AND name='"+name+"'";
+                        rs = stmt.executeQuery(query);
+                        if (rs.next()) {
+                            ChadoFeature cf = new ChadoFeature(rs);
+                            Item chromosome = getChadoDBConverter().createItem("Chromosome");
+                            cf.populateBioEntity(chromosome, organism);
+                            chromosomeMap.put(chromosome);
+                        }
+                        rs.close();
                     }
                 }
             }
@@ -154,7 +162,6 @@ public class CMapProcessor extends ChadoProcessor {
 
         // GENES
         // load the relevant genes from the feature table
-        // key is feature_id
         Map<Integer,Item> geneMap = new HashMap<Integer,Item>();
         int geneCVTermId = 0;
         rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='gene'");
@@ -168,6 +175,7 @@ public class CMapProcessor extends ChadoProcessor {
             ChadoFeature cf = new ChadoFeature(rs);
             Item gene = getChadoDBConverter().createItem("Gene");
             cf.populateBioEntity(gene, organism);
+            // NOTE: feature_id is key
             geneMap.put(new Integer(feature_id), gene);
         }
         rs.close();
@@ -175,8 +183,7 @@ public class CMapProcessor extends ChadoProcessor {
 
         // GENE FAMILIES
         // load the gene families from the featureprop table for our organism - distinct values with gene family type_id
-        // key is value
-        Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
+        ItemMap geneFamilyMap = new ItemMap();
         int geneFamilyCVTermId = 0;
         rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='gene family'");
         if (rs.next()) geneFamilyCVTermId = rs.getInt("cvterm_id");
@@ -188,22 +195,22 @@ public class CMapProcessor extends ChadoProcessor {
         while (rs.next()) {
             String value = rs.getString("value");
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
-            geneFamily.setReference("organism", organism);
             geneFamily.setAttribute("primaryIdentifier", value);
+            geneFamily.setAttribute("secondaryIdentifier", value);
+            // NOTE: value is key
             geneFamilyMap.put(value, geneFamily);
         }
         rs.close();
         LOG.info("Created "+geneFamilyMap.size()+" GeneFamily items.");
 
         // ----------------------------------------------------------------------------------------------
-        // Load items from the CMap file and create associations
+        // Load items from the CMap file and associate with linkage groups
         // ----------------------------------------------------------------------------------------------
 
-        Map<String,Item> linkageGroupMap = new HashMap<String,Item>();
-        Map<String,Item> geneticMarkerMap = new HashMap<String,Item>();
-        Map<String,Item> qtlMap = new HashMap<String,Item>();
+        ItemMap linkageGroupMap = new ItemMap();
+        ItemMap geneticMarkerMap = new ItemMap();
+        ItemMap qtlMap = new ItemMap();
 
-        // wrap in try block due to I/O exceptions
         try {
             
             BufferedReader cmapReader = new BufferedReader(new FileReader(cMapFilename));
@@ -216,18 +223,18 @@ public class CMapProcessor extends ChadoProcessor {
                 if (cmap.map_acc!=null) {
                 
                     // add this linkage group if not already in, checking for primaryIdentifier==cmap.map_acc
-                    Item linkageGroup = getItemByPrimaryIdentifier(linkageGroupMap, cmap.map_acc);
+                    Item linkageGroup = linkageGroupMap.getByPrimaryIdentifier(cmap.map_acc);
                     if (linkageGroup==null) {
                         linkageGroup = getChadoDBConverter().createItem("LinkageGroup");
                         populateLinkageGroup(linkageGroup, cmap);
-                        linkageGroupMap.put(linkageGroup.getIdentifier(), linkageGroup);
+                        linkageGroupMap.put(linkageGroup);
                     }
                     
                     // add a QTL if appropriate, using Item identifier as key
                     if (cmap.isQTL()) {
                         Item qtl = getChadoDBConverter().createItem("QTL");
                         populateQTL(qtl, linkageGroup, cmap);
-                        qtlMap.put(qtl.getIdentifier(), qtl);
+                        qtlMap.put(qtl);
                     }
                     
                     // add a genetic marker if appropriate, using Item identifier as key
@@ -235,13 +242,17 @@ public class CMapProcessor extends ChadoProcessor {
                         GFFRecord gff = gffMap.get(cmap.feature_name);
                         Item geneticMarker = getChadoDBConverter().createItem("GeneticMarker");
                         populateGeneticMarker(geneticMarker, linkageGroup, cmap, gff);
-                        geneticMarkerMap.put(geneticMarker.getIdentifier(), geneticMarker);
+                        geneticMarkerMap.put(geneticMarker);
                     }
 
                 }
                 
             }
+
             cmapReader.close();
+            LOG.info("Created "+linkageGroupMap.size()+" LinkageGroup items.");
+            LOG.info("Created "+qtlMap.size()+" QTL items.");
+            LOG.info("Created "+geneticMarkerMap.size()+" GeneticMarker items.");
 
         } catch (Exception ex) {
 
@@ -249,105 +260,111 @@ public class CMapProcessor extends ChadoProcessor {
 
         }
 
-        LOG.info("Created "+linkageGroupMap.size()+" LinkageGroup items.");
-        LOG.info("Created "+qtlMap.size()+" QTL items.");
-        LOG.info("Created "+geneticMarkerMap.size()+" GeneticMarker items.");
-
-
         // ----------------------------------------------------------------------------------------------
-        // Loop through the linkage groups and associate QTLs with genetic markers within their range
+        // Run through the QTL-Markers file and add the associated markers to the given QTLs
+        // NOTE: marker ZZ is a placeholder, not a real marker
         // ----------------------------------------------------------------------------------------------
-
-        LOG.info("Associating genetic markers with QTLs...");
-        for (Map.Entry<String,Item> entry : linkageGroupMap.entrySet()) {
-            String linkageGroupRefId = entry.getKey();
-            Item linkageGroup = entry.getValue();
-            if (DEBUG) LOG.info("Linkage group:"+linkageGroup.getAttribute("primaryIdentifier").getValue());
-            // QTL collection
-            ReferenceList qtlRefList = linkageGroup.getCollection("QTLs");
-            // GeneticMarker collection
-            ReferenceList geneticMarkerRefList = linkageGroup.getCollection("geneticMarkers");
-            // spin through the QTLs and add the genetic markers which fall within their range on the linkage group
-            if (qtlRefList!=null && geneticMarkerRefList!=null) {
-                List<String> qtlRefIdList = qtlRefList.getRefIds();
-                List<String> geneticMarkerRefIdList = geneticMarkerRefList.getRefIds();
-                for (String qtlRefId : qtlRefIdList) {
-                    Item qtl = qtlMap.get(qtlRefId);
-                    double begin = 0.0;
-                    double end = 0.0;
-                    // there may be multiple linkage groups for this QTL so we have to scan them
-                    List<String> linkageGroupRangeRefIdList = qtl.getCollection("linkageGroupRanges").getRefIds();
-                    for (String linkageGroupRangeRefId : linkageGroupRangeRefIdList) {
-                        Item linkageGroupRange = linkageGroupRangeMap.get(linkageGroupRangeRefId);
-                        String thisLinkageGroupRefId = linkageGroupRange.getReference("linkageGroup").getRefId();
-                        if (thisLinkageGroupRefId.equals(linkageGroupRefId)) {
-                            begin = Double.parseDouble(linkageGroupRange.getAttribute("begin").getValue());
-                            end = Double.parseDouble(linkageGroupRange.getAttribute("end").getValue());
-                            if (DEBUG) LOG.info("QTL:"+qtl.getAttribute("primaryIdentifier").getValue()+" begin="+begin+" end="+end);
+        
+        try {
+            
+            BufferedReader qtlMarkersReader = new BufferedReader(new FileReader(qtlMarkersFilename));
+            String qtlMarkersLine = qtlMarkersReader.readLine(); // header
+            LOG.info("Reading QTL-Markers file:"+qtlMarkersFilename+" with header:"+qtlMarkersLine);
+            
+            while ((qtlMarkersLine=qtlMarkersReader.readLine())!=null) {
+                QTLMarkersRecord rec = new QTLMarkersRecord(qtlMarkersLine);
+                if (rec.qtlName!=null && rec.markerName!=null && !rec.markerName.equals("ZZ")) {
+                    // find the QTL given that qtlName=secondaryIdentifier
+                    Item qtl = qtlMap.getBySecondaryIdentifier(rec.qtlName);
+                    if (qtl!=null) {
+                        // now find the genetic marker given that markerName=secondaryIdentifier
+                        Item geneticMarker = geneticMarkerMap.getBySecondaryIdentifier(rec.markerName);
+                        if (geneticMarker!=null) {
+                            // add this genetic marker to this QTL's collection
+                            qtl.addToCollection("associatedGeneticMarkers", geneticMarker);
+                        } else {
+                            LOG.info("Genetic marker "+rec.markerName+" is missing from geneticMarkerMap.");
                         }
+                    } else {
+                        LOG.info("QTL "+rec.qtlName+" is missing from qtlMap.");
                     }
-                    if (end>0.0) {
-                        // spin through the genetic markers and add them to qtl's collection if within range
-                        // also keep track of lowest and highest genomic locations of markers for overlapping gene retrieval
-                        int startMin = 100000000;
-                        int endMax = 0;
-                        Item chromosome = null;
-                        for (String geneticMarkerRefId : geneticMarkerRefIdList) {
-                            Item geneticMarker = geneticMarkerMap.get(geneticMarkerRefId);
-                            List<String> linkageGroupPositionRefIdList = geneticMarker.getCollection("linkageGroupPositions").getRefIds();
-                            for (String linkageGroupPositionRefId : linkageGroupPositionRefIdList) {
-                                Item linkageGroupPosition = linkageGroupPositionMap.get(linkageGroupPositionRefId);
-                                String thisLinkageGroupRefId = linkageGroupPosition.getReference("linkageGroup").getRefId();
-                                if (thisLinkageGroupRefId.equals(linkageGroupRefId)) {
-                                    // this position is on this linkage group, now check for QTL overlap
-                                    double position = Double.parseDouble(linkageGroupPosition.getAttribute("position").getValue());
-                                    if (position>=begin && position<=end) {
-                                        if (DEBUG) LOG.info("..."+geneticMarker.getAttribute("primaryIdentifier").getValue()+": position="+position);
-                                        // marker is in QTL span, add it QTL's geneticMarkers collection
-                                        qtl.addToCollection("geneticMarkers", geneticMarker);
-                                        // update startMin and endMax from this marker IF present in the GFF file
-                                        String feature_name = geneticMarker.getAttribute("secondaryIdentifier").getValue();
-                                        GFFRecord gff = gffMap.get(feature_name);
-                                        if (gff!=null) {
-                                            if (gff.start<startMin) startMin = gff.start;
-                                            if (gff.end>endMax) endMax = gff.end;
-                                            chromosome = chromosomeMap.get(gff.seqid); // chromosome should be same for all markers here
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        if (endMax>0) {
-                            // get the chado feature_id of the chromosome
-                            String uniquename = chromosome.getAttribute("primaryIdentifier").getValue();
-                            query = "SELECT feature_id FROM feature WHERE organism_id="+organism_id+" AND uniquename='"+uniquename+"'";
-                            rs = stmt.executeQuery(query);
-                            int srcfeature_id = 0;
-                            if (rs.next()) srcfeature_id = rs.getInt("feature_id");
-                            rs.close();
-                            if (srcfeature_id>0) {
-                                // find the genes that overlap [startMin,endMax] on this chromosome
-                                query = "SELECT featureloc.feature_id FROM featureloc,feature WHERE " +
-                                    "featureloc.feature_id=feature.feature_id AND type_id="+geneCVTermId+" AND srcfeature_id="+srcfeature_id+" AND fmin<"+endMax+" AND fmax>"+startMin;
-                                if (DEBUG) LOG.info("executing query: "+query);
-                                rs = stmt.executeQuery(query);
-                                while (rs.next()) {
-                                    int feature_id = rs.getInt("feature_id");
-                                    Item gene = geneMap.get(new Integer(feature_id));
-                                    if (gene!=null) {
-                                        qtl.addToCollection("overlappingGenes", gene);
-                                    }
-                                }
-                                rs.close();
-                            }
-                        }
-                    } // end>0
                 }
             }
+            
+            qtlMarkersReader.close();
+            LOG.info("Done associating genetic markers with QTLs.");
+
+        } catch (Exception ex) {
+
+            LOG.error(ex.getMessage());
+
+        }
+
+        // ----------------------------------------------------------------------------------------------------------
+        // Loop through the QTLs and find the genes which overlap the region spanned by the QTL's associated markers.
+        // NOTE: only include markers which are on the same linkage group as the QTL. Sometimes a QTL gets
+        // extra markers from other linkage groups. ASSUMPTION: QTL has only one linkage group. True for Soybase.
+        // ---------------------------------------------------------------------------------------------------------
+
+        LOG.info("Associating genes with QTLs via associated marker(s)...");
+        for (Item qtl : qtlMap.values()) {
+
+            List<Item> geneticMarkers = geneticMarkerMap.getForCollection(qtl, "associatedGeneticMarkers");
+            List<Item> linkageGroupRanges = linkageGroupRangeMap.getForCollection(qtl, "linkageGroupRanges");
+
+            if (geneticMarkers.size()>0 && linkageGroupRanges.size()>0) {
+
+                // get this QTL's linkage group for marker check below, assumption is there's only one
+                Item qtlLinkageGroup = null;
+                for (Item linkageGroupRange : linkageGroupRanges) {
+                    qtlLinkageGroup = linkageGroupMap.getForReference(linkageGroupRange, "linkageGroup");
+                }
+                // spin through this QTL's markers and find the full genomic range spanned: chromosome[minStart,maxEnd]
+                int minStart = 100000000;
+                int maxEnd = 0;
+                int srcfeature_id = 0;
+                for (Item geneticMarker : geneticMarkers) {
+                    // check that we're on the same linkage group as QTL, again assume single linkage group
+                    Item gmLinkageGroup= null;
+                    List<Item> linkageGroupPositions = linkageGroupPositionMap.getForCollection(geneticMarker, "linkageGroupPositions");
+                    for (Item linkageGroupPosition : linkageGroupPositions) {
+                        gmLinkageGroup = linkageGroupMap.getForReference(linkageGroupPosition, "linkageGroup");
+                    }
+                    if (gmLinkageGroup!=null && gmLinkageGroup.equals(qtlLinkageGroup)) {
+                        Item chromosome = chromosomeMap.getForReference(geneticMarker, "chromosome");
+                        if (chromosome!=null) {
+                            srcfeature_id = Integer.parseInt(chromosome.getAttribute("chadoFeatureId").getValue());
+                            // get this marker's range on chromosome from GFF record
+                            String attributeName = geneticMarker.getAttribute("secondaryIdentifier").getValue();
+                            GFFRecord gff = gffMap.get(attributeName);
+                            if (gff!=null) {
+                                if (gff.start<minStart) minStart = gff.start;
+                                if (gff.end>maxEnd) maxEnd = gff.end;
+                            }
+                        }
+                    }
+                }
+
+                // now query the genes within chromosome[minStart,maxEnd] and associate them with this QTL
+                if (srcfeature_id>0 && maxEnd>0) {
+                    query = "SELECT featureloc.feature_id FROM featureloc,feature WHERE " +
+                        "featureloc.feature_id=feature.feature_id AND type_id="+geneCVTermId+" AND srcfeature_id="+srcfeature_id+" AND fmin<="+maxEnd+" AND fmax>="+minStart;
+                    rs = stmt.executeQuery(query);
+                    while (rs.next()) {
+                        int feature_id = rs.getInt("feature_id");
+                        Item gene = geneMap.get(new Integer(feature_id));
+                        if (gene!=null) {
+                            qtl.addToCollection("overlappingGenes", gene);
+                        }
+                    }
+                    rs.close();
+                }
+                
+            }
+            
         }
         LOG.info("...done.");
 
-        
         // ----------------------------------------------------------------------------------------------
         // Chado data associations
         // ----------------------------------------------------------------------------------------------
@@ -461,30 +478,6 @@ public class CMapProcessor extends ChadoProcessor {
     }
 
     /**
-     * Store and tally debug lines in debugLineMap.
-     * @param a string to be output
-     */
-    private void debugToLog(String output) {
-	if (debugLineMap.containsKey(output)) {
-	    int count = debugLineMap.get(output).intValue();
-	    count++;
-	    debugLineMap.put(output, new Integer(count));
-	} else {
-	    debugLineMap.put(output, new Integer(1));
-	}
-    }
-
-    /**
-     * Dump the debugLineMap and clear it.
-     */
-    private void logDebugLines() {
-	for (String debugLine : debugLineMap.keySet()) {
-	    LOG.info(debugLine+" {"+debugLineMap.get(debugLine).intValue()+"}");
-	}
-	debugLineMap.clear();
-    }
-
-    /**
      * Populate a LinkageGroup Item from a CMap record
      */
     void populateLinkageGroup(Item linkageGroup, CMapRecord cmap) {
@@ -513,7 +506,7 @@ public class CMapProcessor extends ChadoProcessor {
         store(linkageGroupRange);
         qtl.addToCollection("linkageGroupRanges", linkageGroupRange);
         // add to map
-        linkageGroupRangeMap.put(linkageGroupRange.getIdentifier(), linkageGroupRange);
+        linkageGroupRangeMap.put(linkageGroupRange);
         // add to linkage group collection
         linkageGroup.addToCollection("QTLs", qtl);
     }
@@ -530,7 +523,8 @@ public class CMapProcessor extends ChadoProcessor {
         geneticMarker.setAttribute("type", cmap.feature_type_acc);
         if (gff!=null) {
             // get chromosome Item from chromosomeMap
-            Item chromosome = chromosomeMap.get(gff.seqid);
+            String uniquename = gff.seqid.replace("Gm","Chr"); // chado uniquename
+            Item chromosome = chromosomeMap.getByPrimaryIdentifier(uniquename);
             if (chromosome!=null) {
                 geneticMarker.setReference("chromosome", chromosome);
                 geneticMarker.setAttribute("length", String.valueOf(gff.end-gff.start+1));
@@ -550,31 +544,9 @@ public class CMapProcessor extends ChadoProcessor {
         store(linkageGroupPosition);
         geneticMarker.addToCollection("linkageGroupPositions", linkageGroupPosition);
         // add to map
-        linkageGroupPositionMap.put(linkageGroupPosition.getIdentifier(), linkageGroupPosition);
+        linkageGroupPositionMap.put(linkageGroupPosition);
         // add to linkage group collection
         linkageGroup.addToCollection("geneticMarkers", geneticMarker);
-    }
-
-    /**
-     * Get an Item by its primaryIdentifier; return null if not found
-     */
-    Item getItemByPrimaryIdentifier(Map<String,Item> map, String primaryIdentifier) {
-        for (Item item : map.values()) {
-            String primaryId = item.getAttribute("primaryIdentifier").getValue();
-            if (primaryId.equals(primaryIdentifier)) return item;
-        }
-        return null;
-    }
-
-    /**
-     * Get an Item by its chadoFeatureId; return null if not found
-     */
-    Item getItemByChadoFeatureId(Map<String,Item> map, int chadoFeatureId) {
-        for (Item item : map.values()) {
-            int cfId = Integer.parseInt(item.getAttribute("chadoFeatureId").getValue());
-            if (cfId==chadoFeatureId) return item;
-        }
-        return null;
     }
 
 }

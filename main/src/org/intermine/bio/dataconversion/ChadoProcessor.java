@@ -23,8 +23,8 @@ import org.intermine.xml.full.Attribute;
  * documentation about the possible modules.
  * @author Kim Rutherford
  */
-public abstract class ChadoProcessor
-{
+public abstract class ChadoProcessor{
+    
     private final ChadoDBConverter chadoDBConverter;
 
     /**

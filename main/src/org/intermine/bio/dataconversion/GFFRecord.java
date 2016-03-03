@@ -1,12 +1,28 @@
 package org.intermine.bio.dataconversion;
 
+/*
+ * Copyright (C) 2015-2016 NCGR
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  See the LICENSE file for more
+ * information or http://www.gnu.org/copyleft/lesser.html.
+ *
+ */
+
 import java.util.Comparator;
 
+import org.intermine.xml.full.Item;
+
 /**
- * Encapsulates a single GFF3 record, parsing out the Ensembl GFF3 attributes plus any special cases.
+ * Encapsulates a single GFF3 record, parsing out extra attributes from the attributes field:
+ *   Ensembl
+ *   DAGchainer
+ *
  * Native comparator is based on seqid, strand, start and end.
  * Alternative comparators are provided for alternative sorting.
- * NOTE: Missing string attributes are null.
+ *
+ * Missing string attributes are null.
  *
  * @author Sam Hokin, NCGR
  */
@@ -23,21 +39,24 @@ public class GFFRecord implements Comparable {
     public char phase;
     public String attributes;
 
-    // Ensembl attributes
+    // standard attributes
     String attributeID;
     String attributeName;
+    String attributeParent;
+
+    // Ensembl attributes
     String attributeBiotype;
     String attributeDescription;
-    String attributeParent;
     String attributeDbxref;
     String attributeOntologyTerm;
     int attributeVersion;
     int attributeConstitutive;
     int attributeRank;
-    
-    // special cases
-    String trinityName; // Trinity contig name
 
+    // DAGchainer attributes
+    String attributeTarget;
+    double attributeMedianKs;
+    
     /**
      * Instantiate from a line from a GFF file. Do nothing if it's a comment.
      */
@@ -116,34 +135,26 @@ public class GFFRecord implements Comparable {
     }
 
     /**
-     * Parse out known attributes; if Name is missing, set it to ID
+     * Parse out known attributes; if Name is missing, set it to ID and vice-versa.
      */
     void parseAttributes() {
         String[] chunks = attributes.split(";");
         for (int i=0; i<chunks.length; i++) {
-            // ID
+            // standard
             if (chunks[i].toLowerCase().startsWith("id=")) attributeID = getAttributeValue(chunks[i]);
-            // Name
             if (chunks[i].toLowerCase().startsWith("name=")) attributeName = getAttributeValue(chunks[i]);
-            // biotype
-            if (chunks[i].toLowerCase().startsWith("biotype=")) attributeBiotype = getAttributeValue(chunks[i]);
-            // description
-            if (chunks[i].toLowerCase().startsWith("description=")) attributeDescription = getAttributeValue(chunks[i]);
-            // Parent
             if (chunks[i].toLowerCase().startsWith("parent=")) attributeParent = getAttributeValue(chunks[i]);
-            // Dbxref
+            // Ensembl
+            if (chunks[i].toLowerCase().startsWith("biotype=")) attributeBiotype = getAttributeValue(chunks[i]);
+            if (chunks[i].toLowerCase().startsWith("description=")) attributeDescription = getAttributeValue(chunks[i]);
             if (chunks[i].toLowerCase().startsWith("dbxref=")) attributeDbxref = getAttributeValue(chunks[i]);
-            // Ontology_term
             if (chunks[i].toLowerCase().startsWith("ontology_term=")) attributeOntologyTerm = getAttributeValue(chunks[i]);
-            // integers
             if (chunks[i].toLowerCase().startsWith("version=")) attributeVersion = Integer.parseInt(getAttributeValue(chunks[i]));
             if (chunks[i].toLowerCase().startsWith("constitutive=")) attributeConstitutive = Integer.parseInt(getAttributeValue(chunks[i]));
             if (chunks[i].toLowerCase().startsWith("rank=")) attributeRank = Integer.parseInt(getAttributeValue(chunks[i]));
-            // special cases
-            if (attributeName!=null && attributeName.startsWith("TR")) {
-                String[] trParts = attributeName.split("\\|");
-                trinityName = trParts[0];
-            }
+            // DAGchainer
+            if (chunks[i].toLowerCase().startsWith("target=")) attributeTarget = getAttributeValue(chunks[i]);
+            if (chunks[i].toLowerCase().startsWith("median_ks=")) attributeMedianKs = Double.parseDouble(getAttributeValue(chunks[i]));
         }
         // set Name to ID if missing
         if (attributeName==null && attributeID!=null) updateAttributeName(attributeID);
@@ -158,7 +169,6 @@ public class GFFRecord implements Comparable {
         String[] parts = attributeString.split("=");
         return parts[1];
     }
-
 
     /**
      * Update the attributes string with a new attribute Name, or sets it if it's not already there
@@ -285,19 +295,85 @@ public class GFFRecord implements Comparable {
             }
         };
 
+    /**
+     * Return the DAGchainer target strand from this instance
+     */
+    public char getTargetStrand() {
+        return attributeName.charAt(attributeName.length()-1);
+    }
 
     /**
-     * Compare based on trinityName; else default
+     * Return the DAGchainer target chromosome from this instance. Return null if not a DAGchainer record.
      */
-    public static final Comparator<GFFRecord> TrinityNameComparator = new Comparator<GFFRecord>() {
-            @Override
-            public int compare(GFFRecord gff1, GFFRecord gff2) {
-                if (gff1.trinityName!=null && gff2.trinityName!=null) {
-                    return gff1.trinityName.compareTo(gff2.trinityName);
-                } else {
-                    return gff1.compareTo(gff2);
-                }
-            }
-        };
+    public String getTargetChromosome() {
+        if (attributeTarget!=null) {
+            String[] chunks = attributeTarget.split("%20");
+            return chunks[0];
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Return the DAGchainer target sequence start from this instance. Return 0 if not a DAGchainer record.
+     */
+    public int getTargetStart() {
+        if (attributeTarget!=null) {
+            String[] chunks = attributeTarget.split("%20");
+            return Integer.parseInt(chunks[1]);
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * Return the DAGchainer target sequence end from this instance. Return 0 if not a DAGchainer record.
+     */
+    public int getTargetEnd() {
+        if (attributeTarget!=null) {
+            String[] chunks = attributeTarget.split("%20");
+            return Integer.parseInt(chunks[2]);
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * Populate the attributes of a SequenceFeature Item with this GFFRecord's data; Organism, Chromosome and ChromosomeLocation Items must be passed in
+     */
+    public void populateSequenceFeature(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
+        sequenceFeature.setAttribute("primaryIdentifier", attributeName);
+        sequenceFeature.setAttribute("secondaryIdentifier", attributeName);
+        sequenceFeature.setAttribute("length", String.valueOf(end-start+1));
+        sequenceFeature.setAttribute("score", String.valueOf(score));
+        sequenceFeature.setReference("organism", organism);
+        sequenceFeature.setReference("chromosome", chromosome);
+        sequenceFeature.setReference("chromosomeLocation", chromosomeLocation);
+        chromosomeLocation.setAttribute("start", String.valueOf(start));
+        chromosomeLocation.setAttribute("end", String.valueOf(end));
+        chromosomeLocation.setAttribute("strand", String.valueOf(strand));
+        chromosomeLocation.setReference("feature", sequenceFeature);
+        chromosomeLocation.setReference("locatedOn", chromosome);
+    }
+
+    /**
+     * Populate the attributes of a SequenceFeature Item with this GFFRecord's DAGchainer data; Organism, Chromosome and ChromosomeLocation Items must be passed in.
+     * Does nothing if not a DAGchainer record.
+     */
+    public void populateDAGchainerRegion(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
+        if (attributeTarget!=null) {
+            sequenceFeature.setAttribute("primaryIdentifier", attributeName+".target");
+            sequenceFeature.setAttribute("secondaryIdentifier", attributeName+".target");
+            sequenceFeature.setAttribute("length", String.valueOf(getTargetEnd()-getTargetStart()+1));
+            sequenceFeature.setReference("organism", organism);
+            sequenceFeature.setReference("chromosome", chromosome);
+            sequenceFeature.setReference("chromosomeLocation", chromosomeLocation);
+            chromosomeLocation.setAttribute("start", String.valueOf(getTargetStart()));
+            chromosomeLocation.setAttribute("end", String.valueOf(getTargetEnd()));
+            chromosomeLocation.setAttribute("strand", String.valueOf(getTargetStrand()));
+            chromosomeLocation.setReference("feature", sequenceFeature);
+            chromosomeLocation.setReference("locatedOn", chromosome);
+        }
+    }
 
 }
