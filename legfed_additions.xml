@@ -101,7 +101,7 @@
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
-  <class name="Supercontig" extends="Chromosome" is-interface="true">
+  <class name="Supercontig" extends="SequenceFeature" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
   </class>
 
@@ -131,10 +131,10 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="note" type="java.lang.String"/>
     <attribute name="familyRepresentative" type="java.lang.String"/>
-    <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="gene"/>
     <reference name="supercontig" referenced-type="Supercontig"/>
     <reference name="supercontigLocation" referenced-type="Location"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
+    <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="gene"/>
   </class>
 
   <class name="Chromosome" is-interface="true">
@@ -142,8 +142,11 @@
   </class>
 
   <class name="SyntenicRegion" extends="SequenceFeature" is-interface="true">
-    <reference name="targetRegion" referenced-type="SequenceFeature"/>
     <attribute name="medianKs" type="java.lang.Double"/>
+    <reference name="targetRegion" referenced-type="SyntenicTargetRegion"/>
   </class>
+
+  <class name="SyntenicTargetRegion" extends="SequenceFeature" is-interface="true" />
+
 
 </classes>

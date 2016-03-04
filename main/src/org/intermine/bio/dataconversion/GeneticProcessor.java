@@ -221,7 +221,6 @@ public class GeneticProcessor extends ChadoProcessor {
             String value = rs.getString("value");
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
             geneFamily.setAttribute("primaryIdentifier", value);
-            geneFamily.setAttribute("secondaryIdentifier", value);
             geneFamilyMap.put(value, geneFamily);
         }
         rs.close();

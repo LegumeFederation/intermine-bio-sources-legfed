@@ -179,16 +179,16 @@ public class SyntenyProcessor extends ChadoProcessor {
         for (GFFRecord gff : gffMap.values())  {
 
             // populate and store the target region and its location
+            Item targetRegion = getChadoDBConverter().createItem("SyntenicTargetRegion");
             Item targetChromosome = targetChromosomeMap.getBySecondaryIdentifier(gff.getTargetChromosome().replace("Gm","glyma.Chr")); // HARDCODED
-            Item targetRegion = getChadoDBConverter().createItem("SequenceFeature");
             Item targetChromosomeLocation = getChadoDBConverter().createItem("Location");
             gff.populateDAGchainerRegion(targetRegion, targetOrganism, targetChromosome, targetChromosomeLocation);
             store(targetRegion);
             store(targetChromosomeLocation);
             
             // populate and store the source region and its location
-            Item sourceChromosome = sourceChromosomeMap.getBySecondaryIdentifier(gff.seqid.replace("Pv","phavu.Chr")); // HARDCODED
             Item sourceRegion = getChadoDBConverter().createItem("SyntenicRegion");
+            Item sourceChromosome = sourceChromosomeMap.getBySecondaryIdentifier(gff.seqid.replace("Pv","phavu.Chr")); // HARDCODED
             Item sourceChromosomeLocation = getChadoDBConverter().createItem("Location");
             gff.populateSequenceFeature(sourceRegion, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
             sourceRegion.setAttribute("medianKs", String.valueOf(gff.attributeMedianKs));

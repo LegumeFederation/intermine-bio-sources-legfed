@@ -343,7 +343,6 @@ public class GFFRecord implements Comparable {
      */
     public void populateSequenceFeature(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
         sequenceFeature.setAttribute("primaryIdentifier", attributeName);
-        sequenceFeature.setAttribute("secondaryIdentifier", attributeName);
         sequenceFeature.setAttribute("length", String.valueOf(end-start+1));
         sequenceFeature.setAttribute("score", String.valueOf(score));
         sequenceFeature.setReference("organism", organism);
@@ -363,7 +362,6 @@ public class GFFRecord implements Comparable {
     public void populateDAGchainerRegion(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
         if (attributeTarget!=null) {
             sequenceFeature.setAttribute("primaryIdentifier", attributeName+".target");
-            sequenceFeature.setAttribute("secondaryIdentifier", attributeName+".target");
             sequenceFeature.setAttribute("length", String.valueOf(getTargetEnd()-getTargetStart()+1));
             sequenceFeature.setReference("organism", organism);
             sequenceFeature.setReference("chromosome", chromosome);

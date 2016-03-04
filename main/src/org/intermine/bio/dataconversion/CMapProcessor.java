@@ -196,7 +196,6 @@ public class CMapProcessor extends ChadoProcessor {
             String value = rs.getString("value");
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
             geneFamily.setAttribute("primaryIdentifier", value);
-            geneFamily.setAttribute("secondaryIdentifier", value);
             // NOTE: value is key
             geneFamilyMap.put(value, geneFamily);
         }
