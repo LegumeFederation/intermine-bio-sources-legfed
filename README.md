@@ -7,13 +7,15 @@ This data source contains several processors as well as utility classes:
 
 **GeneticProcessor.java** - stores the various genetic data and relationships from the LIS chado database. These come from featuremap, featurepos, featureloc, feature_relationship and, of course, feature.
 
-**CMapProcessor.java** - stores the genetic marker and QTL data from a CMap tab-delimited file along with a GFF3 export. Currently hardcoded to support a couple files exported from Soybase.
+**CMapProcessor.java** - stores the genetic marker and QTL data from a CMap tab-delimited file along with a GFF3 export and a QTL-marker flat file from David Grant at Soybase. Currently hardcoded for soybean.
 
-**ChadoFeature.java** -  incorporates the fields from the chado feature table into a single object for convenience, along with handy methods.
+**SyntenyProcessor.java** - stores the syntenic regions from a GFF dump with records formatted by DAGchainer. Currently hardcoded for Pv and Gm.
+
+**ChadoFeature.java** -  incorporates the fields from the chado feature table into a single object for convenience, along with handy methods for populating Items.
 
 **CMapRecord.java** - encapsulates a single tab-delimited CMap file record.
 
-**GFFRecord.java** - encapsulates a single GFF3 record, parsing out the standard Ensembl GFF3 attributes.
+**GFFRecord.java** - encapsulates a single GFF3 record, parsing out the standard, Ensembl and DAGchainer GFF3 attributes.
 
 **PubMedSearch.java** - performs a search of NCBI PubMed on journal, year and authors. This is used to get the PubMed ID from the information provided in the chado database for genetic maps.
 
