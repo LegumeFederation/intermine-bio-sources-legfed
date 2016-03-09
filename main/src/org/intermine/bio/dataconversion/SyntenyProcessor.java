@@ -174,28 +174,34 @@ public class SyntenyProcessor extends ChadoProcessor {
         // Now spin through the gffMap records and store the SyntenicRegion Items
         // ----------------------------------------------------------------------
 
-        LOG.info("Creating and storing synteny regions...");
+        LOG.info("Creating, linking and storing syntenic regions...");
 
         for (GFFRecord gff : gffMap.values())  {
 
-            // populate and store the target region and its location
-            Item targetRegion = getChadoDBConverter().createItem("SyntenicTargetRegion");
-            Item targetChromosome = targetChromosomeMap.getBySecondaryIdentifier(gff.getTargetChromosome().replace("Gm","glyma.Chr")); // HARDCODED
-            Item targetChromosomeLocation = getChadoDBConverter().createItem("Location");
-            gff.populateDAGchainerRegion(targetRegion, targetOrganism, targetChromosome, targetChromosomeLocation);
-            store(targetRegion);
-            store(targetChromosomeLocation);
-            
-            // populate and store the source region and its location
+            // populate the source region and its location
             Item sourceRegion = getChadoDBConverter().createItem("SyntenicRegion");
-            Item sourceChromosome = sourceChromosomeMap.getBySecondaryIdentifier(gff.seqid.replace("Pv","phavu.Chr")); // HARDCODED
+            Item sourceChromosome = sourceChromosomeMap.getBySecondaryIdentifier(gff.seqid.replace("Pv","phavu.Chr")); // HARDCODED SOURCE GENOME
             Item sourceChromosomeLocation = getChadoDBConverter().createItem("Location");
             gff.populateSequenceFeature(sourceRegion, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
             sourceRegion.setAttribute("medianKs", String.valueOf(gff.attributeMedianKs));
+
+            // populate the target region and its location
+            Item targetRegion = getChadoDBConverter().createItem("SyntenicRegion");
+            Item targetChromosome = targetChromosomeMap.getBySecondaryIdentifier(gff.getTargetChromosome().replace("Gm","glyma.Chr")); // HARDCODED TARGET GENOME
+            Item targetChromosomeLocation = getChadoDBConverter().createItem("Location");
+            gff.populateDAGchainerRegion(targetRegion, targetOrganism, targetChromosome, targetChromosomeLocation);
+            targetRegion.setAttribute("medianKs", String.valueOf(gff.attributeMedianKs));
+
+            // link the two regions
             sourceRegion.setReference("targetRegion", targetRegion);
+            targetRegion.setReference("targetRegion", sourceRegion);
+
+            // and store them
             store(sourceRegion);
             store(sourceChromosomeLocation);
-
+            store(targetRegion);
+            store(targetChromosomeLocation);
+            
         }
 
         LOG.info("...done.");    

@@ -143,10 +143,7 @@
 
   <class name="SyntenicRegion" extends="SequenceFeature" is-interface="true">
     <attribute name="medianKs" type="java.lang.Double"/>
-    <reference name="targetRegion" referenced-type="SyntenicTargetRegion"/>
+    <reference name="targetRegion" referenced-type="SyntenicRegion"/>
   </class>
-
-  <class name="SyntenicTargetRegion" extends="SequenceFeature" is-interface="true" />
-
 
 </classes>
