@@ -58,6 +58,8 @@ import org.intermine.xml.full.ReferenceList;
  * This processor is only for genomic quantities. Genetic quantites such as QTLs and linkage groups are dealt with in GeneticProcessor, as well as 
  * genetic relationships like genetic marker positions on QTLs (Nearest Marker, Flanking Marker Low, Flanking Marker High).
  *
+ * Hacks are denoted by "HACK:" in comments.
+ *
  * @author Sam Hokin
  */
 public class SequenceProcessor extends ChadoProcessor {
@@ -84,7 +86,7 @@ public class SequenceProcessor extends ChadoProcessor {
     private String tempFeatureTableName = null;
 
     // a list of all the cvterm relation names we wish to process, including those generated locally
-    // NOTE: "producedby" is generated locally to tie polypeptides to genes
+    // HACK: "producedby" is generated locally to tie polypeptides to genes
     private static final List<String> DESIRED_RELATIONS = Arrays.asList("producedby", "part_of", "derives_from");
 	
     // a list of the one-way relation cvterm names; these will only be processed in the subject-object direction
@@ -1509,8 +1511,7 @@ public class SequenceProcessor extends ChadoProcessor {
 	// create temp table holding all desired features
         String query =
 	    "CREATE TEMPORARY TABLE " + tempFeatureTableName + " AS"
-	    + " SELECT feature_id, feature.name, uniquename, cvterm.name as type,"
-	    + " seqlen, is_analysis, residues, md5checksum, organism_id"
+	    + " SELECT feature_id, feature.name, uniquename, cvterm.name as type, seqlen, is_analysis, residues, md5checksum, organism_id"
 	    + " FROM feature, cvterm"
 	    + " WHERE cvterm.name IN (" + featureTypesString  + ")"
 	    + orgConstraintForQuery
@@ -1522,6 +1523,12 @@ public class SequenceProcessor extends ChadoProcessor {
         Statement stmt = connection.createStatement();
         LOG.info("executing createFeatureTempTable(): " + query);
         stmt.execute(query);
+
+        // HACK: convert supercontig records to chromosome records!
+        String supercontigQuery = "UPDATE "+tempFeatureTableName+" SET type='chromosome' WHERE type='supercontig'";
+        LOG.info("executing: " + supercontigQuery);
+        stmt.execute(supercontigQuery);
+                 
 	// create indexes and analyze on temp table
         String idIndexQuery = "CREATE INDEX "+tempFeatureTableName+"_feature_index ON "+tempFeatureTableName+" (feature_id)";
         LOG.info("executing: " + idIndexQuery);

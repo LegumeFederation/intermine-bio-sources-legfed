@@ -71,8 +71,6 @@
     <reference name="MRNA" referenced-type="MRNA" reverse-reference="polypeptide"/>
     <reference name="chromosome" referenced-type="Chromosome"/>
     <reference name="chromosomeLocation" referenced-type="Location"/>
-    <reference name="supercontig" referenced-type="Supercontig"/>
-    <reference name="supercontigLocation" referenced-type="Location"/>
     <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
     <reference name="consensusRegionLocation" referenced-type="Location"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
@@ -100,10 +98,6 @@
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
-  <class name="Supercontig" extends="SequenceFeature" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
-  </class>
-
   <class name="ConsensusRegion" extends="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="length" type="java.lang.Integer"/>
@@ -115,23 +109,17 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <!-- note MRNA extends Transcript, already has Gene reference -->
     <reference name="polypeptide" referenced-type="Polypeptide" reverse-reference="MRNA"/>
-    <reference name="supercontig" referenced-type="Supercontig"/>
-    <reference name="supercontigLocation" referenced-type="Location"/>
   </class>
   
   <class name="Exon" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <reference name="MRNA" referenced-type="MRNA"/>
-    <reference name="supercontig" referenced-type="Supercontig"/>
-    <reference name="supercontigLocation" referenced-type="Location"/>
   </class>
   
   <class name="Gene" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="note" type="java.lang.String"/>
     <attribute name="familyRepresentative" type="java.lang.String"/>
-    <reference name="supercontig" referenced-type="Supercontig"/>
-    <reference name="supercontigLocation" referenced-type="Location"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
     <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="gene"/>
   </class>
