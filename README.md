@@ -1,7 +1,7 @@
 # intermine_legfed
 Legume Federation data source; install as intermine/bio/sources/legfed.
 
-This data source contains several processors as well as utility classes:
+This data source contains several processors:
 
 **SequenceProcessor.java** - a spin of Kim Rutherford's chado SequenceProcessor to support the fields present in the LIS chado database. It is heavily modified from the original under chado-db. It handles genomic, not genetic relationships, and works primarily with the feature, featureloc and feature_relationship tables.
 
@@ -10,6 +10,8 @@ This data source contains several processors as well as utility classes:
 **CMapProcessor.java** - stores the genetic marker and QTL data from a CMap tab-delimited file along with a GFF3 export and a QTL-marker flat file from David Grant at Soybase. Currently hardcoded for soybean.
 
 **SyntenyProcessor.java** - stores the syntenic regions from a GFF dump with records formatted by DAGchainer. Currently hardcoded for Pv and Gm.
+
+And some handy utility classes:
 
 **ChadoFeature.java** -  incorporates the fields from the chado feature table into a single object for convenience, along with handy methods for populating Items.
 
