@@ -46,7 +46,6 @@
 
   <class name="GeneFamily" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <attribute name="secondaryIdentifier" type="java.lang.String"/>
     <collection name="genes" referenced-type="Gene" reverse-reference="geneFamily"/>
   </class>
 
