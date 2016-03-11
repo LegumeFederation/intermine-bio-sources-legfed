@@ -128,9 +128,13 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
   </class>
 
-  <class name="SyntenicRegion" extends="SequenceFeature" is-interface="true">
+  <class name="SyntenyRegion" extends="SequenceFeature" is-interface="true"/>
+  
+  <class name="SyntenyBlock" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="medianKs" type="java.lang.Double"/>
-    <reference name="targetRegion" referenced-type="SyntenicRegion"/>
+    <reference name="sourceRegion" referenced-type="SyntenyRegion"/>
+    <reference name="targetRegion" referenced-type="SyntenyRegion"/>
   </class>
 
 </classes>

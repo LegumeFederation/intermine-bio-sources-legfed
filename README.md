@@ -9,7 +9,7 @@ This data source contains several processors:
 
 **CMapProcessor.java** - stores the genetic marker and QTL data from a CMap tab-delimited file along with a GFF3 export and a QTL-marker flat file from David Grant at Soybase. Currently hardcoded for soybean.
 
-**SyntenyProcessor.java** - stores the syntenic regions from a GFF dump with records formatted by DAGchainer. Currently hardcoded for Pv and Gm.
+**SyntenyProcessor.java** - stores the synteny regions from a GFF dump with records formatted by DAGchainer. Currently hardcoded for Pv and Gm.
 
 And some handy utility classes:
 

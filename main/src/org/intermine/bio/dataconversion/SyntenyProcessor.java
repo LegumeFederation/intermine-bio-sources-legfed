@@ -36,7 +36,7 @@ import org.intermine.xml.full.Reference;
 import org.intermine.xml.full.ReferenceList;
 
 /**
- * Read syntenic regions for two organisms from a GFF file and store them as SyntenicRegion items.
+ * Read synteny blocks for two organisms from a GFF file and store them as SyntenyBlock items.
  * This is designed to use the standard (?) GFF annotation produced by DAGchainer.
  *
  * NOTE: input text files are currently HARDCODED
@@ -152,7 +152,7 @@ public class SyntenyProcessor extends ChadoProcessor {
                     // store in map if it's a syntenic_region
                     if (gff.type.equals("syntenic_region")) {
                         gffMap.put(gff.attributeName, gff);
-                        LOG.info("Syntenic region: "+gff.attributeName);
+                        LOG.info("Synteny region: "+gff.attributeName);
                     }
                 }
             }
@@ -171,36 +171,40 @@ public class SyntenyProcessor extends ChadoProcessor {
         }
 
         // ----------------------------------------------------------------------
-        // Now spin through the gffMap records and store the SyntenicRegion Items
+        // Now spin through the gffMap records and store the SyntenyBlock Items
         // ----------------------------------------------------------------------
 
-        LOG.info("Creating, linking and storing syntenic regions...");
+        LOG.info("Creating, linking and storing synteny blocks...");
 
         for (GFFRecord gff : gffMap.values())  {
 
+            Item syntenyBlock = getChadoDBConverter().createItem("SyntenyBlock");
+            syntenyBlock.setAttribute("primaryIdentifier", gff.attributeName);
+
+            syntenyBlock.setAttribute("medianKs", String.valueOf(gff.attributeMedianKs));
+
             // populate the source region and its location
-            Item sourceRegion = getChadoDBConverter().createItem("SyntenicRegion");
+            Item sourceRegion = getChadoDBConverter().createItem("SyntenyRegion");
             Item sourceChromosome = sourceChromosomeMap.getBySecondaryIdentifier(gff.seqid.replace("Pv","phavu.Chr")); // HARDCODED SOURCE GENOME
             Item sourceChromosomeLocation = getChadoDBConverter().createItem("Location");
-            gff.populateSequenceFeature(sourceRegion, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
-            sourceRegion.setAttribute("medianKs", String.valueOf(gff.attributeMedianKs));
+            gff.populateSourceRegion(sourceRegion, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
 
             // populate the target region and its location
-            Item targetRegion = getChadoDBConverter().createItem("SyntenicRegion");
+            Item targetRegion = getChadoDBConverter().createItem("SyntenyRegion");
             Item targetChromosome = targetChromosomeMap.getBySecondaryIdentifier(gff.getTargetChromosome().replace("Gm","glyma.Chr")); // HARDCODED TARGET GENOME
             Item targetChromosomeLocation = getChadoDBConverter().createItem("Location");
-            gff.populateDAGchainerRegion(targetRegion, targetOrganism, targetChromosome, targetChromosomeLocation);
-            targetRegion.setAttribute("medianKs", String.valueOf(gff.attributeMedianKs));
+            gff.populateTargetRegion(targetRegion, targetOrganism, targetChromosome, targetChromosomeLocation);
 
-            // link the two regions
-            sourceRegion.setReference("targetRegion", targetRegion);
-            targetRegion.setReference("targetRegion", sourceRegion);
+            // associate the two regions
+            syntenyBlock.setReference("sourceRegion", sourceRegion);
+            syntenyBlock.setReference("targetRegion", targetRegion);
 
             // and store them
             store(sourceRegion);
             store(sourceChromosomeLocation);
             store(targetRegion);
             store(targetChromosomeLocation);
+            store(syntenyBlock);
             
         }
 

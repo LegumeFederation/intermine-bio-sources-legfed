@@ -356,21 +356,28 @@ public class GFFRecord implements Comparable {
     }
 
     /**
+     * Populate the attributes of a SyntenyRegion with this GFFRecord's data; Organism, Chromosome and ChromosomeLocation Items must be passed in.
+     * All this does is append ".source" to the primaryIdentifier.
+     */
+    public void populateSourceRegion(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
+        populateSequenceFeature(sequenceFeature, organism, chromosome, chromosomeLocation);
+        // override primaryIdentifier
+        sequenceFeature.setAttribute("primaryIdentifier", attributeName+".source");
+    }
+
+    /**
      * Populate the attributes of a SequenceFeature Item with this GFFRecord's DAGchainer data; Organism, Chromosome and ChromosomeLocation Items must be passed in.
      * Does nothing if not a DAGchainer record.
      */
-    public void populateDAGchainerRegion(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
+    public void populateTargetRegion(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
         if (attributeTarget!=null) {
-            sequenceFeature.setAttribute("primaryIdentifier", attributeName);
-            sequenceFeature.setAttribute("length", String.valueOf(getTargetEnd()-getTargetStart()+1));
-            sequenceFeature.setReference("organism", organism);
-            sequenceFeature.setReference("chromosome", chromosome);
-            sequenceFeature.setReference("chromosomeLocation", chromosomeLocation);
+            populateSequenceFeature(sequenceFeature, organism, chromosome, chromosomeLocation);
+            // override attributes with DAGchainer stuff
+            sequenceFeature.setAttribute("primaryIdentifier", attributeName+".target");
             chromosomeLocation.setAttribute("start", String.valueOf(getTargetStart()));
             chromosomeLocation.setAttribute("end", String.valueOf(getTargetEnd()));
             chromosomeLocation.setAttribute("strand", String.valueOf(getTargetStrand()));
-            chromosomeLocation.setReference("feature", sequenceFeature);
-            chromosomeLocation.setReference("locatedOn", chromosome);
+            sequenceFeature.setAttribute("length", String.valueOf(getTargetEnd()-getTargetStart()+1));
         }
     }
 
