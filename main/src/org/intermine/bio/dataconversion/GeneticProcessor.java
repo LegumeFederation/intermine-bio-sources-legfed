@@ -351,7 +351,6 @@ public class GeneticProcessor extends ChadoProcessor {
                 double length = rs.getDouble("mappos");
                 Item linkageGroup = linkageGroupMap.get(new Integer(feature_id));
                 if (linkageGroup!=null) {
-                    geneticMap.addToCollection("linkageGroups", linkageGroup);
                     linkageGroup.setAttribute("length", String.valueOf(length));
                     linkageGroup.setReference("geneticMap", geneticMap);
                 }
