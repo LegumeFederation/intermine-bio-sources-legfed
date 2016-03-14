@@ -82,8 +82,7 @@ public class GeneticProcessor extends ChadoProcessor {
         Item organism = getChadoDBConverter().createItem("Organism");
         organism.setAttribute("taxonId", String.valueOf(taxonId));
         store(organism);
-        LOG.info("Created and stored organism Item for taxonId="+taxonId+" and chado organism_id="+organism_id);
-
+        LOG.info("Created and stored organism Item for taxonId="+taxonId+".");
         
         // ---------------------------------------------------------
         // get the cvterm_id values for all our items of interest, to simplify queries below
