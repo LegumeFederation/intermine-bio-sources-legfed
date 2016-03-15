@@ -183,16 +183,12 @@ public class SyntenyProcessor extends ChadoProcessor {
             Item sourceRegion = getChadoDBConverter().createItem("SyntenyRegion");
             Item sourceChromosomeLocation = getChadoDBConverter().createItem("Location");
             gff.populateSourceRegion(sourceRegion, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
-            store(sourceRegion);
-            store(sourceChromosomeLocation);
 
             // populate the target region and its location
             Item targetChromosome = targetChromosomeMap.getBySecondaryIdentifier(gff.getTargetChromosome().replace("Gm","glyma.Chr")); // HARDCODED TARGET GENOME
             Item targetRegion = getChadoDBConverter().createItem("SyntenyRegion");
             Item targetChromosomeLocation = getChadoDBConverter().createItem("Location");
             gff.populateTargetRegion(targetRegion, targetOrganism, targetChromosome, targetChromosomeLocation);
-            store(targetRegion);
-            store(targetChromosomeLocation);
 
             // associate the two regions with a synteny block
             Item syntenyBlock = getChadoDBConverter().createItem("SyntenyBlock");
@@ -201,6 +197,15 @@ public class SyntenyProcessor extends ChadoProcessor {
             syntenyBlock.setReference("sourceRegion", sourceRegion);
             syntenyBlock.setReference("targetRegion", targetRegion);
             store(syntenyBlock);
+
+	    sourceRegion.setReference("syntenyBlock", syntenyBlock);
+	    targetRegion.setReference("syntenyBlock", syntenyBlock);
+
+            store(sourceRegion);
+            store(sourceChromosomeLocation);
+
+            store(targetRegion);
+            store(targetChromosomeLocation);
             
         }
 

@@ -50,6 +50,7 @@
   </class>
 
   <!-- genetic markers are both genetic and genomic -->
+
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <!-- SNP, SSR, RFLP, etc. -->
@@ -128,7 +129,9 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
   </class>
 
-  <class name="SyntenyRegion" extends="SequenceFeature" is-interface="true"/>
+  <class name="SyntenyRegion" extends="SequenceFeature" is-interface="true">
+	<reference name="syntenyBlock" referenced-type="SyntenyBlock"/>
+  </class>
   
   <class name="SyntenyBlock" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
