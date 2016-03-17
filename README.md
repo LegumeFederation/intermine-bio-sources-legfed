@@ -11,6 +11,8 @@ This data source contains several processors:
 
 **SyntenyProcessor.java** - stores the synteny regions from a GFF dump with records formatted by DAGchainer. Currently hardcoded for Pv and Gm.
 
+**GOProcessor.java** - parses the GO:terms out of chado gene.description field and associates them with the gene. Run the go data source to fill out the GO terms.
+
 And some handy utility classes:
 
 **ChadoFeature.java** -  incorporates the fields from the chado feature table into a single object for convenience, along with handy methods for populating Items.
@@ -21,5 +23,7 @@ And some handy utility classes:
 
 **PubMedSearch.java** - performs a search of NCBI PubMed on journal, year and authors. This is used to get the PubMed ID from the information provided in the chado database for genetic maps.
 
-The other classes are unchanged from chado-db (I think).
+A few chado-db classes are changed:
+
+**ChadoDBConverter.java** - added setDagChainerFile() and getDagChainerFile(), used by SyntenyProcessor (it's a GFF3 file with DAGchainer annotation).
 

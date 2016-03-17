@@ -11,6 +11,7 @@ package org.intermine.bio.dataconversion;
  */
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -36,8 +37,8 @@ import org.intermine.xml.full.Reference;
 import org.intermine.xml.full.ReferenceList;
 
 /**
- * Read synteny blocks for two organisms from a GFF file and store them as SyntenyBlock items.
- * This is designed to use the standard (?) GFF annotation produced by DAGchainer.
+ * Read synteny blocks for two organisms from a DAGchainer synteny GFF file and store them as SyntenyBlock items.
+ * This is designed to use the GFF annotation produced by DAGchainer.
  *
  * NOTE: input text files are currently HARDCODED
  *
@@ -47,8 +48,16 @@ public class SyntenyProcessor extends ChadoProcessor {
 	
     private static final Logger LOG = Logger.getLogger(SyntenyProcessor.class);
 
-    // NOTE: HARDCODED inter-organism synteny GFF FILE
-    String gffFilename = "/home/intermine/data/synteny_Pv_with_Gm.gff3";
+    // DAGchainer synteny gff file location is passed in as parameter dagChainerFile in project.xml
+    File dagChainerFile;
+
+    // InterMine organism IDs
+    int sourceTaxonId;
+    int targetTaxonId;
+
+    // chado organism_ids
+    int source_organism_id;
+    int target_organism_id;
 
     /**
      * Create a new SyntenyProcessor
@@ -66,36 +75,60 @@ public class SyntenyProcessor extends ChadoProcessor {
     @Override
     public void process(Connection connection) throws SQLException, ObjectStoreException {
 
+        // ---------------------------------------------------------
+        // ---------------- INITIAL DATA LOADING -------------------
+        // ---------------------------------------------------------
+
         // initialize our DB statement and stuff for chado queries
         Statement stmt = connection.createStatement();
         String query;
         ResultSet rs;
-        
-        // ---------------------------------------------------------
-        // ---------------- INITIAL DATA LOADING -------------------
-        // ---------------------------------------------------------
-        // NOTE: HARDCODED organisms; don't know how to send in the source and target organisms from project.xml!
 
-        // chado
-        int source_organism_id = 24; // Pv
-        int target_organism_id = 16; // Gm
+        // get the taxonomy IDs corresponding to the source and target
+        try {
+            sourceTaxonId = getChadoDBConverter().getSourceOrganism();
+            targetTaxonId = getChadoDBConverter().getTargetOrganism();
+        } catch (Exception ex) {
+            throw new RuntimeException("Error retrieving source and target taxonomy IDs from project.xml: "+ex.toString());
+        }
+        LOG.info("sourceTaxonId="+sourceTaxonId);
+        LOG.info("targetTaxonId="+targetTaxonId);
+        if (sourceTaxonId==0 || targetTaxonId==0) {
+            LOG.error("Error retrieving source and target taxonomy IDs from project.xml.");
+            // HACK - until I figure out the bug in this
+            sourceTaxonId = 3885;
+            targetTaxonId = 3847;
+        }
 
-        // InterMine
-        int sourceTaxonId = 3885; // Pv
-        int targetTaxonId = 3847; // Gm
+        // get the chado organism_ids, which are keys of the ChadoIdToOrgDataMap;
+        try {
+            for (Map.Entry<Integer,OrganismData> entry : getChadoDBConverter().getChadoIdToOrgDataMap().entrySet()) {
+                if (entry.getValue().getTaxonId()==sourceTaxonId) source_organism_id = (int)entry.getKey();
+                if (entry.getValue().getTaxonId()==targetTaxonId) target_organism_id = (int)entry.getKey();
+            }
+        } catch (Exception ex) {
+            throw new RuntimeException("Error determining source and target chado organism_ids: "+ex.toString());
+        }
+        LOG.info("source_organism_id="+source_organism_id);
+        LOG.info("target_organism_id="+target_organism_id);
+        if (source_organism_id==0 || target_organism_id==0) {
+            LOG.error("Error retrieving source and target chado organism_ids from project.xml.");
+            throw new RuntimeException("Error retrieving source and target chado organism_ids from project.xml.");
+        }
 
-        // create organism Items
+        // create and store organism Items
         Item sourceOrganism = getChadoDBConverter().createItem("Organism");
         sourceOrganism.setAttribute("taxonId", String.valueOf(sourceTaxonId));
+        store(sourceOrganism);
         Item targetOrganism = getChadoDBConverter().createItem("Organism");
         targetOrganism.setAttribute("taxonId", String.valueOf(targetTaxonId));
-
-        // may as well store them now
-        store(sourceOrganism);
         store(targetOrganism);
-        
         LOG.info("Created and stored sourceOrganism, taxonId="+sourceTaxonId+" and targetOrganism, taxonId="+targetTaxonId);
 
+        // get the all-important DAGchainer GFF file
+        dagChainerFile = getChadoDBConverter().getDagChainerFile();
+        LOG.info("dagChainerFile="+dagChainerFile.getAbsolutePath());
+        
         // -------------------------------------------------------------------------------------------------------------------
         // Load the GFF data into a map. Create source and target chromosome Items.
         //
@@ -108,8 +141,8 @@ public class SyntenyProcessor extends ChadoProcessor {
         
         try {
             
-            BufferedReader gffReader = new BufferedReader(new FileReader(gffFilename));
-            LOG.info("Reading GFF file:"+gffFilename);
+            BufferedReader gffReader = new BufferedReader(new FileReader(dagChainerFile));
+            LOG.info("Reading GFF file:"+dagChainerFile.getName());
             String gffLine = null;
             while ((gffLine=gffReader.readLine()) != null) {
                 GFFRecord gff = new GFFRecord(gffLine);
@@ -158,9 +191,9 @@ public class SyntenyProcessor extends ChadoProcessor {
             }
             gffReader.close();
             
-            LOG.info("Read "+gffMap.size()+" GFF records from "+gffFilename+".");
-            LOG.info("Created "+sourceChromosomeMap.size()+" source Chromosome items from "+gffFilename+".");
-            LOG.info("Created "+targetChromosomeMap.size()+" target Chromosome items from "+gffFilename+".");
+            LOG.info("Read "+gffMap.size()+" GFF records from "+dagChainerFile.getName()+".");
+            LOG.info("Created "+sourceChromosomeMap.size()+" source Chromosome items from "+dagChainerFile.getName()+".");
+            LOG.info("Created "+targetChromosomeMap.size()+" target Chromosome items from "+dagChainerFile.getName()+".");
 
         } catch (Exception ex) {
 

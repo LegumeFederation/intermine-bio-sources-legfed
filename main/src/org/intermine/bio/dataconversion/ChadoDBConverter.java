@@ -10,6 +10,7 @@ package org.intermine.bio.dataconversion;
  *
  */
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -52,6 +53,10 @@ public class ChadoDBConverter extends BioDBConverter {
 
     private Connection connection;
 
+    // used by SyntenyProcessor
+    private File dagChainerFile;
+    private int sourceOrganismTaxonId;
+    private int targetOrganismTaxonId;
 
     /**
      * Create a new ChadoDBConverter object.
@@ -104,6 +109,50 @@ public class ChadoDBConverter extends BioDBConverter {
     public void setProcessors(String processors) {
         this.processors = processors;
     }
+
+    /**
+     * Set the DAGchainer synteny GFF3 file (used by SyntenyProcessor).
+     *
+     * @param dagChainerFile GFF3 input file
+     */
+    public void setDagChainerFile(File dagChainerFile) {
+        this.dagChainerFile = dagChainerFile;
+    }
+    /**
+     * Return the DAGchainer GFF3 file
+     */
+    public File getDagChainerFile() {
+        return dagChainerFile;
+    }
+
+    /**
+     * Set the source organism tax ID
+     */
+    public void setSourceOrganism(String sourceOrganism) {
+        LOG.info("setSourceOrganism:"+sourceOrganism);
+        sourceOrganismTaxonId = Integer.parseInt(sourceOrganism);
+    }
+    /**
+     * Return the source organism tax ID
+     */
+    public int getSourceOrganism() {
+        return sourceOrganismTaxonId;
+    }
+    
+    /**
+     * Set the target organism tax ID
+     */
+    public void setTargetOrganism(String targetOrganism) {
+        LOG.info("setTargetOrganism:"+targetOrganism);
+        targetOrganismTaxonId = Integer.parseInt(targetOrganism);
+    }
+    /**
+     * Return the target organism tax ID
+     */
+    public int getTargetOrganism() {
+        return targetOrganismTaxonId;
+    }
+
 
     /**
      * Return a map from chado organism_id to OrganismData object for all the organisms that we are processing.

@@ -140,4 +140,6 @@
     <reference name="targetRegion" referenced-type="SyntenyRegion"/>
   </class>
 
+  <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
+
 </classes>
