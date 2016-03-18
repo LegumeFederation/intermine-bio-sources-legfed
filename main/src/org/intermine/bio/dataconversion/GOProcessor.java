@@ -108,13 +108,10 @@ public class GOProcessor extends ChadoProcessor {
                 String[] goNumbers = StringUtils.substringsBetween(description, "GO:", " ");
                 if (goNumbers!=null) {
 
-                    // create the Gene item and store some basic stuff
+                    // create the Gene item and store the minimal stuff required for merging (and note that gene.symbol is bogus)
                     Item gene = getChadoDBConverter().createItem("Gene");
                     gene.setReference("organism", organism);
-                    gene.setAttribute("chadoFeatureId", String.valueOf(rs.getInt("gene_id")));
                     gene.setAttribute("primaryIdentifier", rs.getString("uniquename"));
-                    gene.setAttribute("secondaryIdentifier", rs.getString("name"));
-                    gene.setAttribute("symbol", rs.getString("abbreviation"));
 
                     // add the GO terms, etc.
                     for (int j=0; j<goNumbers.length; j++) {
