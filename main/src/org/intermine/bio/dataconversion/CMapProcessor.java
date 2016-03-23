@@ -353,7 +353,7 @@ public class CMapProcessor extends ChadoProcessor {
                         int feature_id = rs.getInt("feature_id");
                         Item gene = geneMap.get(new Integer(feature_id));
                         if (gene!=null) {
-                            qtl.addToCollection("overlappingGenes", gene);
+                            qtl.addToCollection("overlappedGenes", gene);
                         }
                     }
                     rs.close();

@@ -431,7 +431,7 @@ public class GeneticProcessor extends ChadoProcessor {
                         int feature_id = rs.getInt("feature_id");
                         Item gene = geneMap.get(new Integer(feature_id));
                         if (gene!=null) {
-                            qtl.addToCollection("overlappingGenes", gene);
+                            qtl.addToCollection("overlappedGenes", gene);
                         }
                     }
                     rs.close();
@@ -439,7 +439,7 @@ public class GeneticProcessor extends ChadoProcessor {
             }
             
         } // QTL loop
-        LOG.info("***** Done populating QTLs with genetic markers from feature_relationship and overlapping genes from featureloc.");
+        LOG.info("***** Done populating QTLs with genetic markers from feature_relationship and overlapped genes from featureloc.");
         
             
         // ----------------------------------------------------------------

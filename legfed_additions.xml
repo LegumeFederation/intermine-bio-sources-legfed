@@ -5,12 +5,9 @@
 
   <class name="QTL" extends="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
-    <!-- these from feature_relationship, QTL is source, genetic marker is object, type is Nearest Marker, Flanking Marker Low or Flanking Marker High (not stored) -->
     <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
-    <!-- these from featureloc with the begin,end in cM being given by fmin/100,fmax/100 -->
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
-    <!-- these from querying featureloc for genes that overlap full span of associated genetic markers -->
-    <collection name="overlappingGenes" referenced-type="Gene"/>
+    <collection name="overlappedGenes" referenced-type="Gene" reverse-reference="overlappingQTLs"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
@@ -55,9 +52,7 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <!-- SNP, SSR, RFLP, etc. -->
     <attribute name="type" type="java.lang.String"/>
-    <!-- this from feature_relationship -->
     <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
-    <!-- these from featurepos -->
     <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
   </class>
 
@@ -89,7 +84,6 @@
   </class>
 
   <class name="ProteinHmmMatch" extends="ProteinMatch" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <reference name="polypeptideDomain" referenced-type="PolypeptideDomain"/>
     <reference name="polypeptideDomainLocation" referenced-type="Location"/>
   </class>
@@ -123,6 +117,7 @@
     <attribute name="familyRepresentative" type="java.lang.String"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
     <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="gene"/>
+    <collection name="overlappingQTLs" referenced-type="QTL" reverse-reference="overlappedGenes"/>
   </class>
 
   <class name="Chromosome" is-interface="true">
