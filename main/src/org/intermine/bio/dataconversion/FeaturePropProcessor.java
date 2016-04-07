@@ -28,28 +28,28 @@ import org.intermine.xml.full.Item;
 import org.intermine.xml.full.Reference;
 
 /**
- * Store the extra data from the chado.featureproc table in attributes defined in the data model.
+ * Store the extra data from the chado.featureprop table in attributes defined in the data model.
  *
  * Since this processer deals only with chado data, Items are stored in maps with Integer keys equal to
  * the chado feature.feature_id.
  *
  * @author Sam Hokin, NCGR
  */
-public class FeatureProcProcessor extends ChadoProcessor {
+public class FeaturePropProcessor extends ChadoProcessor {
 	
-    private static final Logger LOG = Logger.getLogger(FeatureProcProcessor.class);
+    private static final Logger LOG = Logger.getLogger(FeaturePropProcessor.class);
 
     /**
-     * Create a new FeatureProcProcessor
+     * Create a new FeaturePropProcessor
      * @param chadoDBConverter the ChadoDBConverter that is controlling this processor
      */
-    public FeatureProcProcessor(ChadoDBConverter chadoDBConverter) {
+    public FeaturePropProcessor(ChadoDBConverter chadoDBConverter) {
         super(chadoDBConverter);
     }
 
     /**
      * {@inheritDoc}
-     * We process the chado database by reading the featureproc table for the feature_id values of our features of interest.
+     * We process the chado database by reading the featureprop table for the feature_id values of our features of interest.
      */
     @Override
     public void process(Connection connection) throws SQLException, ObjectStoreException {
@@ -66,7 +66,7 @@ public class FeatureProcProcessor extends ChadoProcessor {
         int proteinHmmMatchCVTermId = getCVTermId(stmt, "protein_hmm_match");
         int geneCVTermId = getCVTermId(stmt, "gene");
 
-        // desired featureproc types
+        // desired featureprop types
         int noteCVTermId = getCVTermId(stmt, "Note");
         int commentCVTermId = getCVTermId(stmt, "comment");
         int experimentTraitDescriptionCVTermId = getCVTermId(stmt, "Experiment Trait Description");
@@ -291,7 +291,7 @@ public class FeatureProcProcessor extends ChadoProcessor {
     }
 
     /**
-     * Load an attribute from the featureproc table
+     * Load an attribute from the featureprop table
      */
     void loadAttribute(Statement stmt, int feature_id, Item item, String attributeName, int cvTermId) throws SQLException {
         ResultSet rs = stmt.executeQuery("SELECT * FROM featureprop WHERE feature_id="+feature_id+" AND type_id="+cvTermId+" ORDER BY rank");

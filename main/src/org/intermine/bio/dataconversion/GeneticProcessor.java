@@ -10,6 +10,8 @@ package org.intermine.bio.dataconversion;
  *
  */
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -55,261 +57,181 @@ public class GeneticProcessor extends ChadoProcessor {
     @Override
     public void process(Connection connection) throws SQLException, ObjectStoreException {
         
-        // initialize our DB statement and other stuff
+        // initialize our DB statement
         Statement stmt = connection.createStatement();
-        String query;
-        ResultSet rs;
         
         // ---------------------------------------------------------
         // ---------------- INITIAL DATA LOADING -------------------
         // ---------------------------------------------------------
-
-        // get chado organism_id from supplied taxon ID - enforce processing a single organism!
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        if (chadoToOrgData.size()>1) {
-            System.err.println("ERROR - multiple chado organisms specified in data source; GeneticProcessor can only process one organism at a time.");
-            System.exit(1);
-        }
-        Integer organismId = 0;
-        for (Integer key : chadoToOrgData.keySet()) {
-            organismId = key.intValue();
-        }
-        OrganismData org = chadoToOrgData.get(organismId);
-        int organism_id = organismId.intValue();
-        int taxonId = org.getTaxonId();
-
-        // create organism Item
-        Item organism = getChadoDBConverter().createItem("Organism");
-        organism.setAttribute("taxonId", String.valueOf(taxonId));
-        store(organism);
-        LOG.info("Created and stored organism Item for taxonId="+taxonId+".");
         
-        // ---------------------------------------------------------
         // get the cvterm_id values for all our items of interest, to simplify queries below
-        // ---------------------------------------------------------
-
-        // genes
-        int geneCVTermId = 0;
-        rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='gene'");
-        if (rs.next()) geneCVTermId = rs.getInt("cvterm_id");
-        rs.close();
-
-        // linkage groups
-        int linkageGroupCVTermId = 0;
-        rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='linkage_group'");
-        if (rs.next()) linkageGroupCVTermId = rs.getInt("cvterm_id");
-        rs.close();
-
-        // genetic markers
-        int geneticMarkerCVTermId = 0;
-        rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='genetic_marker'");
-        if (rs.next()) geneticMarkerCVTermId = rs.getInt("cvterm_id");
-        rs.close();
-
-        // QTLs
-        int qtlCVTermId = 0;
-        rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='QTL'");
-        if (rs.next()) qtlCVTermId = rs.getInt("cvterm_id");
-        rs.close();
-
-        // gene families
-        int geneFamilyCVTermId = 0;
-        rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='gene family'");
-        if (rs.next()) geneFamilyCVTermId = rs.getInt("cvterm_id");
-        rs.close();
-
-        // -----------------------------------------------------------------------------
-        // load the Items into maps
-        // -----------------------------------------------------------------------------
+        int geneCVTermId = getCVTermId(stmt, "gene");
+        int linkageGroupCVTermId = getCVTermId(stmt, "linkage_group");
+        int geneticMarkerCVTermId = getCVTermId(stmt, "genetic_marker");
+        int qtlCVTermId = getCVTermId(stmt, "QTL");
+        int geneFamilyCVTermId = getCVTermId(stmt, "gene family");
         
-        // GENES
-        // load the relevant genes from the feature table
+        // build the Organism map from the supplied taxon IDs
+        Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
+        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
+        for (Map.Entry<Integer,OrganismData> entry : chadoToOrgData.entrySet()) {
+            Integer organismId = entry.getKey();
+            OrganismData organismData = entry.getValue();
+            int taxonId = organismData.getTaxonId();
+            Item organism = getChadoDBConverter().createItem("Organism");
+            organism.setAttribute("taxonId", String.valueOf(taxonId));
+            store(organism);
+            organismMap.put(organismId, organism);
+        }
+        LOG.info("Created and stored "+organismMap.size()+" organism Items.");
+
+        // store the Items in maps
         Map<Integer,Item> geneMap = new HashMap<Integer,Item>();
-        query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+geneCVTermId;
-        LOG.info("executing query: "+query);
-        rs = stmt.executeQuery(query);
-        while (rs.next()) {
-            ChadoFeature cf = new ChadoFeature(rs);
-            Item gene = getChadoDBConverter().createItem("Gene");
-            cf.populateBioEntity(gene, organism);
-            geneMap.put(new Integer(cf.feature_id), gene);
-        }
-        rs.close();
-        LOG.info("Created "+geneMap.size()+" Gene items.");
-
-        // LINKAGE GROUPS
-        // load the linkage groups from the feature table
         Map<Integer,Item> linkageGroupMap = new HashMap<Integer,Item>();
-        query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+linkageGroupCVTermId;
-        LOG.info("executing query: "+query);
-        rs = stmt.executeQuery(query);
-        while (rs.next()) {
-            ChadoFeature cf = new ChadoFeature(rs);
-            Item linkageGroup = getChadoDBConverter().createItem("LinkageGroup");
-            cf.populateBioEntity(linkageGroup, organism);
-            linkageGroupMap.put(new Integer(cf.feature_id), linkageGroup);
-        }
-        rs.close();
-        LOG.info("Created "+linkageGroupMap.size()+" LinkageGroup items.");
-
-        // GENETIC MARKERS
-        // load the genetic markers from the feature table
         Map<Integer,Item> geneticMarkerMap = new HashMap<Integer,Item>();
-        query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+geneticMarkerCVTermId;
-        LOG.info("executing query: "+query);
-        rs = stmt.executeQuery(query);
-        while (rs.next()) {
-            ChadoFeature cf = new ChadoFeature(rs);
-            Item geneticMarker = getChadoDBConverter().createItem("GeneticMarker");
-            cf.populateBioEntity(geneticMarker, organism);
-            geneticMarkerMap.put(new Integer(cf.feature_id), geneticMarker);
-        }
-        rs.close();
-        LOG.info("Created "+geneticMarkerMap.size()+" GeneticMarker items.");
-
-        // QTLS
-        // load the QTLs from the feature table
         Map<Integer,Item> qtlMap = new HashMap<Integer,Item>();
-        query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+qtlCVTermId;
-        LOG.info("executing query: "+query);
-        rs = stmt.executeQuery(query);
-        while (rs.next()) {
-            ChadoFeature cf = new ChadoFeature(rs);
-            Item qtl = getChadoDBConverter().createItem("QTL");
-            cf.populateBioEntity(qtl, organism);
-            qtlMap.put(new Integer(cf.feature_id), qtl);
-        }
-        rs.close();
-        LOG.info("Created "+qtlMap.size()+" QTL items.");
-
-        // GENETIC MAPS
-        // genetic maps are not in the feature table, so we use linkage groups to query them for this organism
-        // we'll assume the units are cM, although we can query them if we want to be really pedantic
         Map<Integer,Item> geneticMapMap = new HashMap<Integer,Item>();
-        query = "SELECT * FROM featuremap WHERE featuremap_id IN (" +
-            "SELECT DISTINCT featuremap_id FROM featurepos WHERE feature_id IN (" +
-            "SELECT feature_id FROM feature WHERE type_id="+linkageGroupCVTermId+" AND organism_id="+organism_id+"))";
-        LOG.info("executing query: "+query);
-        rs = stmt.executeQuery(query);
-        while (rs.next()) {
-            // featuremap fields
-            int featuremap_id = rs.getInt("featuremap_id");
-            String name = rs.getString("name");
-            String description = rs.getString("description");
-            // build the GeneticMap item
-            Item geneticMap = getChadoDBConverter().createItem("GeneticMap");
-            geneticMap.setAttribute("primaryIdentifier", name);
-            geneticMap.setAttribute("description", description);
-            geneticMap.setAttribute("unit", "cM");
-            geneticMap.setReference("organism", organism);
-            // put it in its map for further processing
-            geneticMapMap.put(new Integer(featuremap_id), geneticMap);
+
+        // loop over the organisms to fill the Item maps 
+        for (Map.Entry<Integer,Item> orgEntry : organismMap.entrySet()) {
+            int organism_id = orgEntry.getKey().intValue();
+            Item organism = orgEntry.getValue();
+
+            // fill these maps from the feature table
+            populateMap(stmt, geneMap, "Gene", geneCVTermId, organism_id, organism);
+            populateMap(stmt, linkageGroupMap, "LinkageGroup", linkageGroupCVTermId, organism_id, organism);
+            populateMap(stmt, geneticMarkerMap, "GeneticMarker", geneticMarkerCVTermId, organism_id, organism);
+            populateMap(stmt, qtlMap, "QTL", qtlCVTermId, organism_id, organism);
+
+            // genetic maps are not in the feature table, so we use linkage groups to query them for this organism
+            // we'll assume the units are cM, although we can query them if we want to be really pedantic
+            String query = "SELECT * FROM featuremap WHERE featuremap_id IN (" +
+                "SELECT DISTINCT featuremap_id FROM featurepos WHERE feature_id IN (" +
+                "SELECT feature_id FROM feature WHERE type_id="+linkageGroupCVTermId+" AND organism_id="+organism_id+"))";
+            LOG.info("executing query: "+query);
+            ResultSet rs0 = stmt.executeQuery(query);
+            while (rs0.next()) {
+                // featuremap fields
+                int featuremap_id = rs0.getInt("featuremap_id");
+                String name = rs0.getString("name");
+                String description = rs0.getString("description");
+                // build the GeneticMap item
+                Item geneticMap = getChadoDBConverter().createItem("GeneticMap");
+                geneticMap.setAttribute("primaryIdentifier", name);
+                geneticMap.setAttribute("description", description);
+                geneticMap.setAttribute("unit", "cM");
+                geneticMap.setReference("organism", organism);
+                // put it in its map for further processing
+                geneticMapMap.put(new Integer(featuremap_id), geneticMap);
+            }
+            rs0.close();
         }
-        rs.close();
+
+        LOG.info("Created "+geneMap.size()+" Gene items.");
+        LOG.info("Created "+linkageGroupMap.size()+" LinkageGroup items.");
+        LOG.info("Created "+geneticMarkerMap.size()+" GeneticMarker items.");
+        LOG.info("Created "+qtlMap.size()+" QTL items.");
         LOG.info("Created "+geneticMapMap.size()+" GeneticMap items.");
 
-        // GENE FAMILIES
-        // load the gene families from the featureprop table for our organism - distinct values with gene family type_id
-        // Note: we don't have IDs for gene families, so we use their name as the key
+        // Gene families are organism-independent; load from the featureprop table
+        // Note: we don't have chado IDs for gene families, so we use their name as the key
         Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
-        query = "SELECT DISTINCT featureprop.value FROM featureprop,feature " +
-            "WHERE featureprop.type_id="+geneFamilyCVTermId+" AND featureprop.feature_id=feature.feature_id AND feature.organism_id="+organism_id;
+        String query = "SELECT DISTINCT value FROM featureprop WHERE type_id="+geneFamilyCVTermId;
         LOG.info("executing query: "+query);
-        rs = stmt.executeQuery(query);
-        while (rs.next()) {
-            String value = rs.getString("value");
+        ResultSet rs0 = stmt.executeQuery(query);
+        while (rs0.next()) {
+            String value = rs0.getString("value");
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
             geneFamily.setAttribute("primaryIdentifier", value);
             geneFamilyMap.put(value, geneFamily);
         }
-        rs.close();
-        LOG.info("Created "+geneFamilyMap.size()+" GeneFamily items.");
+        rs0.close();
+        
+        // Grab the gene family descriptions from phylotree, which we can't assume exists or contains records matching those above
+        for (Map.Entry<String,Item> entry : geneFamilyMap.entrySet()) {
+            String name = entry.getKey();
+            Item geneFamily = entry.getValue();
+            try {
+                ResultSet rs1 = stmt.executeQuery("SELECT comment FROM phylotree WHERE name='"+name+"'");
+                if (rs1.next()) {
+                    geneFamily.setAttribute("description", rs1.getString("comment"));
+                }
+                rs1.close();
+            } catch (Exception ex) {
+                LOG.error(ex.toString());
+            }
+        }
 
+        LOG.info("Created "+geneFamilyMap.size()+" GeneFamily items.");
         
         //---------------------------------------------------------
         // ---------------- DATA ASSOCIATION ----------------------
         //---------------------------------------------------------
 
-        // query the pub table to retrieve and link Publications that are referenced by our GeneticMaps
-        Map<Integer,Item> publicationMap = new HashMap<Integer,Item>();
+        // query the pub table to retrieve and link Publications that are referenced by our genetic maps in featuremap_pub
+        Map<Integer,Item> gmPubMap = new HashMap<Integer,Item>();
         for (Map.Entry<Integer,Item> entry : geneticMapMap.entrySet()) {
             int featuremap_id = (int) entry.getKey();
             Item geneticMap = entry.getValue();
-            query = "SELECT * FROM pub WHERE pub_id IN (SELECT pub_id FROM featuremap_pub WHERE featuremap_id="+featuremap_id+")";
-            rs = stmt.executeQuery(query);
-            while (rs.next()) {
-                // extract the relevant pub attributes
-                // NOTE: should have PubMed ID, but not given in chado (generally)!
+            ResultSet rs1 = stmt.executeQuery("SELECT * FROM pub WHERE pub_id IN (SELECT pub_id FROM featuremap_pub WHERE featuremap_id="+featuremap_id+")");
+            while (rs1.next()) {
                 Item publication;
-                int pub_id = rs.getInt("pub_id");
-                if (publicationMap.containsKey(new Integer(pub_id))) {
-                    // pub already exists, so link to the existing pub
-                    publication = publicationMap.get(new Integer(pub_id));
+                int pub_id = rs1.getInt("pub_id");
+                if (gmPubMap.containsKey(new Integer(pub_id))) {
+                    // pub already exists, so get from the map
+                    publication = gmPubMap.get(new Integer(pub_id));
                 } else {
-                    // new pub, so create it
-                    String title = rs.getString("title");
-                    String volume = rs.getString("volume");
-                    String journal = rs.getString("series_name");
-                    String issue = rs.getString("issue");
-                    String year = rs.getString("pyear");
-                    String pages = rs.getString("pages");
-                    String uniquename = rs.getString("uniquename");
-                    String[] parts = uniquename.split("et al");
-                    if (parts.length==1) parts = parts[0].split(",");
-                    String firstAuthor = parts[0];
-                    int pubMedId = 0;
-                    try {
-                        // search for the PubMedId, hopefully find it with just first author
-                        String[] authors = new String[1];
-                        authors[0] = firstAuthor;
-                        pubMedId = PubMedSearch.getPubMedId(journal, Integer.parseInt(year), authors);
-                    } catch (Exception ex) {
-                        // do nothing
-                    }
-                    // build the Publication item
+                    // create it, set the attributes from the ResultSet, add it to its map
                     publication = getChadoDBConverter().createItem("Publication");
-                    if (title!=null && title.length()>0 && !title.equals("NULL")) publication.setAttribute("title", title);
-                    if (volume!=null && volume.length()>0 && !volume.equals("NULL")) publication.setAttribute("volume", volume);
-                    if (journal!=null && journal.length()>0 && !journal.equals("NULL")) publication.setAttribute("journal", journal);
-                    if (issue!=null && issue.length()>0 && !issue.equals("NULL")) publication.setAttribute("issue", issue);
-                    if (year!=null && year.length()>0 && !year.equals("NULL")) publication.setAttribute("year", year);
-                    if (pages!=null && pages.length()>0 && !pages.equals("NULL")) publication.setAttribute("pages", pages);
-                    if (firstAuthor!=null && firstAuthor.length()>0) publication.setAttribute("firstAuthor", firstAuthor);
-                    if (pubMedId!=0) publication.setAttribute("pubMedId", String.valueOf(pubMedId));
-                    // put it in its map for further processing
-                    publicationMap.put(new Integer(pub_id), publication);
+                    setPublicationAttributes(publication, rs1);
+                    gmPubMap.put(new Integer(pub_id), publication);
                 }
                 // add the GeneticMap reference to the Publication (reverse-referenced)
                 publication.addToCollection("bioEntities", geneticMap);
             }
-            rs.close();
+            rs1.close();
         }
-        LOG.info("***** Done creating "+publicationMap.size()+" Publication items associated with genetic maps.");
+        LOG.info("***** Done creating "+gmPubMap.size()+" Publication items associated with genetic maps.");
 
+        // query the pub table to retrieve and link Publications that are referenced by our QTLs in feature_cvterm
+        Map<Integer,Item> qtlPubMap = new HashMap<Integer,Item>();
+        for (Map.Entry<Integer,Item> entry : qtlMap.entrySet()) {
+            int feature_id = entry.getKey().intValue();
+            Item qtl = entry.getValue();
+            ResultSet rs1 = stmt.executeQuery("SELECT * FROM pub WHERE pub_id IN (SELECT pub_id FROM feature_cvterm WHERE feature_id="+feature_id+")");
+            while (rs1.next()) {
+                Item publication;
+                int pub_id = rs1.getInt("pub_id");
+                if (qtlPubMap.containsKey(new Integer(pub_id))) {
+                    // pub already exists, so get from the map
+                    publication = qtlPubMap.get(new Integer(pub_id));
+                } else {
+                    // create it, set the attributes from the ResultSet, add it to its map
+                    publication = getChadoDBConverter().createItem("Publication");
+                    setPublicationAttributes(publication, rs1);
+                    qtlPubMap.put(new Integer(pub_id), publication);
+                }
+                // add the QTL reference to the Publication (reverse-referenced)
+                publication.addToCollection("bioEntities", qtl);
+            }
+            rs1.close();
+        }
+        LOG.info("***** Done creating "+qtlPubMap.size()+" Publication items associated with QTLs.");
+        
         // query the featureprop table to associate our genes with gene families
         for (Map.Entry<Integer,Item> entry : geneMap.entrySet()) {
             int feature_id = (int) entry.getKey(); // gene
             Item gene = entry.getValue();
-            query = "SELECT * FROM featureprop WHERE feature_id="+feature_id;
-            rs = stmt.executeQuery(query);
-            while (rs.next()) {
-                int featureprop_id = rs.getInt("featureprop_id"); // not used
-                int type_id = rs.getInt("type_id");               // one of three possibilities
-                String value = rs.getString("value");             // the description
-                // branch on type_id
-                if (type_id==2125) {
-                    gene.setAttribute("note", value);
-                } else if (type_id==78562) {
-                    gene.setAttribute("familyRepresentative", value);
-                } else if (type_id==51206) {
-                    // add reference to the GeneFamily to this Gene (reversed-referenced)
-                    Item geneFamily = geneFamilyMap.get(value);
-                    if (geneFamily!=null) {
-                        gene.setReference("geneFamily", geneFamily);
-                    }
+            ResultSet rs1 = stmt.executeQuery("SELECT * FROM featureprop WHERE feature_id="+feature_id+" AND type_id="+geneFamilyCVTermId);
+            while (rs1.next()) {
+                // add reference to the GeneFamily to this Gene (reversed-referenced)
+                String value = rs1.getString("value");             // the description
+                Item geneFamily = geneFamilyMap.get(value);
+                if (geneFamily!=null) {
+                    gene.setReference("geneFamily", geneFamily);
                 }
             }
-            rs.close();
+            rs1.close();
         }
         LOG.info("***** Done associating genes with gene families from featureprop.");
 
@@ -319,13 +241,11 @@ public class GeneticProcessor extends ChadoProcessor {
             int featuremap_id = (int) entry.getKey(); // genetic map
             Item geneticMap = entry.getValue();
             // genetic markers
-            query = "SELECT * FROM featurepos WHERE featuremap_id="+featuremap_id+" AND feature_id<>map_feature_id";
-            LOG.info("executing query: "+query);
-            rs = stmt.executeQuery(query);
-            while (rs.next()) {
-                int feature_id = rs.getInt("feature_id"); // genetic marker
-                int map_feature_id = rs.getInt("map_feature_id"); // linkage group
-                double position = rs.getDouble("mappos");
+            ResultSet rs1 = stmt.executeQuery("SELECT * FROM featurepos WHERE featuremap_id="+featuremap_id+" AND feature_id<>map_feature_id");
+            while (rs1.next()) {
+                int feature_id = rs1.getInt("feature_id"); // genetic marker
+                int map_feature_id = rs1.getInt("map_feature_id"); // linkage group
+                double position = rs1.getDouble("mappos");
                 Item geneticMarker = geneticMarkerMap.get(new Integer(feature_id));
                 Item linkageGroup = linkageGroupMap.get(new Integer(map_feature_id));
                 if (geneticMarker!=null) {
@@ -340,21 +260,19 @@ public class GeneticProcessor extends ChadoProcessor {
                     }
                 }
             }
-            rs.close();
+            rs1.close();
             // linkage groups
-            query = "SELECT * FROM featurepos WHERE featuremap_id="+featuremap_id+" AND feature_id=map_feature_id AND mappos>0";
-            LOG.info("executing query: "+query);
-            rs = stmt.executeQuery(query);
-            while (rs.next()) {
-                int feature_id = rs.getInt("feature_id"); // linkage group
-                double length = rs.getDouble("mappos");
+            ResultSet rs2 = stmt.executeQuery("SELECT * FROM featurepos WHERE featuremap_id="+featuremap_id+" AND feature_id=map_feature_id AND mappos>0");
+            while (rs2.next()) {
+                int feature_id = rs2.getInt("feature_id"); // linkage group
+                double length = rs2.getDouble("mappos");
                 Item linkageGroup = linkageGroupMap.get(new Integer(feature_id));
                 if (linkageGroup!=null) {
                     linkageGroup.setAttribute("length", String.valueOf(length));
                     linkageGroup.setReference("geneticMap", geneticMap);
                 }
             }
-            rs.close();
+            rs2.close();
         }
         LOG.info("***** Done associating genetic maps and genetic markers and linkage groups from featurepos.");
         
@@ -364,25 +282,24 @@ public class GeneticProcessor extends ChadoProcessor {
             int feature_id = (int) entry.getKey(); // QTL in featureloc
             Item qtl = entry.getValue();
             // the Big Query to get the specific linkage group and flanking markers
-            query = "SELECT * FROM featureloc WHERE feature_id="+feature_id;
-            LOG.info("executing query: "+query);
-            rs = stmt.executeQuery(query);
-            while (rs.next()) {
-                int linkage_group_id = rs.getInt("srcfeature_id");
-                double begin = rs.getDouble("fmin")/100.0; // Ethy hack to store cM locations as integers
-                double end = rs.getDouble("fmax")/100.0;
+            ResultSet rs1 = stmt.executeQuery("SELECT * FROM featureloc WHERE feature_id="+feature_id);
+            while (rs1.next()) {
+                int linkage_group_id = rs1.getInt("srcfeature_id");
+                double begin = rs1.getDouble("fmin")/100.0; // Ethy hack to store cM locations as integers
+                double end = rs1.getDouble("fmax")/100.0;
                 Item linkageGroup = linkageGroupMap.get(new Integer(linkage_group_id));
                 if (linkageGroup!=null) {
                     Item linkageGroupRange = getChadoDBConverter().createItem("LinkageGroupRange");
                     linkageGroupRange.setAttribute("begin", String.valueOf(begin));
                     linkageGroupRange.setAttribute("end", String.valueOf(end));
+                    linkageGroupRange.setAttribute("length", String.valueOf(round(end-begin,2)));
                     linkageGroupRange.setReference("linkageGroup", linkageGroup);
                     store(linkageGroupRange); // we're done with it
                     qtl.addToCollection("linkageGroupRanges", linkageGroupRange);
                     linkageGroup.addToCollection("QTLs", qtl);
                 }
             }
-            rs.close();
+            rs1.close();
         }
         LOG.info("***** Done populating QTLs with linkage group ranges from featureloc.");
 
@@ -393,11 +310,10 @@ public class GeneticProcessor extends ChadoProcessor {
             Item qtl = entry.getValue();
             int[] geneticMarkerIds = new int[3]; // there is one (nearest marker) or three (nearest, flanking low, flanking high)
             int k = 0; // index of geneticMarkerIds
-            query = "SELECT * FROM feature_relationship WHERE subject_id="+subject_id;
-            rs = stmt.executeQuery(query);
-            while (rs.next()) {
-                int object_id = rs.getInt("object_id"); // genetic marker
-                int type_id = rs.getInt("type_id"); // Nearest, Flanking Low, Flanking High; we don't store this at present
+            ResultSet rs1 = stmt.executeQuery("SELECT * FROM feature_relationship WHERE subject_id="+subject_id);
+            while (rs1.next()) {
+                int object_id = rs1.getInt("object_id"); // genetic marker
+                int type_id = rs1.getInt("type_id"); // Nearest, Flanking Low, Flanking High; we don't store this at present
                 Item geneticMarker = geneticMarkerMap.get(new Integer(object_id));
                 if (geneticMarker!=null) {
                     // add to QTL's associatedGeneticMarkers collection; reverse-reference will automatically associate qtl in genetic marker's QTLs collection
@@ -406,80 +322,67 @@ public class GeneticProcessor extends ChadoProcessor {
                     geneticMarkerIds[k++] = object_id;
                 }
             }
-            rs.close(); // done collecting genetic markers
+            rs1.close(); // done collecting genetic markers
 
             // now query ranges of these markers to get genes that overlap
             int f1 = 200000000; // initialize minimum of range
             int f2 = 0;         // initialize maximum of range
             int srcfeature_id = 0; // chromosome
             for (int l=0; l<k; l++) {
-                query = "SELECT * FROM featureloc WHERE feature_id="+geneticMarkerIds[l];
-                rs = stmt.executeQuery(query);
-                while (rs.next()) {
-                    int fmin = rs.getInt("fmin");
-                    int fmax = rs.getInt("fmax");
-                    srcfeature_id = rs.getInt("srcfeature_id"); // should be same chromosome for all genetic markers
+                ResultSet rs2 = stmt.executeQuery("SELECT * FROM featureloc WHERE feature_id="+geneticMarkerIds[l]);
+                while (rs2.next()) {
+                    int fmin = rs2.getInt("fmin");
+                    int fmax = rs2.getInt("fmax");
+                    srcfeature_id = rs2.getInt("srcfeature_id"); // should be same chromosome for all genetic markers
                     if (fmin<f1) f1 = fmin;
                     if (fmax>f2) f2 = fmax;
                 }
-                rs.close();
+                rs2.close();
                 if (f1<f2) {
-                    query = "SELECT featureloc.feature_id FROM featureloc,feature WHERE " +
-                        "featureloc.feature_id=feature.feature_id AND type_id="+geneCVTermId+" AND srcfeature_id="+srcfeature_id+" AND fmin<"+f2+" AND fmax>"+f1;
-                    rs = stmt.executeQuery(query);
-                    while (rs.next()) {
-                        int feature_id = rs.getInt("feature_id");
+                    ResultSet rs3 = stmt.executeQuery("SELECT featureloc.feature_id FROM featureloc,feature WHERE " +
+                                                     "featureloc.feature_id=feature.feature_id AND type_id="+geneCVTermId+" " +
+                                                     "AND srcfeature_id="+srcfeature_id+" AND fmin<"+f2+" AND fmax>"+f1);
+                    while (rs3.next()) {
+                        int feature_id = rs3.getInt("feature_id");
                         Item gene = geneMap.get(new Integer(feature_id));
                         if (gene!=null) {
                             qtl.addToCollection("overlappedGenes", gene);
                         }
                     }
-                    rs.close();
+                    rs3.close();
                 }
             }
             
         } // QTL loop
         LOG.info("***** Done populating QTLs with genetic markers from feature_relationship and overlapped genes from featureloc.");
-        
             
         // ----------------------------------------------------------------
         // we're done, so store everything
         // ----------------------------------------------------------------
 
         LOG.info("Storing genetic maps...");
-        for (Item item : geneticMapMap.values()) {
-            store(item);
-        }
+        for (Item item : geneticMapMap.values()) store(item);
 
         LOG.info("Storing genetic map publications...");
-        for (Item item : publicationMap.values()) {
-            store(item);
-        }
+        for (Item item : gmPubMap.values()) store(item);
 
         LOG.info("Storing genes...");
-        for (Item item : geneMap.values()) {
-            store(item);
-        }
+        for (Item item : geneMap.values()) store(item);
 
         LOG.info("Storing gene families...");
-        for (Item item : geneFamilyMap.values()) {
-            store(item);
-        }
+        for (Item item : geneFamilyMap.values()) store(item);
 
         LOG.info("Storing linkage groups...");
-        for (Item item : linkageGroupMap.values()) {
-            store(item);
-        }
+        for (Item item : linkageGroupMap.values()) store(item);
 
         LOG.info("Storing genetic markers...");
-        for (Item item : geneticMarkerMap.values()) {
-            store(item);
-        }
+        for (Item item : geneticMarkerMap.values()) store(item);
  
         LOG.info("Storing QTLs...");
-        for (Item item : qtlMap.values()) {
-            store(item);
-        }
+        for (Item item : qtlMap.values()) store(item);
+
+        LOG.info("Storing QTL publications...");
+        for (Item item : qtlPubMap.values()) store(item);
 
     }
 
@@ -524,5 +427,76 @@ public class GeneticProcessor extends ChadoProcessor {
     protected void finishedProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap) throws SQLException {
         // override in subclasses as necessary
     }
+
+    /**
+     * Return the cvterm.cvterm_id for the requested cvterm.name, 0 if not found.
+     * Require that a non-empty definition exist - this narrows some dupes (like "comment") to a single record.
+     */
+    int getCVTermId(Statement stmt, String name) throws SQLException {
+        ResultSet rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='"+name+"' AND length(definition)>0");
+        int cvTermId = 0;
+        if (rs.next()) cvTermId = rs.getInt("cvterm_id");
+        rs.close();
+        return cvTermId;
+    }
+
+    /**
+     * Set the attributes of the given publication Item from the given pub ResultSet.
+     */
+    void setPublicationAttributes(Item publication, ResultSet rs) throws SQLException {
+        String title = rs.getString("title");
+        String volume = rs.getString("volume");
+        String journal = rs.getString("series_name");
+        String issue = rs.getString("issue");
+        String year = rs.getString("pyear");
+        String pages = rs.getString("pages");
+        String uniquename = rs.getString("uniquename");
+        String[] parts = uniquename.split("et al");
+        if (parts.length==1) parts = parts[0].split(",");
+        String firstAuthor = parts[0];
+        int pubMedId = 0;
+        try {
+            // search for the PubMedId, hopefully find it with just first author
+            String[] authors = new String[1];
+            authors[0] = firstAuthor;
+            pubMedId = PubMedSearch.getPubMedId(journal, Integer.parseInt(year), authors);
+        } catch (Exception ex) {
+            // do nothing
+        }
+        // build the Publication item
+        if (title!=null && title.length()>0 && !title.equals("NULL")) publication.setAttribute("title", title);
+        if (volume!=null && volume.length()>0 && !volume.equals("NULL")) publication.setAttribute("volume", volume);
+        if (journal!=null && journal.length()>0 && !journal.equals("NULL")) publication.setAttribute("journal", journal);
+        if (issue!=null && issue.length()>0 && !issue.equals("NULL")) publication.setAttribute("issue", issue);
+        if (year!=null && year.length()>0 && !year.equals("NULL")) publication.setAttribute("year", year);
+        if (pages!=null && pages.length()>0 && !pages.equals("NULL")) publication.setAttribute("pages", pages);
+        if (firstAuthor!=null && firstAuthor.length()>0) publication.setAttribute("firstAuthor", firstAuthor);
+        if (pubMedId!=0) publication.setAttribute("pubMedId", String.valueOf(pubMedId));
+    }
+
+    /**
+     * Round a double to the given number of places
+     */
+    public static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+        BigDecimal bd = new BigDecimal(value);
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
+    /**
+     * Populate a map with records from the feature table
+     */
+    void populateMap(Statement stmt, Map<Integer,Item> map, String className, int cvTermId, int organism_id, Item organism) throws SQLException {
+        ResultSet rs = stmt.executeQuery("SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+cvTermId);
+        while (rs.next()) {
+            ChadoFeature cf = new ChadoFeature(rs);
+            Item item = getChadoDBConverter().createItem(className);
+            cf.populateBioEntity(item, organism);
+            map.put(new Integer(cf.feature_id), item);
+        }
+        rs.close();
+    }
+
 
 }

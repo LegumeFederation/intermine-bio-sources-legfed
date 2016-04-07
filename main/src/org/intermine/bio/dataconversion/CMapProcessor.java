@@ -14,12 +14,12 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -183,7 +183,8 @@ public class CMapProcessor extends ChadoProcessor {
 
         // GENE FAMILIES
         // load the gene families from the featureprop table for our organism - distinct values with gene family type_id
-        ItemMap geneFamilyMap = new ItemMap();
+        // Note: we don't have IDs for gene families, so we use their name as the key
+        Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
         int geneFamilyCVTermId = 0;
         rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='gene family'");
         if (rs.next()) geneFamilyCVTermId = rs.getInt("cvterm_id");
@@ -196,10 +197,26 @@ public class CMapProcessor extends ChadoProcessor {
             String value = rs.getString("value");
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
             geneFamily.setAttribute("primaryIdentifier", value);
-            // NOTE: value is key
             geneFamilyMap.put(value, geneFamily);
         }
         rs.close();
+
+        // Grab the gene family descriptions from phylotree, which we can't assume exists or contains records matching those above
+        for (Map.Entry<String,Item> entry : geneFamilyMap.entrySet()) {
+            String name = entry.getKey();
+            Item geneFamily = entry.getValue();
+            try {
+                query = "SELECT comment FROM phylotree WHERE name='"+name+"'";
+                LOG.info("executing query: "+query);
+                rs = stmt.executeQuery(query);
+                if (rs.next()) {
+                    geneFamily.setAttribute("description", rs.getString("comment"));
+                }
+                rs.close();
+            } catch (Exception ex) {
+                LOG.error(ex.toString());
+            }
+        }
         LOG.info("Created "+geneFamilyMap.size()+" GeneFamily items.");
 
         // ----------------------------------------------------------------------------------------------
@@ -378,7 +395,7 @@ public class CMapProcessor extends ChadoProcessor {
             while (rs.next()) {
                 int featureprop_id = rs.getInt("featureprop_id"); // not used
                 int type_id = rs.getInt("type_id");               // one of three possibilities
-                String value = rs.getString("value");             // geneFamilyMap key (description)
+                String value = rs.getString("value");             // geneFamilyMap key (name)
                 // branch on type_id
                 if (type_id==2125) {
                     gene.setAttribute("note", value);
@@ -501,6 +518,7 @@ public class CMapProcessor extends ChadoProcessor {
         Item linkageGroupRange = getChadoDBConverter().createItem("LinkageGroupRange");
         linkageGroupRange.setAttribute("begin", String.valueOf(cmap.feature_start));
         linkageGroupRange.setAttribute("end", String.valueOf(cmap.feature_stop));
+        linkageGroupRange.setAttribute("length", String.valueOf(cmap.feature_stop-cmap.feature_start));
         linkageGroupRange.setReference("linkageGroup", linkageGroup);
         store(linkageGroupRange);
         qtl.addToCollection("linkageGroupRanges", linkageGroupRange);
@@ -526,7 +544,7 @@ public class CMapProcessor extends ChadoProcessor {
             Item chromosome = chromosomeMap.getByPrimaryIdentifier(uniquename);
             if (chromosome!=null) {
                 geneticMarker.setReference("chromosome", chromosome);
-                geneticMarker.setAttribute("length", String.valueOf(gff.end-gff.start+1));
+                geneticMarker.setAttribute("length", String.valueOf(round(gff.end-gff.start+1,2)));
                 Item location = getChadoDBConverter().createItem("Location");
                 location.setAttribute("start", String.valueOf(gff.start));
                 location.setAttribute("end", String.valueOf(gff.end));
@@ -547,5 +565,16 @@ public class CMapProcessor extends ChadoProcessor {
         // add to linkage group collection
         linkageGroup.addToCollection("geneticMarkers", geneticMarker);
     }
+
+    /**
+     * Round a double to the given number of places
+     */
+    public static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+        BigDecimal bd = new BigDecimal(value);
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
 
 }
