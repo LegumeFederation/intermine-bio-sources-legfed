@@ -7,16 +7,19 @@ This data source contains several processors of chado data:
 
 **GeneticProcessor.java** - stores the various genetic data and relationships from the LIS chado database. These come from featuremap, featurepos, featureloc, feature_relationship and, of course, feature.
 
-
 **GOProcessor.java** - parses the GO:terms out of the chado.gene.description field and associates them with the gene. Run the go data source to fill out the GO terms.
 
 **FeaturePropProcessor.java** - loads various properties of features from chado.featureprop into class attributes.
 
 And processors of data from flat files:
 
-**CMapProcessor.java** - stores the genetic marker and QTL data from a CMap tab-delimited file along with a GFF3 export and a QTL-marker flat file from David Grant at Soybase. Currently hardcoded for soybean.
+**CMapFileProcessor.java** - stores the genetic markers, linkage groups and QTLs from a CMap tab-delimited file export.
 
-**SyntenyProcessor.java** - stores the synteny regions from a GFF dump with records formatted by DAGchainer. Currently hardcoded for Pv and Gm.
+**GeneticMarkerGFFProcessor.java** - stores genetic marker genomic data from a GFF3 file.
+
+**QTLMarkerFileProcessor.java** - stores QTL-genetic marker relations from a tab-delimited file. Columns are QTLid, QTL name, marker name.
+
+**SyntenyProcessor.java** - stores the synteny regions from a GFF dump with records formatted by DAGchainer.
 
 Plus some handy utility classes:
 
@@ -32,3 +35,6 @@ A few chado-db classes are changed to allow more input from project.xml:
 
 **ChadoDBConverter.java** - added setDagChainerFile() and getDagChainerFile(), used by SyntenyProcessor (it's a GFF3 file with DAGchainer annotation).
 
+And finally we have the post-processor for these data:
+
+**LegfedPostProcess.java** - finds QTLs whose associated genetic markers span genes and stores the results in the QTL.spannedGenes and Gene.spanningQTLs collections.
