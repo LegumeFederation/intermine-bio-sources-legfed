@@ -38,7 +38,7 @@ import org.intermine.postprocess.PostProcessor;
 import org.apache.log4j.Logger;
 
 /**
- * Find "overlapped genes" for each QTL+markers.
+ * Find "spanned genes" for each QTL+markers.
  *
  * Since the QTLs and genetic markers can be loaded from a variety of sources (flat files, chado), it makes sense to do this in post-processing when the 
  * QTLs, markers and genes exist in the database in a standard format. 
@@ -60,7 +60,7 @@ public class LegfedPostProcess extends PostProcessor {
 
     /**
      * {@inheritDoc}
-     * Main post-processing routine. Find the "overlapped genes" for the QTL+markers.
+     * Main post-processing routine. Find the "spanned genes" for the QTL+markers.
      * @throws ObjectStoreException if the objectstore throws an exception
      */
     public void postProcess() throws ObjectStoreException {
