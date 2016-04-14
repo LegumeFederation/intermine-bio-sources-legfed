@@ -19,7 +19,7 @@
     <attribute name="studyTreatment" type="java.lang.String"/>
     <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
-    <collection name="overlappedGenes" referenced-type="Gene" reverse-reference="overlappingQTLs"/>
+    <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
@@ -57,7 +57,6 @@
     <attribute name="unit" type="java.lang.String"/>
     <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
     <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
-    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
   <!-- genetic markers are both genetic and genomic -->
@@ -137,7 +136,7 @@
     <attribute name="familyRepresentative" type="java.lang.String"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
     <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="gene"/>
-    <collection name="overlappingQTLs" referenced-type="QTL" reverse-reference="overlappedGenes"/>
+    <collection name="spanningQTLs" referenced-type="QTL" reverse-reference="spannedGenes"/>
     <collection name="goAnnotation" referenced-type="GOAnnotation"/>
   </class>
 
@@ -152,15 +151,15 @@
     <collection name="goAnnotation" referenced-type="GOAnnotation"/>
   </class>
 
-  <class name="SyntenyRegion" extends="SequenceFeature" is-interface="true">
+  <class name="SyntenicRegion" extends="SequenceFeature" is-interface="true">
     <reference name="syntenyBlock" referenced-type="SyntenyBlock"/>
   </class>
   
   <class name="SyntenyBlock" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="medianKs" type="java.lang.Double"/>
-    <reference name="sourceRegion" referenced-type="SyntenyRegion"/>
-    <reference name="targetRegion" referenced-type="SyntenyRegion"/>
+    <reference name="sourceRegion" referenced-type="SyntenicRegion"/>
+    <reference name="targetRegion" referenced-type="SyntenicRegion"/>
   </class>
 
   <!-- mirror go-annotation_additions.xml so stock GO stuff works (hopefully); most is left empty since not in chado -->
@@ -191,6 +190,10 @@
   
   <class name="Publication" is-interface="true">
     <collection name="crossReferences" referenced-type="DatabaseReference" reverse-reference="subject"/>
+  </class>
+
+  <class name="Organism" is-interface="true">
+    <attribute name="comment" type="java.lang.String"/>
   </class>
 
 </classes>
