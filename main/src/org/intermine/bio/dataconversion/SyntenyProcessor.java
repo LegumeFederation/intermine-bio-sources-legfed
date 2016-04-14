@@ -37,27 +37,18 @@ import org.intermine.xml.full.Reference;
 import org.intermine.xml.full.ReferenceList;
 
 /**
- * Read synteny blocks for two organisms from a DAGchainer synteny GFF file and store them as SyntenyBlock items.
- * This is designed to use the GFF annotation produced by DAGchainer.
+ * Read synteny blocks for two organisms from a DAGchainer synteny GFF file and store them as SyntenyBlock items,
+ * each related to a source and target SyntenicRegion. This is designed to use the GFF annotation produced by DAGchainer.
  *
- * NOTE: input text files are currently HARDCODED
+ * The source and target organism taxIDs are taken from the DAGchainer GFF file name.
+ * For example, if source=Phaseolus vulgaris and target=Glycine max, then the file will be, e.g. synteny.3885_with_3847.gff3, or
+ * any other file name which contains ".3885_chars_3847.gff" and no other dots or underscores.
  *
  * @author Sam Hokin, NCGR
  */
 public class SyntenyProcessor extends ChadoProcessor {
 	
     private static final Logger LOG = Logger.getLogger(SyntenyProcessor.class);
-
-    // DAGchainer synteny gff file location is passed in as parameter dagChainerFile in project.xml
-    File dagChainerFile;
-
-    // InterMine organism IDs
-    int sourceTaxonId;
-    int targetTaxonId;
-
-    // chado organism_ids
-    int source_organism_id;
-    int target_organism_id;
 
     /**
      * Create a new SyntenyProcessor
@@ -69,7 +60,7 @@ public class SyntenyProcessor extends ChadoProcessor {
 
     /**
      * {@inheritDoc}
-     * We process the GFF file by creating SytenicRegion items and storing them.
+     * We process the GFF file by creating SyntenicRegion items and storing them.
      * In order to do so, we need to access the two organisms' chromosomes from the chado database.
      */
     @Override
@@ -81,33 +72,46 @@ public class SyntenyProcessor extends ChadoProcessor {
 
         // initialize our DB statement and stuff for chado queries
         Statement stmt = connection.createStatement();
-        String query;
-        ResultSet rs;
 
-        // get the taxonomy IDs corresponding to the source and target
+        // InterMine organism IDs
+        int sourceTaxonId = 0;
+        int targetTaxonId = 0;
+
+        // chado organism_ids
+        int source_organism_id = 0;
+        int target_organism_id = 0;
+
+        // DAGchainer synteny gff file location is passed in as parameter dagChainerFile in project.xml
+        File dagChainerFile = getChadoDBConverter().getDagChainerFile();
+        LOG.info("dagChainerFile="+dagChainerFile.getAbsolutePath());
+
+        // parse the taxonomy IDs corresponding to the source and target from the DAGchainer file name
+        LOG.info("Attempting to get dagChainerFile...");
+        String dagChainerFilename = dagChainerFile.getName();
+        LOG.info("dagChainerFilename="+dagChainerFilename);
         try {
-            sourceTaxonId = getChadoDBConverter().getSourceOrganism();
-            targetTaxonId = getChadoDBConverter().getTargetOrganism();
+            String[] bothChunks = dagChainerFilename.split("_");
+            String[] sourceChunks = bothChunks[0].split("\\.");
+            String[] targetChunks = bothChunks[2].split("\\.");
+            String sourceString = sourceChunks[1];
+            String targetString = targetChunks[0];
+            LOG.info("source taxID="+sourceString+" target taxID="+targetString);
+            sourceTaxonId = Integer.parseInt(sourceString);
+            targetTaxonId = Integer.parseInt(targetString);
         } catch (Exception ex) {
-            throw new RuntimeException("Error retrieving source and target taxonomy IDs from project.xml: "+ex.toString());
-        }
-        LOG.info("sourceTaxonId="+sourceTaxonId);
-        LOG.info("targetTaxonId="+targetTaxonId);
-        if (sourceTaxonId==0 || targetTaxonId==0) {
-            LOG.error("Error retrieving source and target taxonomy IDs from project.xml.");
-            // HACK - until I figure out the bug in this
-            sourceTaxonId = 3885;
-            targetTaxonId = 3847;
+            LOG.error(ex.toString());
+            throw new RuntimeException(ex);
         }
 
         // get the chado organism_ids, which are keys of the ChadoIdToOrgDataMap;
         try {
             for (Map.Entry<Integer,OrganismData> entry : getChadoDBConverter().getChadoIdToOrgDataMap().entrySet()) {
-                if (entry.getValue().getTaxonId()==sourceTaxonId) source_organism_id = (int)entry.getKey();
-                if (entry.getValue().getTaxonId()==targetTaxonId) target_organism_id = (int)entry.getKey();
+                if (entry.getValue().getTaxonId()==sourceTaxonId) source_organism_id = (int) entry.getKey();
+                if (entry.getValue().getTaxonId()==targetTaxonId) target_organism_id = (int) entry.getKey();
             }
         } catch (Exception ex) {
-            throw new RuntimeException("Error determining source and target chado organism_ids: "+ex.toString());
+            LOG.error("Error determining source and target chado organism_ids: "+ex.toString());
+            throw new RuntimeException(ex);
         }
         LOG.info("source_organism_id="+source_organism_id);
         LOG.info("target_organism_id="+target_organism_id);
@@ -118,21 +122,17 @@ public class SyntenyProcessor extends ChadoProcessor {
 
         // create and store organism Items
         Item sourceOrganism = getChadoDBConverter().createItem("Organism");
+        BioStoreHook.setSOTerm(getChadoDBConverter(), sourceOrganism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
         sourceOrganism.setAttribute("taxonId", String.valueOf(sourceTaxonId));
         store(sourceOrganism);
         Item targetOrganism = getChadoDBConverter().createItem("Organism");
+        BioStoreHook.setSOTerm(getChadoDBConverter(), targetOrganism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
         targetOrganism.setAttribute("taxonId", String.valueOf(targetTaxonId));
         store(targetOrganism);
         LOG.info("Created and stored sourceOrganism, taxonId="+sourceTaxonId+" and targetOrganism, taxonId="+targetTaxonId);
-
-        // get the all-important DAGchainer GFF file
-        dagChainerFile = getChadoDBConverter().getDagChainerFile();
-        LOG.info("dagChainerFile="+dagChainerFile.getAbsolutePath());
         
         // -------------------------------------------------------------------------------------------------------------------
         // Load the GFF data into a map. Create source and target chromosome Items.
-        //
-        // NOTE: this is hardcoded for Pv source and Gm target chromosomes.
         // -------------------------------------------------------------------------------------------------------------------
 
         Map<String,GFFRecord> gffMap = new HashMap<String,GFFRecord>();
@@ -140,6 +140,12 @@ public class SyntenyProcessor extends ChadoProcessor {
         ItemMap targetChromosomeMap = new ItemMap();
         
         try {
+
+            // get chromosome cvterm_id
+            ResultSet rs0 = stmt.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='chromosome' AND definition LIKE 'Structural unit%'");
+            rs0.next();
+            int chrCVTermId = rs0.getInt("cvterm_id");
+            rs0.close();
             
             BufferedReader gffReader = new BufferedReader(new FileReader(dagChainerFile));
             LOG.info("Reading GFF file:"+dagChainerFile.getName());
@@ -147,15 +153,17 @@ public class SyntenyProcessor extends ChadoProcessor {
             while ((gffLine=gffReader.readLine()) != null) {
                 GFFRecord gff = new GFFRecord(gffLine);
                 if (gff.seqid!=null && gff.attributeName!=null) {
-                    // create source chromosome, store and add to sourceChromosomeMap if needed
-                    String sourceName = gff.seqid.replace("Pv","phavu.Chr"); // chado chromosome name HARDCODED
+                    String sourceName = gff.seqid;
+                    // tweak chromosome names to match chado here:
+                    if (sourceTaxonId==3885) sourceName = sourceName.replace("Pv","phavu.Chr"); // Phavu
+                    // add to the map
                     if (!sourceChromosomeMap.containsSecondaryIdentifier(sourceName)) {
                         // create the chromosome Item from the chado record
-                        query = "SELECT * FROM feature WHERE type_id=43403 AND organism_id="+source_organism_id+" AND name='"+sourceName+"'";
-                        rs = stmt.executeQuery(query);
+                        ResultSet rs = stmt.executeQuery("SELECT * FROM feature WHERE type_id="+chrCVTermId+" AND organism_id="+source_organism_id+" AND name='"+sourceName+"'");
                         if (rs.next()) {
                             ChadoFeature cf = new ChadoFeature(rs);
                             Item chromosome = getChadoDBConverter().createItem("Chromosome");
+                            BioStoreHook.setSOTerm(getChadoDBConverter(), chromosome, "chromosome", getChadoDBConverter().getSequenceOntologyRefId());
                             cf.populateBioEntity(chromosome, sourceOrganism);
                             store(chromosome);
                             sourceChromosomeMap.put(chromosome);
@@ -169,11 +177,11 @@ public class SyntenyProcessor extends ChadoProcessor {
                         String targetName = targetChromosome.replace("Gm","glyma.Chr"); // chado chromosome name HARDCODED
                         if (!targetChromosomeMap.containsSecondaryIdentifier(targetName)) {
                             // create the chromosome Item from the chado record
-                            query = "SELECT * FROM feature WHERE type_id=43403 AND organism_id="+target_organism_id+" AND name='"+targetName+"'";
-                            rs = stmt.executeQuery(query);
+                            ResultSet rs = stmt.executeQuery("SELECT * FROM feature WHERE type_id="+chrCVTermId+" AND organism_id="+target_organism_id+" AND name='"+targetName+"'");
                             if (rs.next()) {
                                 ChadoFeature cf = new ChadoFeature(rs);
                                 Item chromosome = getChadoDBConverter().createItem("Chromosome");
+                                BioStoreHook.setSOTerm(getChadoDBConverter(), chromosome, "chromosome", getChadoDBConverter().getSequenceOntologyRefId());
                                 cf.populateBioEntity(chromosome, targetOrganism);
                                 store(chromosome);
                                 targetChromosomeMap.put(chromosome);
@@ -185,7 +193,7 @@ public class SyntenyProcessor extends ChadoProcessor {
                     // store in map if it's a syntenic_region
                     if (gff.type.equals("syntenic_region")) {
                         gffMap.put(gff.attributeName, gff);
-                        LOG.info("Synteny region: "+gff.attributeName);
+                        LOG.info("Syntenic region: "+gff.attributeName);
                     }
                 }
             }
@@ -210,16 +218,25 @@ public class SyntenyProcessor extends ChadoProcessor {
         LOG.info("Creating, linking and storing synteny blocks...");
 
         for (GFFRecord gff : gffMap.values())  {
+            
+            String srcChrName = gff.seqid;
+            String tgtChrName = gff.getTargetChromosome();
+
+            // tweak chromosome names for special cases
+            if (sourceTaxonId==3885) srcChrName = srcChrName.replace("Pv","phavu.Chr"); // Phavu
+            if (targetTaxonId==3847) tgtChrName = tgtChrName.replace("Gm","glyma.Chr"); // Glyma
 
             // populate the source region and its location
-            Item sourceChromosome = sourceChromosomeMap.getBySecondaryIdentifier(gff.seqid.replace("Pv","phavu.Chr")); // HARDCODED SOURCE GENOME
-            Item sourceRegion = getChadoDBConverter().createItem("SyntenyRegion");
+            Item sourceChromosome = sourceChromosomeMap.getBySecondaryIdentifier(srcChrName);
+            Item sourceRegion = getChadoDBConverter().createItem("SyntenicRegion");
+            BioStoreHook.setSOTerm(getChadoDBConverter(), sourceRegion, "syntenic_region", getChadoDBConverter().getSequenceOntologyRefId());
             Item sourceChromosomeLocation = getChadoDBConverter().createItem("Location");
             gff.populateSourceRegion(sourceRegion, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
-
+            
             // populate the target region and its location
-            Item targetChromosome = targetChromosomeMap.getBySecondaryIdentifier(gff.getTargetChromosome().replace("Gm","glyma.Chr")); // HARDCODED TARGET GENOME
-            Item targetRegion = getChadoDBConverter().createItem("SyntenyRegion");
+            Item targetChromosome = targetChromosomeMap.getBySecondaryIdentifier(tgtChrName);
+            Item targetRegion = getChadoDBConverter().createItem("SyntenicRegion");
+            BioStoreHook.setSOTerm(getChadoDBConverter(), targetRegion, "syntenic_region", getChadoDBConverter().getSequenceOntologyRefId());
             Item targetChromosomeLocation = getChadoDBConverter().createItem("Location");
             gff.populateTargetRegion(targetRegion, targetOrganism, targetChromosome, targetChromosomeLocation);
 
