@@ -79,6 +79,7 @@ public class GeneticProcessor extends ChadoProcessor {
             OrganismData organismData = entry.getValue();
             int taxonId = organismData.getTaxonId();
             Item organism = getChadoDBConverter().createItem("Organism");
+            BioStoreHook.setSOTerm(getChadoDBConverter(), organism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
             organism.setAttribute("taxonId", String.valueOf(taxonId));
             store(organism);
             organismMap.put(organismId, organism);
@@ -117,6 +118,7 @@ public class GeneticProcessor extends ChadoProcessor {
                 String description = rs0.getString("description");
                 // build the GeneticMap item
                 Item geneticMap = getChadoDBConverter().createItem("GeneticMap");
+                // genetic map has no SO term
                 geneticMap.setAttribute("primaryIdentifier", name);
                 geneticMap.setAttribute("description", description);
                 geneticMap.setAttribute("unit", "cM");
@@ -142,6 +144,7 @@ public class GeneticProcessor extends ChadoProcessor {
         while (rs0.next()) {
             String value = rs0.getString("value");
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
+            // gene family has no SO term
             geneFamily.setAttribute("primaryIdentifier", value);
             geneFamilyMap.put(value, geneFamily);
         }
@@ -303,13 +306,12 @@ public class GeneticProcessor extends ChadoProcessor {
         }
         LOG.info("***** Done populating QTLs with linkage group ranges from featureloc.");
 
-        // 1. query the feature_relationship table for direct relations between QTLs and genetic markers
-        // 2. query featureloc for genes that overlap the full range spanned by the genetic markers found in 1
+        // Query the feature_relationship table for direct relations between QTLs and genetic markers
         for (Map.Entry<Integer,Item> entry : qtlMap.entrySet()) {
             int subject_id = (int) entry.getKey(); // QTL in feature_relationship
             Item qtl = entry.getValue();
-            int[] geneticMarkerIds = new int[3]; // there is one (nearest marker) or three (nearest, flanking low, flanking high)
-            int k = 0; // index of geneticMarkerIds
+            // int[] geneticMarkerIds = new int[3]; // there is one (nearest marker) or three (nearest, flanking low, flanking high)
+            // int k = 0; // index of geneticMarkerIds
             ResultSet rs1 = stmt.executeQuery("SELECT * FROM feature_relationship WHERE subject_id="+subject_id);
             while (rs1.next()) {
                 int object_id = rs1.getInt("object_id"); // genetic marker
@@ -319,42 +321,46 @@ public class GeneticProcessor extends ChadoProcessor {
                     // add to QTL's associatedGeneticMarkers collection; reverse-reference will automatically associate qtl in genetic marker's QTLs collection
                     qtl.addToCollection("associatedGeneticMarkers", geneticMarker);
                     // store genetic marker for gene finding to come
-                    geneticMarkerIds[k++] = object_id;
+                    // geneticMarkerIds[k++] = object_id;
                 }
             }
             rs1.close(); // done collecting genetic markers
 
-            // now query ranges of these markers to get genes that overlap
-            int f1 = 200000000; // initialize minimum of range
-            int f2 = 0;         // initialize maximum of range
-            int srcfeature_id = 0; // chromosome
-            for (int l=0; l<k; l++) {
-                ResultSet rs2 = stmt.executeQuery("SELECT * FROM featureloc WHERE feature_id="+geneticMarkerIds[l]);
-                while (rs2.next()) {
-                    int fmin = rs2.getInt("fmin");
-                    int fmax = rs2.getInt("fmax");
-                    srcfeature_id = rs2.getInt("srcfeature_id"); // should be same chromosome for all genetic markers
-                    if (fmin<f1) f1 = fmin;
-                    if (fmax>f2) f2 = fmax;
-                }
-                rs2.close();
-                if (f1<f2) {
-                    ResultSet rs3 = stmt.executeQuery("SELECT featureloc.feature_id FROM featureloc,feature WHERE " +
-                                                     "featureloc.feature_id=feature.feature_id AND type_id="+geneCVTermId+" " +
-                                                     "AND srcfeature_id="+srcfeature_id+" AND fmin<"+f2+" AND fmax>"+f1);
-                    while (rs3.next()) {
-                        int feature_id = rs3.getInt("feature_id");
-                        Item gene = geneMap.get(new Integer(feature_id));
-                        if (gene!=null) {
-                            qtl.addToCollection("overlappedGenes", gene);
-                        }
-                    }
-                    rs3.close();
-                }
-            }
+            // //
+            // // 2. query featureloc for genes that overlap the full range spanned by the genetic markers found in 1
+            // // NOTE: this should moved to a generic postprocessor; doesn't depend on source of QTLs, genetic markers, genes
+            // //
+            // // now query ranges of these markers to get genes that overlap
+            // int f1 = 200000000; // initialize minimum of range
+            // int f2 = 0;         // initialize maximum of range
+            // int srcfeature_id = 0; // chromosome
+            // for (int l=0; l<k; l++) {
+            //     ResultSet rs2 = stmt.executeQuery("SELECT * FROM featureloc WHERE feature_id="+geneticMarkerIds[l]);
+            //     while (rs2.next()) {
+            //         int fmin = rs2.getInt("fmin");
+            //         int fmax = rs2.getInt("fmax");
+            //         srcfeature_id = rs2.getInt("srcfeature_id"); // should be same chromosome for all genetic markers
+            //         if (fmin<f1) f1 = fmin;
+            //         if (fmax>f2) f2 = fmax;
+            //     }
+            //     rs2.close();
+            //     if (f1<f2) {
+            //         ResultSet rs3 = stmt.executeQuery("SELECT featureloc.feature_id FROM featureloc,feature WHERE " +
+            //                                          "featureloc.feature_id=feature.feature_id AND type_id="+geneCVTermId+" " +
+            //                                          "AND srcfeature_id="+srcfeature_id+" AND fmin<"+f2+" AND fmax>"+f1);
+            //         while (rs3.next()) {
+            //             int feature_id = rs3.getInt("feature_id");
+            //             Item gene = geneMap.get(new Integer(feature_id));
+            //             if (gene!=null) {
+            //                 qtl.addToCollection("overlappedGenes", gene);
+            //             }
+            //         }
+            //         rs3.close();
+            //     }
+            // }
             
         } // QTL loop
-        LOG.info("***** Done populating QTLs with genetic markers from feature_relationship and overlapped genes from featureloc.");
+        LOG.info("***** Done populating QTLs with genetic markers from feature_relationship.");
             
         // ----------------------------------------------------------------
         // we're done, so store everything
