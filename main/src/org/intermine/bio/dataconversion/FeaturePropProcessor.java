@@ -106,9 +106,8 @@ public class FeaturePropProcessor extends ChadoProcessor {
                 }
             }
             rs.close();
-            LOG.info("Storing organism...");
+            LOG.info("Storing organism "+taxonId+"...");
             store(organism);
-            LOG.info("Created and stored organism "+taxonId);
 
             // load gene attributes
             Map<Integer,Item> geneMap = generateMap(stmt, "Gene", geneCVTermId, organism_id, organism);
@@ -279,7 +278,11 @@ public class FeaturePropProcessor extends ChadoProcessor {
             String value = rs.getString("value");
             if (value!=null && value.trim().length()>0) {
                 Item item = itemMap.get(featureId);
-                item.setAttribute(attributeName, value.trim());
+                if (item!=null) {
+                    item.setAttribute(attributeName, value.trim());
+                } else {
+                    LOG.error("Item for feature_id="+featureId+" is null.");
+                }
             }
         }
         rs.close();
