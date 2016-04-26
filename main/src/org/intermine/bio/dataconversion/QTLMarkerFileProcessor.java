@@ -101,7 +101,7 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
         // -------------------------------------------------------------------------------------------------
         // Run through the QTL-Markers file and add the associated markers to the given QTLs
         // NOTE1: marker ZZ is a placeholder, not a real marker
-        // NOTE2: neither QTL nor marker uses primaryIdentifier in this file; both match secondaryIdentifier
+        // NOTE2: given names are used as _primary_ identifiers
         // -------------------------------------------------------------------------------------------------
         
         try {
@@ -113,7 +113,7 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
             while ((qtlMarkerLine=qtlMarkerReader.readLine())!=null) {
                 QTLMarkerRecord rec = new QTLMarkerRecord(qtlMarkerLine);
                 if (rec.qtlName!=null && rec.markerName!=null && !rec.markerName.equals("ZZ")) {
-                    // find the QTL in the map, or add it with qtlName=secondaryIdentifier
+                    // find the QTL in the map, or add it with qtlName=primaryIdentifier
                     Item qtl = null;
                     if (qtlMap.containsKey(rec.qtlName)) {
                         qtl = qtlMap.get(rec.qtlName);
@@ -121,10 +121,10 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
                         qtl = getChadoDBConverter().createItem("QTL");
                         BioStoreHook.setSOTerm(getChadoDBConverter(), qtl, "QTL", getChadoDBConverter().getSequenceOntologyRefId());
                         qtl.setReference("organism", organism);
-                        qtl.setAttribute("secondaryIdentifier", rec.qtlName);
+                        qtl.setAttribute("primaryIdentifier", rec.qtlName);
                         qtlMap.put(rec.qtlName, qtl);
                     }
-                    // find the genetic marker in the map, or add it with markerName=secondaryIdentifier
+                    // find the genetic marker in the map, or add it with markerName=primaryIdentifier
                     Item marker = null;
                     if (markerMap.containsKey(rec.markerName)) {
                         marker = markerMap.get(rec.markerName);
@@ -132,10 +132,11 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
                         marker = getChadoDBConverter().createItem("GeneticMarker");
                         BioStoreHook.setSOTerm(getChadoDBConverter(), marker, "genetic_marker", getChadoDBConverter().getSequenceOntologyRefId());
                         marker.setReference("organism", organism);
-                        marker.setAttribute("secondaryIdentifier", rec.markerName);
+                        marker.setAttribute("primaryIdentifier", rec.markerName);
                         markerMap.put(rec.markerName, marker);
                     }
                     // add this genetic marker to this QTL's collection
+                    LOG.info("Adding QTL="+rec.qtlName+" Genetic Marker="+rec.markerName+" to associatedGeneticMarkers.");
                     qtl.addToCollection("associatedGeneticMarkers", marker);
                 }
             }

@@ -29,6 +29,7 @@ import org.intermine.xml.full.Reference;
 
 /**
  * Store the extra data from the chado.featureprop table in attributes defined in the data model.
+ * It does not create any new items; these must be merged with items that have already been loaded from chado.
  *
  * Since this processer deals only with chado data, Items are stored in maps with Integer keys equal to
  * the chado feature.feature_id.

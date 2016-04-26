@@ -65,6 +65,8 @@ public class LegfedPostProcess extends PostProcessor {
      */
     public void postProcess() throws ObjectStoreException {
         
+        LOG.info("Starting LegfedPostProcess first section...");
+        
         // ------------------------------------------------------------------------------------------
         // First section: accumulate the QTLs and their genomic spans, from their associated markers
         // ------------------------------------------------------------------------------------------
@@ -173,12 +175,14 @@ public class LegfedPostProcess extends PostProcessor {
         // last one
         qtlSpanSet.add(new QTLSpan(lastQTL, lastChrId, minStart, maxEnd));
 
-        // close transaction and start another one
-        osw.batchCommitTransaction();
+        // close transaction
+        osw.commitTransaction();
 
         // ------------------------------------------------------------------------------------------------------------------------------
         // Second section: spin through the genes, comparing their genomic range to the QTL genomic spans, associate them if overlapping
         // ------------------------------------------------------------------------------------------------------------------------------
+
+        LOG.info("Starting LegfedPostProcess second section...");
 
         Query qGene = new Query();
         qGene.setDistinct(false);
@@ -213,6 +217,8 @@ public class LegfedPostProcess extends PostProcessor {
 
         ((ObjectStoreInterMineImpl) osGene).precompute(qGene, Constants.PRECOMPUTE_CATEGORY);
         Results geneResults = osGene.execute(qGene, 500, true, true, true);
+
+        osw.beginTransaction();
 
         Iterator<?> geneIter = geneResults.iterator();
         while (geneIter.hasNext()) {
@@ -251,6 +257,7 @@ public class LegfedPostProcess extends PostProcessor {
         
         // close transaction
         osw.commitTransaction();
+        
     }
 
     /**

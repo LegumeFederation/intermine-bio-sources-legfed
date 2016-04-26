@@ -140,7 +140,7 @@ public class SyntenyProcessor extends ChadoProcessor {
         ItemMap targetChromosomeMap = new ItemMap();
         
         try {
-
+            
             // get chromosome cvterm_id
             ResultSet rs0 = stmt.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='chromosome' AND definition LIKE 'Structural unit%'");
             rs0.next();
@@ -153,11 +153,9 @@ public class SyntenyProcessor extends ChadoProcessor {
             while ((gffLine=gffReader.readLine()) != null) {
                 GFFRecord gff = new GFFRecord(gffLine);
                 if (gff.seqid!=null && gff.attributeName!=null) {
-                    String sourceName = gff.seqid;
-                    // tweak chromosome names to match chado here:
-                    if (sourceTaxonId==3885) sourceName = sourceName.replace("Pv","phavu.Chr"); // Phavu
+                    String sourceName = gff.seqid; // can tweak sourceName to be different from seqid to match chado
                     // add to the map
-                    if (!sourceChromosomeMap.containsSecondaryIdentifier(sourceName)) {
+                    if (!sourceChromosomeMap.containsPrimaryIdentifier(sourceName)) {
                         // create the chromosome Item from the chado record
                         ResultSet rs = stmt.executeQuery("SELECT * FROM feature WHERE type_id="+chrCVTermId+" AND organism_id="+source_organism_id+" AND name='"+sourceName+"'");
                         if (rs.next()) {
@@ -174,8 +172,8 @@ public class SyntenyProcessor extends ChadoProcessor {
                     // create target chromosome, store and add to targetChromosomeMap if needed
                     String targetChromosome = gff.getTargetChromosome();
                     if (targetChromosome!=null) {
-                        String targetName = targetChromosome.replace("Gm","glyma.Chr"); // chado chromosome name HARDCODED
-                        if (!targetChromosomeMap.containsSecondaryIdentifier(targetName)) {
+                        String targetName = targetChromosome; // can tweak targetName to be different from targetChromosome to match chado
+                        if (!targetChromosomeMap.containsPrimaryIdentifier(sourceName)) {
                             // create the chromosome Item from the chado record
                             ResultSet rs = stmt.executeQuery("SELECT * FROM feature WHERE type_id="+chrCVTermId+" AND organism_id="+target_organism_id+" AND name='"+targetName+"'");
                             if (rs.next()) {
@@ -222,19 +220,15 @@ public class SyntenyProcessor extends ChadoProcessor {
             String srcChrName = gff.seqid;
             String tgtChrName = gff.getTargetChromosome();
 
-            // tweak chromosome names for special cases
-            if (sourceTaxonId==3885) srcChrName = srcChrName.replace("Pv","phavu.Chr"); // Phavu
-            if (targetTaxonId==3847) tgtChrName = tgtChrName.replace("Gm","glyma.Chr"); // Glyma
-
             // populate the source region and its location
-            Item sourceChromosome = sourceChromosomeMap.getBySecondaryIdentifier(srcChrName);
+            Item sourceChromosome = sourceChromosomeMap.getByPrimaryIdentifier(srcChrName);
             Item sourceRegion = getChadoDBConverter().createItem("SyntenicRegion");
             BioStoreHook.setSOTerm(getChadoDBConverter(), sourceRegion, "syntenic_region", getChadoDBConverter().getSequenceOntologyRefId());
             Item sourceChromosomeLocation = getChadoDBConverter().createItem("Location");
             gff.populateSourceRegion(sourceRegion, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
             
             // populate the target region and its location
-            Item targetChromosome = targetChromosomeMap.getBySecondaryIdentifier(tgtChrName);
+            Item targetChromosome = targetChromosomeMap.getByPrimaryIdentifier(tgtChrName);
             Item targetRegion = getChadoDBConverter().createItem("SyntenicRegion");
             BioStoreHook.setSOTerm(getChadoDBConverter(), targetRegion, "syntenic_region", getChadoDBConverter().getSequenceOntologyRefId());
             Item targetChromosomeLocation = getChadoDBConverter().createItem("Location");

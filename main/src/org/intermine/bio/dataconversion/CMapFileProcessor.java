@@ -22,9 +22,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -50,8 +50,17 @@ public class CMapFileProcessor extends ChadoProcessor {
     // global scope for use in methods
     Item organism;
 
-    // global for use in methods
+    // store items in maps for ultimate storage, may need access in methods, so global
     ItemMap chromosomeMap = new ItemMap();
+
+    // these are keyed by acc in file
+    Map<String,Item> linkageGroupMap = new HashMap<String,Item>();
+    Map<String,Item> geneticMarkerMap = new HashMap<String,Item>();
+    Map<String,Item> qtlMap = new HashMap<String,Item>();
+
+    // these are just collected in sets for final storage
+    Set<Item> linkageGroupPositionSet = new HashSet<Item>();
+    Set<Item> linkageGroupRangeSet = new HashSet<Item>();
     
     /**
      * Create a new CMapFileProcessor
@@ -97,16 +106,10 @@ public class CMapFileProcessor extends ChadoProcessor {
         organism = getChadoDBConverter().createItem("Organism");
         BioStoreHook.setSOTerm(getChadoDBConverter(), organism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
         organism.setAttribute("taxonId", String.valueOf(taxonId));
-        store(organism);
-        LOG.info("Created and stored organism Item for taxonId="+taxonId+".");
 
         // ---------------------------------------------------------------------------------------------------------------------------
         // Load linkage groups, genetic markers and QTLs from the CMap file and associate QTLs and genetic markers with linkage groups
         // ---------------------------------------------------------------------------------------------------------------------------
-
-        Map<String,Item> linkageGroupMap = new HashMap<String,Item>();
-        Map<String,Item> geneticMarkerMap = new HashMap<String,Item>();
-        Map<String,Item> qtlMap = new HashMap<String,Item>();
 
         try {
             
@@ -165,16 +168,24 @@ public class CMapFileProcessor extends ChadoProcessor {
         // ----------------------------------------------------------------
         // we're done, so store everything
         // ----------------------------------------------------------------
+        LOG.info("Storing organism for taxonId="+taxonId+".");
+        store(organism);
 
         LOG.info("Storing linkage groups...");
         for (Item item : linkageGroupMap.values()) store(item);
 
-        LOG.info("Storing genetic markers...");
-        for (Item item : geneticMarkerMap.values()) store(item);
- 
+        LOG.info("Storing linkage group positions...");
+        for (Item item : linkageGroupPositionSet) store(item);
+
+        LOG.info("Storing linkage group ranges...");
+        for (Item item : linkageGroupRangeSet) store(item);
+
         LOG.info("Storing QTLs...");
         for (Item item : qtlMap.values()) store(item);
 
+        LOG.info("Storing genetic markers...");
+        for (Item item : geneticMarkerMap.values()) store(item);
+ 
     }
 
     /**
@@ -220,34 +231,31 @@ public class CMapFileProcessor extends ChadoProcessor {
     }
 
     /**
-     * Populate a LinkageGroup Item from a CMap record
+     * Populate a LinkageGroup Item from a CMap record; use map_name as primary!
      */
     void populateLinkageGroup(Item linkageGroup, CMapRecord cmap) {
         BioStoreHook.setSOTerm(getChadoDBConverter(), linkageGroup, "linkage_group", getChadoDBConverter().getSequenceOntologyRefId());
         linkageGroup.setReference("organism", organism);
-        linkageGroup.setAttribute("primaryIdentifier", cmap.map_acc);
-        if (cmap.map_name!=null && cmap.map_name.length()>0) {
-            linkageGroup.setAttribute("secondaryIdentifier", cmap.map_name);
-        }
+        linkageGroup.setAttribute("secondaryIdentifier", cmap.map_acc);
+        linkageGroup.setAttribute("primaryIdentifier", cmap.map_name);
         linkageGroup.setAttribute("length", String.valueOf(cmap.map_stop));
     }
 
     /**
-     * Populate a QTL Item from a related LinkageGroup Item and CMap record.
+     * Populate a QTL Item from a related LinkageGroup Item and CMap record; use map_name as primary!
      */
     void populateQTL(Item qtl, Item linkageGroup, CMapRecord cmap) throws ObjectStoreException {
-        // qtl.setAttribute("primaryIdentifier", cmap.feature_acc); causes uniqueness problem since only name in QTL-markers file
         BioStoreHook.setSOTerm(getChadoDBConverter(), qtl, "QTL", getChadoDBConverter().getSequenceOntologyRefId());
         qtl.setReference("organism", organism);
-        qtl.setAttribute("primaryIdentifier", cmap.feature_acc);
-        qtl.setAttribute("secondaryIdentifier", cmap.feature_name);
+        qtl.setAttribute("secondaryIdentifier", cmap.feature_acc);
+        qtl.setAttribute("primaryIdentifier", cmap.feature_name);
         // create and store linkage group range; place it in map as well for future processing
         Item linkageGroupRange = getChadoDBConverter().createItem("LinkageGroupRange");
         linkageGroupRange.setAttribute("begin", String.valueOf(cmap.feature_start));
         linkageGroupRange.setAttribute("end", String.valueOf(cmap.feature_stop));
         linkageGroupRange.setAttribute("length", String.valueOf(round(cmap.feature_stop-cmap.feature_start,2)));
         linkageGroupRange.setReference("linkageGroup", linkageGroup);
-        store(linkageGroupRange);
+        linkageGroupRangeSet.add(linkageGroupRange);
         // add to QTL collection
         qtl.addToCollection("linkageGroupRanges", linkageGroupRange);
         // add to linkage group collection
@@ -255,19 +263,19 @@ public class CMapFileProcessor extends ChadoProcessor {
     }
 
     /**
-     * Populate a GeneticMarker Item from a LinkageGroup Item and CMap record
+     * Populate a GeneticMarker Item from a LinkageGroup Item and CMap record; use map_name as primary!
      */
     void populateGeneticMarker(Item geneticMarker, Item linkageGroup, CMapRecord cmap) throws ObjectStoreException {
         BioStoreHook.setSOTerm(getChadoDBConverter(), geneticMarker, "genetic_marker", getChadoDBConverter().getSequenceOntologyRefId());
         geneticMarker.setReference("organism", organism);
-        geneticMarker.setAttribute("primaryIdentifier", cmap.feature_acc);
-        geneticMarker.setAttribute("secondaryIdentifier", cmap.feature_name);
+        geneticMarker.setAttribute("secondaryIdentifier", cmap.feature_acc);
+        geneticMarker.setAttribute("primaryIdentifier", cmap.feature_name);
         geneticMarker.setAttribute("type", cmap.feature_type_acc);
         // create and store linkage group position; place it in a map as well for future processing
         Item linkageGroupPosition = getChadoDBConverter().createItem("LinkageGroupPosition");
         linkageGroupPosition.setAttribute("position", String.valueOf(cmap.feature_start));
         linkageGroupPosition.setReference("linkageGroup", linkageGroup);
-        store(linkageGroupPosition);
+        linkageGroupPositionSet.add(linkageGroupPosition);
         geneticMarker.addToCollection("linkageGroupPositions", linkageGroupPosition);
         // add to linkage group collection
         linkageGroup.addToCollection("geneticMarkers", geneticMarker);

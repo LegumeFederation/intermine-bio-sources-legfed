@@ -83,6 +83,8 @@
     <reference name="MRNA" referenced-type="MRNA" reverse-reference="polypeptide"/>
     <reference name="chromosome" referenced-type="Chromosome"/>
     <reference name="chromosomeLocation" referenced-type="Location"/>
+    <reference name="supercontig" referenced-type="Chromosome"/>
+    <reference name="supercontigLocation" referenced-type="Location"/>
     <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
     <reference name="consensusRegionLocation" referenced-type="Location"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
@@ -142,6 +144,15 @@
 
   <class name="Chromosome" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+  </class>
+
+  <!-- treat supercontigs/scaffolds as standalone sequence features so they don't clutter chromosome space -->
+  <class name="Supercontig"  extends="SequenceFeature" is-interface="true"/>
+
+  <!-- accordingly add supercontig and location to all sequence features -->
+  <class name="SequenceFeature" is-interface="true">
+    <reference name="supercontig" referenced-type="Supercontig" />
+    <reference name="supercontigLocation" referenced-type="Location" />
   </class>
 
   <class name="GeneFamily" is-interface="true">

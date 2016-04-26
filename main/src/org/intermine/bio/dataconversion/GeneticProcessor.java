@@ -64,12 +64,12 @@ public class GeneticProcessor extends ChadoProcessor {
         // ---------------- INITIAL DATA LOADING -------------------
         // ---------------------------------------------------------
         
-        // get the cvterm_id values for all our items of interest, to simplify queries below
-        int geneCVTermId = getCVTermId(stmt, "gene");
-        int linkageGroupCVTermId = getCVTermId(stmt, "linkage_group");
-        int geneticMarkerCVTermId = getCVTermId(stmt, "genetic_marker");
-        int qtlCVTermId = getCVTermId(stmt, "QTL");
-        int geneFamilyCVTermId = getCVTermId(stmt, "gene family");
+        // set the cv terms for our items of interest
+        String geneCVTerm = "gene";
+        String linkageGroupCVTerm = "linkage_group";
+        String geneticMarkerCVTerm = "genetic_marker";
+        String qtlCVTerm = "QTL";
+        String geneFamilyCVTerm = "gene family";
         
         // build the Organism map from the supplied taxon IDs
         Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
@@ -99,16 +99,16 @@ public class GeneticProcessor extends ChadoProcessor {
             Item organism = orgEntry.getValue();
 
             // fill these maps from the feature table
-            populateMap(stmt, geneMap, "Gene", geneCVTermId, organism_id, organism);
-            populateMap(stmt, linkageGroupMap, "LinkageGroup", linkageGroupCVTermId, organism_id, organism);
-            populateMap(stmt, geneticMarkerMap, "GeneticMarker", geneticMarkerCVTermId, organism_id, organism);
-            populateMap(stmt, qtlMap, "QTL", qtlCVTermId, organism_id, organism);
+            populateMap(stmt, geneMap, "Gene", geneCVTerm, organism_id, organism);
+            populateMap(stmt, linkageGroupMap, "LinkageGroup", linkageGroupCVTerm, organism_id, organism);
+            populateMap(stmt, geneticMarkerMap, "GeneticMarker", geneticMarkerCVTerm, organism_id, organism);
+            populateMap(stmt, qtlMap, "QTL", qtlCVTerm, organism_id, organism);
 
             // genetic maps are not in the feature table, so we use linkage groups to query them for this organism
             // we'll assume the units are cM, although we can query them if we want to be really pedantic
             String query = "SELECT * FROM featuremap WHERE featuremap_id IN (" +
                 "SELECT DISTINCT featuremap_id FROM featurepos WHERE feature_id IN (" +
-                "SELECT feature_id FROM feature WHERE type_id="+linkageGroupCVTermId+" AND organism_id="+organism_id+"))";
+                "SELECT feature_id FROM feature,cvterm WHERE organism_id="+organism_id+" AND type_id=cvterm_id AND cvterm.name='"+linkageGroupCVTerm+"'))";
             LOG.info("executing query: "+query);
             ResultSet rs0 = stmt.executeQuery(query);
             while (rs0.next()) {
@@ -138,7 +138,7 @@ public class GeneticProcessor extends ChadoProcessor {
         // Gene families are organism-independent; load from the featureprop table
         // Note: we don't have chado IDs for gene families, so we use their name as the key
         Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
-        String query = "SELECT DISTINCT value FROM featureprop WHERE type_id="+geneFamilyCVTermId;
+        String query = "SELECT DISTINCT featureprop.value FROM featureprop,cvterm WHERE type_id=cvterm_id AND cvterm.name='"+geneFamilyCVTerm+"'";
         LOG.info("executing query: "+query);
         ResultSet rs0 = stmt.executeQuery(query);
         while (rs0.next()) {
@@ -225,7 +225,7 @@ public class GeneticProcessor extends ChadoProcessor {
         for (Map.Entry<Integer,Item> entry : geneMap.entrySet()) {
             int feature_id = (int) entry.getKey(); // gene
             Item gene = entry.getValue();
-            ResultSet rs1 = stmt.executeQuery("SELECT * FROM featureprop WHERE feature_id="+feature_id+" AND type_id="+geneFamilyCVTermId);
+            ResultSet rs1 = stmt.executeQuery("SELECT featureprop.* FROM featureprop,cvterm WHERE feature_id="+feature_id+" AND type_id=cvterm_id AND cvterm.name='"+geneFamilyCVTerm+"'");
             while (rs1.next()) {
                 // add reference to the GeneFamily to this Gene (reversed-referenced)
                 String value = rs1.getString("value");             // the description
@@ -325,39 +325,6 @@ public class GeneticProcessor extends ChadoProcessor {
                 }
             }
             rs1.close(); // done collecting genetic markers
-
-            // //
-            // // 2. query featureloc for genes that overlap the full range spanned by the genetic markers found in 1
-            // // NOTE: this should moved to a generic postprocessor; doesn't depend on source of QTLs, genetic markers, genes
-            // //
-            // // now query ranges of these markers to get genes that overlap
-            // int f1 = 200000000; // initialize minimum of range
-            // int f2 = 0;         // initialize maximum of range
-            // int srcfeature_id = 0; // chromosome
-            // for (int l=0; l<k; l++) {
-            //     ResultSet rs2 = stmt.executeQuery("SELECT * FROM featureloc WHERE feature_id="+geneticMarkerIds[l]);
-            //     while (rs2.next()) {
-            //         int fmin = rs2.getInt("fmin");
-            //         int fmax = rs2.getInt("fmax");
-            //         srcfeature_id = rs2.getInt("srcfeature_id"); // should be same chromosome for all genetic markers
-            //         if (fmin<f1) f1 = fmin;
-            //         if (fmax>f2) f2 = fmax;
-            //     }
-            //     rs2.close();
-            //     if (f1<f2) {
-            //         ResultSet rs3 = stmt.executeQuery("SELECT featureloc.feature_id FROM featureloc,feature WHERE " +
-            //                                          "featureloc.feature_id=feature.feature_id AND type_id="+geneCVTermId+" " +
-            //                                          "AND srcfeature_id="+srcfeature_id+" AND fmin<"+f2+" AND fmax>"+f1);
-            //         while (rs3.next()) {
-            //             int feature_id = rs3.getInt("feature_id");
-            //             Item gene = geneMap.get(new Integer(feature_id));
-            //             if (gene!=null) {
-            //                 qtl.addToCollection("overlappedGenes", gene);
-            //             }
-            //         }
-            //         rs3.close();
-            //     }
-            // }
             
         } // QTL loop
         LOG.info("***** Done populating QTLs with genetic markers from feature_relationship.");
@@ -435,18 +402,6 @@ public class GeneticProcessor extends ChadoProcessor {
     }
 
     /**
-     * Return the cvterm.cvterm_id for the requested cvterm.name, 0 if not found.
-     * Require that a non-empty definition exist - this narrows some dupes (like "comment") to a single record.
-     */
-    int getCVTermId(Statement stmt, String name) throws SQLException {
-        ResultSet rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='"+name+"' AND length(definition)>0");
-        int cvTermId = 0;
-        if (rs.next()) cvTermId = rs.getInt("cvterm_id");
-        rs.close();
-        return cvTermId;
-    }
-
-    /**
      * Set the attributes of the given publication Item from the given pub ResultSet.
      */
     void setPublicationAttributes(Item publication, ResultSet rs) throws SQLException {
@@ -493,12 +448,13 @@ public class GeneticProcessor extends ChadoProcessor {
     /**
      * Populate a map with records from the feature table
      */
-    void populateMap(Statement stmt, Map<Integer,Item> map, String className, int cvTermId, int organism_id, Item organism) throws SQLException {
-        ResultSet rs = stmt.executeQuery("SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+cvTermId);
+    void populateMap(Statement stmt, Map<Integer,Item> map, String className, String cvTerm, int organism_id, Item organism) throws SQLException {
+        ResultSet rs = stmt.executeQuery("SELECT feature.* FROM feature,cvterm WHERE organism_id="+organism_id+" AND type_id=cvterm_id AND cvterm.name='"+cvTerm+"'");
         while (rs.next()) {
             ChadoFeature cf = new ChadoFeature(rs);
             Item item = getChadoDBConverter().createItem(className);
             cf.populateBioEntity(item, organism);
+            BioStoreHook.setSOTerm(getChadoDBConverter(), item, cvTerm, getChadoDBConverter().getSequenceOntologyRefId());
             map.put(new Integer(cf.feature_id), item);
         }
         rs.close();

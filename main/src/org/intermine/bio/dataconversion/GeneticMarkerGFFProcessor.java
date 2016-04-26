@@ -92,9 +92,6 @@ public class GeneticMarkerGFFProcessor extends ChadoProcessor {
         OrganismData orgData = chadoToOrgData.get(organismId);
         int taxonId = orgData.getTaxonId();
 
-        // special chromosome naming hack for soybean
-        boolean isSoybean = (taxonId==3847);
-
         // create organism Item - global so can be used in populate routines
         organism = getChadoDBConverter().createItem("Organism");
         BioStoreHook.setSOTerm(getChadoDBConverter(), organism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
@@ -120,7 +117,6 @@ public class GeneticMarkerGFFProcessor extends ChadoProcessor {
                 if (gff.seqid!=null && gff.attributeName!=null) {
                     // create and store this chromosome Item if not already in map; else get it from the map
                     String chrName = gff.seqid;
-                    if (isSoybean) chrName = chrName.replace("Gm","glyma.Chr"); // hack for soybean chromosome match to chado for merging on primaryIdentifier
                     Item chromosome = null;
                     if (chromosomeMap.containsKey(chrName)) {
                         chromosome = chromosomeMap.get(chrName);

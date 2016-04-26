@@ -1525,9 +1525,9 @@ public class SequenceProcessor extends ChadoProcessor {
         stmt.execute(query);
 
         // HACK: convert supercontig records to chromosome records!
-        String supercontigQuery = "UPDATE "+tempFeatureTableName+" SET type='chromosome' WHERE type='supercontig'";
-        LOG.info("executing: " + supercontigQuery);
-        stmt.execute(supercontigQuery);
+        // String supercontigQuery = "UPDATE "+tempFeatureTableName+" SET type='chromosome' WHERE type='supercontig'";
+        // LOG.info("executing: " + supercontigQuery);
+        // stmt.execute(supercontigQuery);
                  
 	// create indexes and analyze on temp table
         String idIndexQuery = "CREATE INDEX "+tempFeatureTableName+"_feature_index ON "+tempFeatureTableName+" (feature_id)";
