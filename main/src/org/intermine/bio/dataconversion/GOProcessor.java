@@ -29,7 +29,7 @@ import org.intermine.xml.full.Item;
 import org.intermine.xml.full.Reference;
 
 /**
- * Store the GO annotations contained in the feature.note field for genes and gene families in the LIS chado database.
+ * Store the GO annotations parsed from the gene.note field in the LIS chado database.
  *
  * Since this processer deals only with chado data, Items are stored in maps with Integer keys equal to
  * the chado feature.feature_id.
@@ -123,45 +123,6 @@ public class GOProcessor extends ChadoProcessor {
             rs.close();
             
         } // organism
-
-        // load the gene families from the phylotree table, since it contains the comments which may contain the GO terms
-        String query = "SELECT name,comment FROM phylotree";
-        LOG.info("executing query: "+query);
-        ResultSet rs = stmt.executeQuery(query);
-        while (rs.next()) {
-            String name = rs.getString("name");
-            String description = rs.getString("comment");
-            String[] goNumbers = StringUtils.substringsBetween(description, "GO:", " ");
-            if (goNumbers!=null) {
-                // create the GeneFamily item and load the minimal attributes and GO terms
-                Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
-                geneFamily.setAttribute("primaryIdentifier", name);
-                // add the GO terms
-                for (int j=0; j<goNumbers.length; j++) {
-                    String identifier = "GO:"+goNumbers[j];
-                    // get the GO term from the map if it's there; otherwise create, store and add it to the map.
-                    Item goTerm;
-                    if (goTermMap.containsKey(identifier)) {
-                        goTerm = goTermMap.get(identifier);
-                    } else {
-                        goTerm = getChadoDBConverter().createItem("GOTerm");
-                        goTerm.setAttribute("identifier", identifier);
-                        store(goTerm);
-                        goTermMap.put(identifier, goTerm);
-                    }
-                    // create and store the GOAnnotation linking this gene family to this GO term
-                    Item goAnnotation = getChadoDBConverter().createItem("GOAnnotation");
-                    goAnnotation.setReference("subject", geneFamily);
-                    goAnnotation.setReference("ontologyTerm", goTerm);
-                    store(goAnnotation);
-                    // have to manually set reverse reference since no reverse-reference defined in go-annotation
-                    geneFamily.addToCollection("goAnnotation", goAnnotation);
-                }
-                // store the gene family
-                store(geneFamily);
-            }
-        }
-        rs.close();
 
     } // process
 

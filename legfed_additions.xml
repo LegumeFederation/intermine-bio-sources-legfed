@@ -23,6 +23,19 @@
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
+  <class name="LinkageGroup" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="secondaryIdentifier" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="length" type="java.lang.Double"/>
+    <attribute name="assignedLinkageGroup" type="java.lang.String"/>
+    <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
+    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
+    <collection name="QTLs" referenced-type="QTL"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
   <!-- encapsulates a position (cM) on a linkage group -->
   <class name="LinkageGroupPosition" is-interface="true">
     <attribute name="position" type="java.lang.Double"/>
@@ -37,19 +50,6 @@
     <reference name="linkageGroup" referenced-type="LinkageGroup"/>
   </class>
 
-  <class name="LinkageGroup" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <attribute name="secondaryIdentifier" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
-    <attribute name="length" type="java.lang.Double"/>
-    <attribute name="assignedLinkageGroup" type="java.lang.String"/>
-    <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
-    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
-    <collection name="QTLs" referenced-type="QTL"/>
-    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
-  </class>
-
   <class name="GeneticMap" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <reference name="organism" referenced-type="Organism"/>
@@ -59,6 +59,12 @@
     <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
   </class>
 
+  <class name="GeneFamily" is-interface="true">
+    <attribute name="description" type="java.lang.String"/>
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <collection name="genes" referenced-type="Gene" reverse-reference="geneFamily"/>
+  </class>
+  
   <!-- genetic markers are both genetic and genomic -->
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
@@ -120,6 +126,22 @@
     <reference name="sequence" referenced-type="Sequence"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
+
+  <class name="SyntenicRegion" extends="SequenceFeature" is-interface="true">
+    <reference name="syntenyBlock" referenced-type="SyntenyBlock"/>
+  </class>
+  
+  <class name="SyntenyBlock" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="medianKs" type="java.lang.Double"/>
+    <reference name="sourceRegion" referenced-type="SyntenicRegion"/>
+    <reference name="targetRegion" referenced-type="SyntenicRegion"/>
+  </class>
+
+  <!-- add supercontigs/scaffolds as standalone sequence features so they don't clutter chromosome space -->
+  <class name="Supercontig"  extends="SequenceFeature" is-interface="true"/>
+
+  <!-- extensions of core classes -->
   
   <class name="MRNA" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
@@ -146,53 +168,6 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
   </class>
 
-  <!-- treat supercontigs/scaffolds as standalone sequence features so they don't clutter chromosome space -->
-  <class name="Supercontig"  extends="SequenceFeature" is-interface="true"/>
-
-  <!-- accordingly add supercontig and location to all sequence features -->
-  <class name="SequenceFeature" is-interface="true">
-    <reference name="supercontig" referenced-type="Supercontig" />
-    <reference name="supercontigLocation" referenced-type="Location" />
-  </class>
-
-  <class name="GeneFamily" is-interface="true">
-    <attribute name="description" type="java.lang.String"/>
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <collection name="genes" referenced-type="Gene" reverse-reference="geneFamily"/>
-    <collection name="goAnnotation" referenced-type="GOAnnotation"/>
-  </class>
-
-  <class name="SyntenicRegion" extends="SequenceFeature" is-interface="true">
-    <reference name="syntenyBlock" referenced-type="SyntenyBlock"/>
-  </class>
-  
-  <class name="SyntenyBlock" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <attribute name="medianKs" type="java.lang.Double"/>
-    <reference name="sourceRegion" referenced-type="SyntenicRegion"/>
-    <reference name="targetRegion" referenced-type="SyntenicRegion"/>
-  </class>
-
-  <!-- mirror go-annotation_additions.xml so stock GO stuff works (hopefully); most is left empty since not in chado -->
-
-  <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
-
-  <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true">
-    <attribute name="annotationExtension" type="java.lang.String"/>
-    <collection name="evidence" referenced-type="GOEvidence"/>
-  </class>
-
-  <class name="GOEvidenceCode" is-interface="true">
-    <attribute name="code" type="java.lang.String" />
-  </class>
-
-  <class name="GOEvidence" is-interface="true">
-    <attribute name="withText" type="java.lang.String"/>
-    <reference name="code" referenced-type="GOEvidenceCode"/>
-    <collection name="publications" referenced-type="Publication"/>
-    <collection name="with" referenced-type="BioEntity"/>
-  </class>
-  
   <class name="DatabaseReference" is-interface="true">
     <attribute name="identifier" type="java.lang.String"/>
     <reference name="source" referenced-type="DataSource"/>
@@ -207,4 +182,26 @@
     <attribute name="comment" type="java.lang.String"/>
   </class>
 
+  <!-- add supercontig and location to all sequence features -->
+  <class name="SequenceFeature" is-interface="true">
+    <reference name="supercontig" referenced-type="Supercontig" />
+    <reference name="supercontigLocation" referenced-type="Location" />
+  </class>
+
+  <!-- GO stuff copied from go source -->
+  <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
+  <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true">
+    <attribute name="annotationExtension" type="java.lang.String"/>
+    <collection name="evidence" referenced-type="GOEvidence"/>
+  </class>
+  <class name="GOEvidenceCode" is-interface="true">
+    <attribute name="code" type="java.lang.String" />
+  </class>
+  <class name="GOEvidence" is-interface="true">
+    <attribute name="withText" type="java.lang.String"/>
+    <reference name="code" referenced-type="GOEvidenceCode"/>
+    <collection name="publications" referenced-type="Publication"/>
+    <collection name="with" referenced-type="BioEntity"/>
+  </class>
+  
 </classes>

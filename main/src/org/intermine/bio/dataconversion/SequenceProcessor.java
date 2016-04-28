@@ -255,7 +255,8 @@ public class SequenceProcessor extends ChadoProcessor {
      * @param organismId the chado organism id
      * @throws ObjectStoreException if there is a problem while storing
      */
-    private boolean processAndStoreFeature(Integer featureId, String uniqueName, String name, int seqlen, String residues, String md5checksum, String chadoType, Integer organismId) throws ObjectStoreException {
+    private boolean processAndStoreFeature(Integer featureId, String uniqueName, String name, int seqlen, String residues, String md5checksum, String chadoType, Integer organismId)
+        throws ObjectStoreException {
 		
         if (featureMap.containsKey(featureId)) {
             return false;
@@ -1524,11 +1525,6 @@ public class SequenceProcessor extends ChadoProcessor {
         LOG.info("executing createFeatureTempTable(): " + query);
         stmt.execute(query);
 
-        // HACK: convert supercontig records to chromosome records!
-        // String supercontigQuery = "UPDATE "+tempFeatureTableName+" SET type='chromosome' WHERE type='supercontig'";
-        // LOG.info("executing: " + supercontigQuery);
-        // stmt.execute(supercontigQuery);
-                 
 	// create indexes and analyze on temp table
         String idIndexQuery = "CREATE INDEX "+tempFeatureTableName+"_feature_index ON "+tempFeatureTableName+" (feature_id)";
         LOG.info("executing: " + idIndexQuery);
@@ -1626,9 +1622,8 @@ public class SequenceProcessor extends ChadoProcessor {
     }
 
     /**
-     * Return extra SQL that will be added to the feature_relationships table query.  It will add
-     * fake relationships to the query to make it look like there are gene <-> polypeptide relations
-     * with type 'producedby'.
+     * Return extra SQL that will be added to the feature_relationships table query.
+     * It adds fake relationships to the query to make it look like there are gene <-> polypeptide relations with type 'producedby'.
      * Results in a resultset like (0, gene_id, polypeptide_id, 'producedby')
      * UPDATE: keep this specific to genes that are in the feature temp table to limit to chosen organisms; query originally hit entire database for all organisms.
      * UPDATE: simplified query using explicit type_id
@@ -1642,17 +1637,14 @@ public class SequenceProcessor extends ChadoProcessor {
             + "      "+tempFeatureTableName+" f2, feature_relationship fr2,"
             + "      "+tempFeatureTableName+" f3 "
 
-            + " WHERE f1.feature_id = fr1.object_id"  // gene is object of rel 1
-            + " AND   f2.feature_id = fr1.subject_id" // mRNA is subject of rel 1
-            + " AND   f2.feature_id = fr2.object_id"  // mRNA is object of rel 2
-            + " AND   f3.feature_id = fr2.subject_id" // polypeptide is subject of rel 2
+            + " WHERE f1.feature_id=fr1.object_id"  // gene is object of rel 1
+            + " AND   f2.feature_id=fr1.subject_id" // mRNA is subject of rel 1
+            + " AND   f2.feature_id=fr2.object_id"  // mRNA is object of rel 2
+            + " AND   f3.feature_id=fr2.subject_id" // polypeptide is subject of rel 2
 
-            + " AND fr1.type_id = 42871"  // mRNA part_of gene, part_of=42871
-            + " AND fr2.type_id = 42884"  // polypeptide derives_from mRNA, derives_from=42884
-
-            + " AND f1.type = 'gene'"           // f1 is gene
-            + " AND f2.type = 'mRNA'"           // f2 is mRNA
-            + " AND f3.type = 'polypeptide'";   // f3 is polypeptide
+            + " AND f1.type='gene'"           // f1 is gene
+            + " AND f2.type='mRNA'"           // f2 is mRNA
+            + " AND f3.type='polypeptide'";   // f3 is polypeptide
     }
 
     /**
