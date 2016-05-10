@@ -11,14 +11,8 @@ package org.intermine.bio.dataconversion;
  */
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.io.Reader;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,11 +30,9 @@ import org.intermine.xml.full.Reference;
 /**
  * Store the QTL-marker data and relationships from a tab-delimited file.
  *
- * Note: this processor doesn't query the chado database.
- *
  * @author Sam Hokin, NCGR
  */
-public class QTLMarkerFileProcessor extends ChadoProcessor {
+public class QTLMarkerFileProcessor extends LegfedFileProcessor {
 	
     private static final Logger LOG = Logger.getLogger(QTLMarkerFileProcessor.class);
 
@@ -49,47 +41,35 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
 
     /**
      * Create a new QTLMarkerFileProcessor
-     * @param chadoDBConverter the ChadoDBConverter that is controlling this processor
+     * @param legfedFileConverter the LegfedFileConverter that is controlling this processor
      */
-    public QTLMarkerFileProcessor(ChadoDBConverter chadoDBConverter) {
-        super(chadoDBConverter);
+    public QTLMarkerFileProcessor(LegfedFileConverter legfedFileConverter) {
+        super(legfedFileConverter);
     }
 
     /**
      * {@inheritDoc}
-     * We process the chado database by reading the feature, featureloc, featurepos, featuremap, feature_relationship and featureprop tables.
+     * We process the QTL-marker relationships by reading in from a tab-delmited file.
      */
     @Override
-    public void process(Connection connection) throws SQLException, ObjectStoreException {
+    public void process(Reader reader) throws ObjectStoreException {
 
         // ---------------------------------------------------------
         // INITIAL DATA LOADING
         // ---------------------------------------------------------
 
-        // get the QTL-marker file, do nothing if it's null
-        File qtlMarkerFile = getChadoDBConverter().getQtlMarkerFile();
-        if (qtlMarkerFile==null) {
-            LOG.error("QTL-marker file has not been set in project.xml.");
-            System.exit(1);
+        // get the organism taxon ID; enforce only one
+        OrganismData[] organisms = getLegfedFileConverter().getOrganismsToProcess().toArray(new OrganismData[0]);
+        if (organisms.length>1) {
+            String error = "Multiple organisms specified in data source; GeneticMarkerGFFProcessor can only process one organism at a time.";
+            LOG.error(error);
+            throw new RuntimeException(error);
         }
-         
-        // get chado organism_id from supplied taxon ID - enforce processing a single organism!
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        if (chadoToOrgData.size()>1) {
-            System.err.println("ERROR - multiple chado organisms specified in data source; QTLMarkerFileProcessor can only process one organism at a time.");
-            System.exit(1);
-        }
-        Integer organismId = 0;
-        for (Integer key : chadoToOrgData.keySet()) {
-            organismId = key.intValue();
-        }
-        OrganismData orgData = chadoToOrgData.get(organismId);
-        int organism_id = organismId.intValue(); // chado organism.organism_id
-        int taxonId = orgData.getTaxonId();
+        int taxonId = organisms[0].getTaxonId();
 
         // create organism Item - global so can be used in populate routines
-        organism = getChadoDBConverter().createItem("Organism");
-        BioStoreHook.setSOTerm(getChadoDBConverter(), organism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
+        organism = getLegfedFileConverter().createItem("Organism");
+        BioStoreHook.setSOTerm(getLegfedFileConverter(), organism, "organism", getLegfedFileConverter().getSequenceOntologyRefId());
         organism.setAttribute("taxonId", String.valueOf(taxonId));
         store(organism);
         LOG.info("Created and stored organism Item for taxonId="+taxonId+".");
@@ -106,9 +86,9 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
         
         try {
 
-            BufferedReader qtlMarkerReader = new BufferedReader(new FileReader(qtlMarkerFile));
+            BufferedReader qtlMarkerReader = new BufferedReader(reader);
             String qtlMarkerLine = qtlMarkerReader.readLine(); // header
-            LOG.info("Reading QTL-Marker file:"+qtlMarkerFile.getName()+" with header:"+qtlMarkerLine);
+            LOG.info("Reading QTL-Marker file with header:"+qtlMarkerLine);
             
             while ((qtlMarkerLine=qtlMarkerReader.readLine())!=null) {
                 QTLMarkerRecord rec = new QTLMarkerRecord(qtlMarkerLine);
@@ -118,8 +98,8 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
                     if (qtlMap.containsKey(rec.qtlName)) {
                         qtl = qtlMap.get(rec.qtlName);
                     } else {
-                        qtl = getChadoDBConverter().createItem("QTL");
-                        BioStoreHook.setSOTerm(getChadoDBConverter(), qtl, "QTL", getChadoDBConverter().getSequenceOntologyRefId());
+                        qtl = getLegfedFileConverter().createItem("QTL");
+                        BioStoreHook.setSOTerm(getLegfedFileConverter(), qtl, "QTL", getLegfedFileConverter().getSequenceOntologyRefId());
                         qtl.setReference("organism", organism);
                         qtl.setAttribute("primaryIdentifier", rec.qtlName);
                         qtlMap.put(rec.qtlName, qtl);
@@ -129,8 +109,8 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
                     if (markerMap.containsKey(rec.markerName)) {
                         marker = markerMap.get(rec.markerName);
                     } else {
-                        marker = getChadoDBConverter().createItem("GeneticMarker");
-                        BioStoreHook.setSOTerm(getChadoDBConverter(), marker, "genetic_marker", getChadoDBConverter().getSequenceOntologyRefId());
+                        marker = getLegfedFileConverter().createItem("GeneticMarker");
+                        BioStoreHook.setSOTerm(getLegfedFileConverter(), marker, "genetic_marker", getLegfedFileConverter().getSequenceOntologyRefId());
                         marker.setReference("organism", organism);
                         marker.setAttribute("primaryIdentifier", rec.markerName);
                         markerMap.put(rec.markerName, marker);
@@ -158,47 +138,5 @@ public class QTLMarkerFileProcessor extends ChadoProcessor {
         for (Item marker : markerMap.values()) store(marker);
 
     }
-
-    /**
-     * Store the item.
-     * @param item the Item
-     * @return the database id of the new Item
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected Integer store(Item item) throws ObjectStoreException {
-        return getChadoDBConverter().store(item);
-    }
     
-    /**
-     * Do any extra processing that is needed before the converter starts querying features
-     * @param connection the Connection
-     * @throws ObjectStoreException if there is a object store problem
-     * @throws SQLException if there is a database problem
-     */
-    protected void earlyExtraProcessing(Connection connection) throws ObjectStoreException, SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Do any extra processing for this database, after all other processing is done
-     * @param connection the Connection
-     * @param featureDataMap a map from chado feature_id to data for that feature
-     * @throws ObjectStoreException if there is a problem while storing
-     * @throws SQLException if there is a problem
-     */
-    protected void extraProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap)
-        throws ObjectStoreException, SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Perform any actions needed after all processing is finished.
-     * @param connection the Connection
-     * @param featureDataMap a map from chado feature_id to data for that feature
-     * @throws SQLException if there is a problem
-     */
-    protected void finishedProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap) throws SQLException {
-        // override in subclasses as necessary
-    }
-
 }

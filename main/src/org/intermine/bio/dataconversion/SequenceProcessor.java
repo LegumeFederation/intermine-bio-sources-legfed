@@ -51,14 +51,15 @@ import org.intermine.xml.full.ReferenceList;
  * Note that the Legfed chado does NOT have proteins; rather, it has polypeptides with the following relations in feature_relationship:
  * <pre>
  * polypeptide derives_from mRNA
- * mRNA part_of gene
+ * exon        part_of      mRNA
+ * mRNA        part_of      gene
  * </pre>
- * As a result, we also tie polypeptides to genes ("producedby") via the intermediate mRNA as did Kim for proteins and genes.
+ * I have removed the polypeptide-gene relationship hack in Kim's version, as that belongs in a post-processor. It's not feature_relationship.
+ * Neither is exon:part_of:gene, as you might expect!
  *
  * This processor is only for genomic quantities. Genetic quantites such as QTLs and linkage groups are dealt with in GeneticProcessor, as well as 
- * genetic relationships like genetic marker positions on QTLs (Nearest Marker, Flanking Marker Low, Flanking Marker High).
- *
- * Hacks are denoted by "HACK:" in comments.
+ * genetic relationships like genetic marker positions on QTLs (Nearest Marker, Flanking Marker Low, Flanking Marker High). Genetic markers are loaded
+ * here since they are sequence features as well.
  *
  * @author Sam Hokin
  */
@@ -86,11 +87,11 @@ public class SequenceProcessor extends ChadoProcessor {
     private String tempFeatureTableName = null;
 
     // a list of all the cvterm relation names we wish to process, including those generated locally
-    // HACK: "producedby" is generated locally to tie polypeptides to genes
-    private static final List<String> DESIRED_RELATIONS = Arrays.asList("producedby", "part_of", "derives_from");
+    private static final List<String> DESIRED_RELATIONS = Arrays.asList("part_of", "derives_from");
 	
     // a list of the one-way relation cvterm names; these will only be processed in the subject-object direction
-    private static final List<String> PARTOF_RELATIONS = Arrays.asList("producedby", "part_of", "derives_from");
+    // NOTE: this is a SUBSET of DESIRED_RELATIONS!
+    private static final List<String> PARTOF_RELATIONS = Arrays.asList("part_of", "derives_from");
 
     // desired feature cvterm types to query from the chado.feature table INCLUDING those that appear as sources in chado.featureloc
     private static final List<String> DESIRED_FEATURES = Arrays.asList(
@@ -757,7 +758,7 @@ public class SequenceProcessor extends ChadoProcessor {
                 List<FieldDescriptor> fds = null;
 
                 FeatureData subjectFeatureData = featureMap.get(chadoSubjectId);
-                // key example: ("relationship", "Polypeptide", "producedby", "MRNA")
+                // key example: ("relationship", "Polypeptide", "derives_from", "mRNA")
                 String relType;
                 if (subjectIsFirst) {
                     relType = "relationship";
@@ -1603,48 +1604,17 @@ public class SequenceProcessor extends ChadoProcessor {
         } else {
             subObjString = "object_id as feature1_id, subject_id as feature2_id";
         }
-        String extraQueryBits = "";
-	if (subjectFirst) {
-	    extraQueryBits = getGenesPolypeptidesQuery(); // Why only subjectFirst?
-	}
         String query = "SELECT feature_relationship_id, "+subObjString
 	    + ", cvterm.name AS type_name"
 	    + "  FROM feature_relationship, cvterm"
 	    + "  WHERE cvterm.cvterm_id = type_id"
 	    + "      AND subject_id IN (" + getFeatureIdQuery() + ")" // subject must be in feature temp table
 	    + "      AND object_id IN (" + getFeatureIdQuery() + ")"  // object must be in feature temp table
-	    + extraQueryBits                                          // get gene-polypeptide relations via mRNA pivot
 	    + " ORDER BY feature1_id";
         LOG.info("getFeatureRelationshipResultSet() executing:\n" + query);
         Statement stmt = connection.createStatement();
         ResultSet res = stmt.executeQuery(query);
         return res;
-    }
-
-    /**
-     * Return extra SQL that will be added to the feature_relationships table query.
-     * It adds fake relationships to the query to make it look like there are gene <-> polypeptide relations with type 'producedby'.
-     * Results in a resultset like (0, gene_id, polypeptide_id, 'producedby')
-     * UPDATE: keep this specific to genes that are in the feature temp table to limit to chosen organisms; query originally hit entire database for all organisms.
-     * UPDATE: simplified query using explicit type_id
-     * UPDATE: UNION not UNION ALL (why would we want duplicate rows?)
-     */
-    private String getGenesPolypeptidesQuery() {
-	// TEST: switched f1.feature_id and f3.feature_id in output
-        return " UNION "
-	    + " SELECT 0 AS feature_relationship_id, f3.feature_id AS feature1_id, f1.feature_id AS feature2_id, 'producedby' AS type_name "
-            + " FROM "+tempFeatureTableName+" f1, feature_relationship fr1,"
-            + "      "+tempFeatureTableName+" f2, feature_relationship fr2,"
-            + "      "+tempFeatureTableName+" f3 "
-
-            + " WHERE f1.feature_id=fr1.object_id"  // gene is object of rel 1
-            + " AND   f2.feature_id=fr1.subject_id" // mRNA is subject of rel 1
-            + " AND   f2.feature_id=fr2.object_id"  // mRNA is object of rel 2
-            + " AND   f3.feature_id=fr2.subject_id" // polypeptide is subject of rel 2
-
-            + " AND f1.type='gene'"           // f1 is gene
-            + " AND f2.type='mRNA'"           // f2 is mRNA
-            + " AND f3.type='polypeptide'";   // f3 is polypeptide
     }
 
     /**

@@ -11,16 +11,11 @@ package org.intermine.bio.dataconversion;
  */
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.Reader;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,7 +38,7 @@ import org.intermine.xml.full.ReferenceList;
  *
  * @author Sam Hokin, NCGR
  */
-public class CMapFileProcessor extends ChadoProcessor {
+public class CMapFileProcessor extends LegfedFileProcessor {
 	
     private static final Logger LOG = Logger.getLogger(CMapFileProcessor.class);
 
@@ -64,10 +59,10 @@ public class CMapFileProcessor extends ChadoProcessor {
     
     /**
      * Create a new CMapFileProcessor
-     * @param chadoDBConverter the ChadoDBConverter that is controlling this processor
+     * @param legfedFileConverter the LegfedFileConverter that is controlling this processor
      */
-    public CMapFileProcessor(ChadoDBConverter chadoDBConverter) {
-        super(chadoDBConverter);
+    public CMapFileProcessor(LegfedFileConverter legfedFileConverter) {
+        super(legfedFileConverter);
     }
 
     /**
@@ -75,36 +70,24 @@ public class CMapFileProcessor extends ChadoProcessor {
      * We process the chado database by reading the feature, featureloc, featurepos, featuremap, feature_relationship and featureprop tables.
      */
     @Override
-    public void process(Connection connection) throws SQLException, ObjectStoreException {
+    public void process(Reader reader) throws ObjectStoreException {
 
         // ---------------------------------------------------------
         // ---------------- INITIAL DATA LOADING -------------------
         // ---------------------------------------------------------
 
-        // get the CMap file, do nothing if it's null
-        File cMapFile = getChadoDBConverter().getCmapFile();
-        if (cMapFile==null) {
-            LOG.error("CMap file has not been set in project.xml.");
-            System.exit(1);
+        // get the organism taxon ID; enforce only one
+        OrganismData[] organisms = getLegfedFileConverter().getOrganismsToProcess().toArray(new OrganismData[0]);
+        if (organisms.length>1) {
+            String error = "Multiple organisms specified in data source; GeneticMarkerGFFProcessor can only process one organism at a time.";
+            LOG.error(error);
+            throw new RuntimeException(error);
         }
-
-        // get chado organism_id from supplied taxon ID - enforce processing a single organism!
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        if (chadoToOrgData.size()>1) {
-            System.err.println("ERROR - multiple chado organisms specified in data source; CMapFileProcessor can only process one organism at a time.");
-            System.exit(1);
-        }
-        Integer organismId = 0;
-        for (Integer key : chadoToOrgData.keySet()) {
-            organismId = key.intValue();
-        }
-        OrganismData org = chadoToOrgData.get(organismId);
-        int organism_id = organismId.intValue(); // chado organism.organism_id
-        int taxonId = org.getTaxonId();
+        int taxonId = organisms[0].getTaxonId();
 
         // create organism Item - global so can be used in populate routines
-        organism = getChadoDBConverter().createItem("Organism");
-        BioStoreHook.setSOTerm(getChadoDBConverter(), organism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
+        organism = getLegfedFileConverter().createItem("Organism");
+        BioStoreHook.setSOTerm(getLegfedFileConverter(), organism, "organism", getLegfedFileConverter().getSequenceOntologyRefId());
         organism.setAttribute("taxonId", String.valueOf(taxonId));
 
         // ---------------------------------------------------------------------------------------------------------------------------
@@ -113,9 +96,9 @@ public class CMapFileProcessor extends ChadoProcessor {
 
         try {
             
-            BufferedReader cmapReader = new BufferedReader(new FileReader(cMapFile));
+            BufferedReader cmapReader = new BufferedReader(reader);
             String cmapLine = cmapReader.readLine(); // first line is header
-            LOG.info("Reading CMap file:"+cMapFile.getName()+" with header:"+cmapLine);
+            LOG.info("Reading CMap file with header:"+cmapLine);
             
             while ((cmapLine=cmapReader.readLine())!=null) {
                 
@@ -127,7 +110,7 @@ public class CMapFileProcessor extends ChadoProcessor {
                     if (linkageGroupMap.containsKey(cmap.map_acc)) {
                         linkageGroup = linkageGroupMap.get(cmap.map_acc);
                     } else {
-                        linkageGroup = getChadoDBConverter().createItem("LinkageGroup");
+                        linkageGroup = getLegfedFileConverter().createItem("LinkageGroup");
                         populateLinkageGroup(linkageGroup, cmap);
                         linkageGroupMap.put(cmap.map_acc, linkageGroup);
                     }
@@ -135,7 +118,7 @@ public class CMapFileProcessor extends ChadoProcessor {
                     // add this QTL to this linkage group if appropriate
                     if (cmap.isQTL()) {
                         if (!qtlMap.containsKey(cmap.feature_acc)) {
-                            Item qtl = getChadoDBConverter().createItem("QTL");
+                            Item qtl = getLegfedFileConverter().createItem("QTL");
                             populateQTL(qtl, linkageGroup, cmap);
                             qtlMap.put(cmap.feature_acc, qtl);
                         }
@@ -144,7 +127,7 @@ public class CMapFileProcessor extends ChadoProcessor {
                     // add this genetic marker to this linkage group if appropriate
                     if (cmap.isMarker()) {
                         if (!geneticMarkerMap.containsKey(cmap.feature_acc)) {
-                            Item geneticMarker = getChadoDBConverter().createItem("GeneticMarker");
+                            Item geneticMarker = getLegfedFileConverter().createItem("GeneticMarker");
                             populateGeneticMarker(geneticMarker, linkageGroup, cmap);
                             geneticMarkerMap.put(cmap.feature_acc, geneticMarker);
                         }
@@ -189,52 +172,10 @@ public class CMapFileProcessor extends ChadoProcessor {
     }
 
     /**
-     * Store the item.
-     * @param item the Item
-     * @return the database id of the new Item
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected Integer store(Item item) throws ObjectStoreException {
-        return getChadoDBConverter().store(item);
-    }
-    
-    /**
-     * Do any extra processing that is needed before the converter starts querying features
-     * @param connection the Connection
-     * @throws ObjectStoreException if there is a object store problem
-     * @throws SQLException if there is a database problem
-     */
-    protected void earlyExtraProcessing(Connection connection) throws ObjectStoreException, SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Do any extra processing for this database, after all other processing is done
-     * @param connection the Connection
-     * @param featureDataMap a map from chado feature_id to data for that feature
-     * @throws ObjectStoreException if there is a problem while storing
-     * @throws SQLException if there is a problem
-     */
-    protected void extraProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap)
-        throws ObjectStoreException, SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Perform any actions needed after all processing is finished.
-     * @param connection the Connection
-     * @param featureDataMap a map from chado feature_id to data for that feature
-     * @throws SQLException if there is a problem
-     */
-    protected void finishedProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap) throws SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
      * Populate a LinkageGroup Item from a CMap record; use map_name as primary!
      */
     void populateLinkageGroup(Item linkageGroup, CMapRecord cmap) {
-        BioStoreHook.setSOTerm(getChadoDBConverter(), linkageGroup, "linkage_group", getChadoDBConverter().getSequenceOntologyRefId());
+        BioStoreHook.setSOTerm(getLegfedFileConverter(), linkageGroup, "linkage_group", getLegfedFileConverter().getSequenceOntologyRefId());
         linkageGroup.setReference("organism", organism);
         linkageGroup.setAttribute("secondaryIdentifier", cmap.map_acc);
         linkageGroup.setAttribute("primaryIdentifier", cmap.map_name);
@@ -245,12 +186,12 @@ public class CMapFileProcessor extends ChadoProcessor {
      * Populate a QTL Item from a related LinkageGroup Item and CMap record; use map_name as primary!
      */
     void populateQTL(Item qtl, Item linkageGroup, CMapRecord cmap) throws ObjectStoreException {
-        BioStoreHook.setSOTerm(getChadoDBConverter(), qtl, "QTL", getChadoDBConverter().getSequenceOntologyRefId());
+        BioStoreHook.setSOTerm(getLegfedFileConverter(), qtl, "QTL", getLegfedFileConverter().getSequenceOntologyRefId());
         qtl.setReference("organism", organism);
         qtl.setAttribute("secondaryIdentifier", cmap.feature_acc);
         qtl.setAttribute("primaryIdentifier", cmap.feature_name);
         // create and store linkage group range; place it in map as well for future processing
-        Item linkageGroupRange = getChadoDBConverter().createItem("LinkageGroupRange");
+        Item linkageGroupRange = getLegfedFileConverter().createItem("LinkageGroupRange");
         linkageGroupRange.setAttribute("begin", String.valueOf(cmap.feature_start));
         linkageGroupRange.setAttribute("end", String.valueOf(cmap.feature_stop));
         linkageGroupRange.setAttribute("length", String.valueOf(round(cmap.feature_stop-cmap.feature_start,2)));
@@ -266,13 +207,13 @@ public class CMapFileProcessor extends ChadoProcessor {
      * Populate a GeneticMarker Item from a LinkageGroup Item and CMap record; use map_name as primary!
      */
     void populateGeneticMarker(Item geneticMarker, Item linkageGroup, CMapRecord cmap) throws ObjectStoreException {
-        BioStoreHook.setSOTerm(getChadoDBConverter(), geneticMarker, "genetic_marker", getChadoDBConverter().getSequenceOntologyRefId());
+        BioStoreHook.setSOTerm(getLegfedFileConverter(), geneticMarker, "genetic_marker", getLegfedFileConverter().getSequenceOntologyRefId());
         geneticMarker.setReference("organism", organism);
         geneticMarker.setAttribute("secondaryIdentifier", cmap.feature_acc);
         geneticMarker.setAttribute("primaryIdentifier", cmap.feature_name);
         geneticMarker.setAttribute("type", cmap.feature_type_acc);
         // create and store linkage group position; place it in a map as well for future processing
-        Item linkageGroupPosition = getChadoDBConverter().createItem("LinkageGroupPosition");
+        Item linkageGroupPosition = getLegfedFileConverter().createItem("LinkageGroupPosition");
         linkageGroupPosition.setAttribute("position", String.valueOf(cmap.feature_start));
         linkageGroupPosition.setReference("linkageGroup", linkageGroup);
         linkageGroupPositionSet.add(linkageGroupPosition);

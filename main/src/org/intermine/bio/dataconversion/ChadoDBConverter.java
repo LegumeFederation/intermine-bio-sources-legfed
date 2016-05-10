@@ -34,6 +34,7 @@ import org.intermine.metadata.StringUtil;
 
 /**
  * DataConverter to read from a Chado database into items
+ *
  * @author Kim Rutherford
  */
 public class ChadoDBConverter extends BioDBConverter {
@@ -52,20 +53,6 @@ public class ChadoDBConverter extends BioDBConverter {
     private final List<ChadoProcessor> completedProcessors = new ArrayList<ChadoProcessor>();
 
     private Connection connection;
-
-    // used by SyntenyProcessor
-    private File dagChainerFile;
-    private int sourceOrganismTaxonId;
-    private int targetOrganismTaxonId;
-
-    // used by GFFGeneticMarkerProcessor
-    private File gffFile;
-
-    // used by QTLMarkerFileProcessor
-    private File qtlMarkerFile;
-
-    // used by CMapProcessor
-    private File cMapFile;
 
     /**
      * Create a new ChadoDBConverter object.
@@ -117,93 +104,6 @@ public class ChadoDBConverter extends BioDBConverter {
      */
     public void setProcessors(String processors) {
         this.processors = processors;
-    }
-
-    /**
-     * Set the DAGchainer synteny GFF3 file (used by SyntenyProcessor).
-     * @param dagChainerFile GFF3 input file
-     */
-    public void setDagChainerFile(File dagChainerFile) {
-        this.dagChainerFile = dagChainerFile;
-    }
-    /**
-     * Return the DAGchainer GFF3 file
-     */
-    public File getDagChainerFile() {
-        return dagChainerFile;
-    }
-
-    /**
-     * Set the source organism tax ID (SyntenyProcessor)
-     */
-    public void setSourceOrganism(String sourceOrganism) {
-        LOG.info("setSourceOrganism:"+sourceOrganism);
-        sourceOrganismTaxonId = Integer.parseInt(sourceOrganism);
-    }
-    /**
-     * Return the source organism tax ID (SyntenyProcessor)
-     */
-    public int getSourceOrganism() {
-        return sourceOrganismTaxonId;
-    }
-    
-    /**
-     * Set the target organism tax ID (SyntenyProcessor)
-     */
-    public void setTargetOrganism(String targetOrganism) {
-        LOG.info("setTargetOrganism:"+targetOrganism);
-        targetOrganismTaxonId = Integer.parseInt(targetOrganism);
-    }
-    /**
-     * Return the target organism tax ID (SyntenyProcessor)
-     */
-    public int getTargetOrganism() {
-        return targetOrganismTaxonId;
-    }
-
-    /**
-     * Set the the GFF file (GeneticMarkerGFFProcessor)
-     */
-    public void setGeneticMarkerGffFile(File gffFile) {
-        LOG.info("setGeneticMarkerGffFile:"+gffFile.getName());
-        this.gffFile = gffFile;
-    }
-
-    /**
-     * Return the GFF file (GeneticMarkerGFFProcessor)
-     */
-    public File getGeneticMarkerGffFile() {
-        return gffFile;
-    }
-
-    /**
-     * Set the the QTLMarker file (QTLMarkerFileProcessor)
-     */
-    public void setQtlMarkerFile(File qtlMarkerFile) {
-        LOG.info("setQtlMarkerFile:"+qtlMarkerFile.getName());
-        this.qtlMarkerFile = qtlMarkerFile;
-    }
-
-    /**
-     * Return the QTLMarker file (QTLMarkerFileProcessor)
-     */
-    public File getQtlMarkerFile() {
-        return qtlMarkerFile;
-    }
-
-    /**
-     * Set the CMap file (CMapProcessor)
-     */
-    public void setCmapFile(File cMapFile) {
-        LOG.info("setCMapFile:"+cMapFile.getName());
-        this.cMapFile = cMapFile;
-    }
-
-    /**
-     * Return the CMap file (CMapProcessor)
-     */
-    public File getCmapFile() {
-        return cMapFile;
     }
 
     /**

@@ -21,9 +21,10 @@ import org.intermine.xml.full.Attribute;
 /**
  * A processor for a chado module.  See http://www.gmod.org/wiki/index.php/Chado#Modules for
  * documentation about the possible modules.
+ *
  * @author Kim Rutherford
  */
-public abstract class ChadoProcessor{
+public abstract class ChadoProcessor {
     
     private final ChadoDBConverter chadoDBConverter;
 
@@ -88,4 +89,5 @@ public abstract class ChadoProcessor{
         att.setValue(value);
         getChadoDBConverter().store(att, intermineObjectId);
     }
+    
 }

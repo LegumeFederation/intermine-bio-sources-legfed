@@ -32,8 +32,8 @@ public class GFFRecord implements Comparable {
     public String seqid;
     public String source;
     public String type;
-    public int start;
-    public int end;
+    public long start;
+    public long end;
     public String score;
     public char strand;
     public char phase;
@@ -55,6 +55,7 @@ public class GFFRecord implements Comparable {
 
     // DAGchainer attributes
     String attributeTarget;
+    String attributeMatches;
     double attributeMedianKs;
     
     /**
@@ -72,8 +73,8 @@ public class GFFRecord implements Comparable {
                 seqid = chunks[0];
                 source = chunks[1];
                 type = chunks[2];
-                start = Integer.parseInt(chunks[3]);
-                end = Integer.parseInt(chunks[4]);
+                start = Long.parseLong(chunks[3]);
+                end = Long.parseLong(chunks[4]);
                 score = chunks[5];
                 strand = chunks[6].charAt(0);
                 phase = chunks[7].charAt(0);
@@ -87,7 +88,7 @@ public class GFFRecord implements Comparable {
     /**
      * Instantiate from a full set of values
      */
-    public GFFRecord(String seqid, String source, String type, int start, int end, String score, char strand, char phase, String attributes) {
+    public GFFRecord(String seqid, String source, String type, long start, long end, String score, char strand, char phase, String attributes) {
         this.seqid = seqid;
         this.source = source;
         this.type = type;
@@ -112,9 +113,9 @@ public class GFFRecord implements Comparable {
             if (this.strand=='+') return 1; else return -1;
         }
         // left start before right start
-        if (this.start!=that.start) return this.start - that.start;
+        if (this.start!=that.start) return (int) this.start - (int) that.start;
         // left end before right end
-        if (this.end!=that.end) return this.end - that.end;
+        if (this.end!=that.end) return (int) this.end - (int) that.end;
         // it's a tie!
         return 0;
     }
@@ -154,6 +155,7 @@ public class GFFRecord implements Comparable {
             if (chunks[i].toLowerCase().startsWith("rank=")) attributeRank = Integer.parseInt(getAttributeValue(chunks[i]));
             // DAGchainer
             if (chunks[i].toLowerCase().startsWith("target=")) attributeTarget = getAttributeValue(chunks[i]);
+            if (chunks[i].toLowerCase().startsWith("matches=")) attributeMatches = getAttributeValue(chunks[i]);
             if (chunks[i].toLowerCase().startsWith("median_ks=")) attributeMedianKs = Double.parseDouble(getAttributeValue(chunks[i]));
         }
         // set Name to ID if missing
@@ -239,7 +241,7 @@ public class GFFRecord implements Comparable {
     /**
      * Calculate the gap between two sequences; GFF always has start<end
      */
-    public static int gap(GFFRecord gff1, GFFRecord gff2) {
+    public static long gap(GFFRecord gff1, GFFRecord gff2) {
         if (gff1.end<gff2.start) {
             return gff2.start - gff1.end;  // 1 left of 2
         } else {
@@ -299,7 +301,12 @@ public class GFFRecord implements Comparable {
      * Return the DAGchainer target strand from this instance
      */
     public char getTargetStrand() {
-        return attributeName.charAt(attributeName.length()-1);
+        char strand = attributeName.charAt(attributeName.length()-1);
+        if (strand=='+' || strand=='-') {
+            return strand;
+        } else {
+            return '\0';
+        }
     }
 
     /**
@@ -309,6 +316,9 @@ public class GFFRecord implements Comparable {
         if (attributeTarget!=null) {
             String[] chunks = attributeTarget.split("%20");
             return chunks[0];
+        } else if (attributeMatches!=null) {
+            String[] chunks = attributeMatches.split(":");
+            return chunks[0];
         } else {
             return null;
         }
@@ -317,10 +327,15 @@ public class GFFRecord implements Comparable {
     /**
      * Return the DAGchainer target sequence start from this instance. Return 0 if not a DAGchainer record.
      */
-    public int getTargetStart() {
+    public long getTargetStart() {
         if (attributeTarget!=null) {
             String[] chunks = attributeTarget.split("%20");
-            return Integer.parseInt(chunks[1]);
+            return Long.parseLong(chunks[1]);
+        } else if (attributeMatches!=null) {
+            String[] chunks = attributeMatches.split(":");
+            String range = chunks[1];
+            String[] pieces = range.split("\\.\\.");
+            return Long.parseLong(pieces[0]);
         } else {
             return 0;
         }
@@ -329,10 +344,15 @@ public class GFFRecord implements Comparable {
     /**
      * Return the DAGchainer target sequence end from this instance. Return 0 if not a DAGchainer record.
      */
-    public int getTargetEnd() {
+    public long getTargetEnd() {
         if (attributeTarget!=null) {
             String[] chunks = attributeTarget.split("%20");
-            return Integer.parseInt(chunks[2]);
+            return Long.parseLong(chunks[2]);
+        } else if (attributeMatches!=null) {
+            String[] chunks = attributeMatches.split(":");
+            String range = chunks[1];
+            String[] pieces = range.split("\\.\\.");
+            return Long.parseLong(pieces[1]);
         } else {
             return 0;
         }
@@ -344,7 +364,7 @@ public class GFFRecord implements Comparable {
     public void populateSequenceFeature(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
         sequenceFeature.setAttribute("primaryIdentifier", attributeName);
         sequenceFeature.setAttribute("length", String.valueOf(end-start+1));
-        sequenceFeature.setAttribute("score", String.valueOf(score));
+        sequenceFeature.setAttribute("score", score);
         sequenceFeature.setReference("organism", organism);
         sequenceFeature.setReference("chromosome", chromosome);
         sequenceFeature.setReference("chromosomeLocation", chromosomeLocation);
@@ -361,8 +381,9 @@ public class GFFRecord implements Comparable {
      */
     public void populateSourceRegion(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
         populateSequenceFeature(sequenceFeature, organism, chromosome, chromosomeLocation);
-        // override primaryIdentifier
-        sequenceFeature.setAttribute("primaryIdentifier", attributeName+".source");
+        // set primaryIdentifier, hopefully unique
+        String primaryIdentifier = attributeName+"."+attributeID+".source";
+        sequenceFeature.setAttribute("primaryIdentifier", primaryIdentifier);
     }
 
     /**
@@ -370,14 +391,16 @@ public class GFFRecord implements Comparable {
      * Does nothing if not a DAGchainer record.
      */
     public void populateTargetRegion(Item sequenceFeature, Item organism, Item chromosome, Item chromosomeLocation) {
-        if (attributeTarget!=null) {
+        if (attributeTarget!=null || attributeMatches!=null) {
             populateSequenceFeature(sequenceFeature, organism, chromosome, chromosomeLocation);
-            // override attributes with DAGchainer stuff
-            sequenceFeature.setAttribute("primaryIdentifier", attributeName+".target");
+            // set primaryIdentifier, hopefully unique, and length
+            String primaryIdentifier = attributeName+"."+attributeID+".target";
+            sequenceFeature.setAttribute("primaryIdentifier", primaryIdentifier);
+            sequenceFeature.setAttribute("length", String.valueOf(getTargetEnd()-getTargetStart()+1));
+            // override chromosome location with DAGchainer stuff
             chromosomeLocation.setAttribute("start", String.valueOf(getTargetStart()));
             chromosomeLocation.setAttribute("end", String.valueOf(getTargetEnd()));
-            chromosomeLocation.setAttribute("strand", String.valueOf(getTargetStrand()));
-            sequenceFeature.setAttribute("length", String.valueOf(getTargetEnd()-getTargetStart()+1));
+            if (getTargetStrand()!='\0') chromosomeLocation.setAttribute("strand", String.valueOf(getTargetStrand()));
         }
     }
 

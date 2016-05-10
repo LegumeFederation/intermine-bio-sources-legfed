@@ -11,20 +11,11 @@ package org.intermine.bio.dataconversion;
  */
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.io.Reader;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -36,16 +27,14 @@ import org.intermine.xml.full.Reference;
 import org.intermine.xml.full.ReferenceList;
 
 /**
- * Store the genetic marker and QTL data from a CMap tab-delimited file, along with a GFF file containing 
- * genetic markers and a QTL-markers file containing QTL-marker relations.
+ * Store the genetic marker and genomic data from a GFF file.
  *
- * Input GFF file is set in project.xml as <property name="geneticMarkerGffFile" location="/your/gff/file/path/here.gff"/>
+ * Input GFF file is set in project.xml as <property name="src.data.file" location="/your/gff/file/path/here.gff"/>
+ * The GFF file may contain duplicates - the last one read is the one that is loaded.
  *
- * This processor currently makes no DB calls to the chado database, but we'll extend ChadoProcessor anyway.
- *
- * @author Sam Hokin, NCGR
+ * @author Sam Hokin
  */
-public class GeneticMarkerGFFProcessor extends ChadoProcessor {
+public class GeneticMarkerGFFProcessor extends LegfedFileProcessor {
 	
     private static final Logger LOG = Logger.getLogger(GeneticMarkerGFFProcessor.class);
 
@@ -54,88 +43,125 @@ public class GeneticMarkerGFFProcessor extends ChadoProcessor {
     
     /**
      * Create a new GeneticMarkerGFFProcessor
-     * @param chadoDBConverter the ChadoDBConverter that is controlling this processor
+     * @param legfedFileConverter the LegfedFileConverter that is controlling this processor
      */
-    public GeneticMarkerGFFProcessor(ChadoDBConverter chadoDBConverter) {
-        super(chadoDBConverter);
+    public GeneticMarkerGFFProcessor(LegfedFileConverter legfedFileConverter) {
+        super(legfedFileConverter);
     }
 
     /**
      * {@inheritDoc}
-     * We process the supplied GFF file to create GeneticMarker Items, along with Chromosome Items from the seqid column.
+     * We process the supplied GFF file to create GeneticMarker Items, along with Chromosome and Supercontig Items from the seqid column.
      */
     @Override
-    public void process(Connection connection) throws SQLException, ObjectStoreException {
+    public void process(Reader reader) throws ObjectStoreException {
 
         // ---------------------------------------------------------
         // INITIAL DATA LOADING
         // ---------------------------------------------------------
 
-        // get the GFF file, do nothing if it's null
-        File gffFile = getChadoDBConverter().getGeneticMarkerGffFile();
-        if (gffFile==null) {
-            LOG.error("GFF file has not been set in project.xml.");
-            System.exit(1);
+        // get the organism taxon ID; enforce only one
+        OrganismData[] organisms = getLegfedFileConverter().getOrganismsToProcess().toArray(new OrganismData[0]);
+        if (organisms.length>1) {
+            String error = "Multiple organisms specified in data source; GeneticMarkerGFFProcessor can only process one organism at a time.";
+            LOG.error(error);
+            throw new RuntimeException(error);
         }
-         
-        // get chado organism_id from supplied taxon ID - enforce processing a single organism!
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        if (chadoToOrgData.size()>1) {
-            LOG.error("Multiple chado organisms specified in data source; GeneticMarkerGFFProcessor can only process one organism at a time.");
-            System.exit(1);
-        }
-        Integer organismId = 0;
-        for (Integer key : chadoToOrgData.keySet()) {
-            organismId = key.intValue();
-        }
-        int organism_id = organismId.intValue(); // chado organism.organism_id
-        OrganismData orgData = chadoToOrgData.get(organismId);
-        int taxonId = orgData.getTaxonId();
+        int taxonId = organisms[0].getTaxonId();
 
         // create organism Item - global so can be used in populate routines
-        organism = getChadoDBConverter().createItem("Organism");
-        BioStoreHook.setSOTerm(getChadoDBConverter(), organism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
+        organism = getLegfedFileConverter().createItem("Organism");
+        BioStoreHook.setSOTerm(getLegfedFileConverter(), organism, "organism", getLegfedFileConverter().getSequenceOntologyRefId());
         organism.setAttribute("taxonId", String.valueOf(taxonId));
-        store(organism);
         LOG.info("Created and stored organism Item for taxonId="+taxonId+".");
 
         // -------------------------------------------------------------------------------------------------------------------
-        // Load the chromosomes and genetic markers from the GFF file
+        // Load the chromosomes, supercontigs and genetic markers from the GFF file
         // -------------------------------------------------------------------------------------------------------------------
-
-        // store chromosomes in a map
-        Map<String,Item> chromosomeMap = new HashMap<String,Item>();
         
         try {
+
+            // store chromosomes in a map
+            Map<String,Item> chromosomeMap = new HashMap<String,Item>();
+            // and supercontigs
+            Map<String,Item> supercontigMap = new HashMap<String,Item>();
+            // and markers, since we may have duplicates - last one found is the one that sticks
+            Map<String,Item> markerMap = new HashMap<String,Item>();
+            // and marker locations, so we don't store those that belong to markers that get overwritten; also keyed by marker's name
+            Map<String,Item> locationMap = new HashMap<String,Item>();
             
-            LOG.info("Reading GFF file:"+gffFile.getName());
-            BufferedReader gffReader = new BufferedReader(new FileReader(gffFile));
-            String gffLine = null;
-            int count = 0;
-            while ((gffLine=gffReader.readLine()) != null) {
+            BufferedReader gffReader = new BufferedReader(reader);
+            String gffLine;
+            LOG.info("Reading GFF file...");
+            while ((gffLine = gffReader.readLine()) != null) {
                 GFFRecord gff = new GFFRecord(gffLine);
                 if (gff.seqid!=null && gff.attributeName!=null) {
-                    // create and store this chromosome Item if not already in map; else get it from the map
-                    String chrName = gff.seqid;
-                    Item chromosome = null;
-                    if (chromosomeMap.containsKey(chrName)) {
-                        chromosome = chromosomeMap.get(chrName);
+                    Item marker = getLegfedFileConverter().createItem("GeneticMarker");
+                    Item location = getLegfedFileConverter().createItem("Location");
+                    // standard chromosome naming convention, e.g. "glyma.Chr01"
+                    if (gff.seqid.contains("Chr")) {
+                        // create and store this chromosome if not already in map; else get it from the map
+                        String chrName = gff.seqid;
+                        Item chromosome = null;
+                        if (chromosomeMap.containsKey(chrName)) {
+                            chromosome = chromosomeMap.get(chrName);
+                        } else {
+                            chromosome = getLegfedFileConverter().createItem("Chromosome");
+                            BioStoreHook.setSOTerm(getLegfedFileConverter(), chromosome, "chromosome", getLegfedFileConverter().getSequenceOntologyRefId());
+                            chromosome.setAttribute("primaryIdentifier", chrName);
+                            chromosomeMap.put(chrName, chromosome);
+                        }
+                        // populate the chromosome location
+                        location.setAttribute("start", String.valueOf(gff.start));
+                        location.setAttribute("end", String.valueOf(gff.end));
+                        location.setReference("feature", marker);
+                        location.setReference("locatedOn", chromosome);
+                        // associate the genetic marker with this chromosome/location
+                        marker.setReference("chromosome", chromosome);
+                        marker.setReference("chromosomeLocation", location);
                     } else {
-                        chromosome = getChadoDBConverter().createItem("Chromosome");
-                        BioStoreHook.setSOTerm(getChadoDBConverter(), chromosome, "chromosome", getChadoDBConverter().getSequenceOntologyRefId());
-                        chromosome.setAttribute("primaryIdentifier", chrName);
-                        store(chromosome);
-                        chromosomeMap.put(chrName, chromosome);
+                        // create and store this supercontig if not already in map; else get it from the map
+                        String supercontigName = gff.seqid;
+                        Item supercontig = null;
+                        if (supercontigMap.containsKey(supercontigName)) {
+                            supercontig = supercontigMap.get(supercontigName);
+                        } else {
+                            supercontig = getLegfedFileConverter().createItem("Supercontig");
+                            BioStoreHook.setSOTerm(getLegfedFileConverter(), supercontig, "supercontig", getLegfedFileConverter().getSequenceOntologyRefId());
+                            supercontig.setAttribute("primaryIdentifier", supercontigName);
+                            supercontigMap.put(supercontigName, supercontig);
+                        }
+                        // populate the supercontig location
+                        location.setAttribute("start", String.valueOf(gff.start));
+                        location.setAttribute("end", String.valueOf(gff.end));
+                        location.setReference("feature", marker);
+                        location.setReference("locatedOn", supercontig);
+                        // associate the genetic marker with this supercontig/location
+                        marker.setReference("supercontig", supercontig);
+                        marker.setReference("supercontigLocation", location);
                     }
-                    // create and store the genetic marker
-                    Item geneticMarker = getChadoDBConverter().createItem("GeneticMarker");
-                    storeGeneticMarker(chromosome, geneticMarker, gff);
-                    count++;
+                    // set other marker attributes
+                    BioStoreHook.setSOTerm(getLegfedFileConverter(), marker, "genetic_marker", getLegfedFileConverter().getSequenceOntologyRefId());
+                    marker.setReference("organism", organism);
+                    marker.setAttribute("primaryIdentifier", gff.attributeName);
+                    marker.setAttribute("type", gff.type);
+                    marker.setAttribute("length", String.valueOf(gff.end-gff.start+1));
+                    // add this marker and location to the maps; overwrites previous if same name
+                    markerMap.put(gff.attributeName, marker);
+                    locationMap.put(gff.attributeName, location);
                 }
             }
 
-            LOG.info("Read "+count+" GFF records from "+gffFile.getName());
-            LOG.info("Created "+chromosomeMap.size()+" Chromosome items from "+gffFile.getName());
+            LOG.info("Created "+markerMap.size()+" distinct GeneticMarker items.");
+            LOG.info("Created "+chromosomeMap.size()+" Chromosome items.");
+            LOG.info("Created "+supercontigMap.size()+" Supercontig items.");
+
+            // now store all the items
+            store(organism);
+            for (Item item : chromosomeMap.values()) store(item);
+            for (Item item : supercontigMap.values()) store(item);
+            for (Item item : locationMap.values()) store(item);
+            for (Item item : markerMap.values()) store(item);
 
         } catch (Exception ex) {
             
@@ -144,77 +170,5 @@ public class GeneticMarkerGFFProcessor extends ChadoProcessor {
         }
 
     }
-
-    /**
-     * Store the item.
-     * @param item the Item
-     * @return the database id of the new Item
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected Integer store(Item item) throws ObjectStoreException {
-        return getChadoDBConverter().store(item);
-    }
     
-    /**
-     * Do any extra processing that is needed before the converter starts querying features
-     * @param connection the Connection
-     * @throws ObjectStoreException if there is a object store problem
-     * @throws SQLException if there is a database problem
-     */
-    protected void earlyExtraProcessing(Connection connection) throws ObjectStoreException, SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Do any extra processing for this database, after all other processing is done
-     * @param connection the Connection
-     * @param featureDataMap a map from chado feature_id to data for that feature
-     * @throws ObjectStoreException if there is a problem while storing
-     * @throws SQLException if there is a problem
-     */
-    protected void extraProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap)
-        throws ObjectStoreException, SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Perform any actions needed after all processing is finished.
-     * @param connection the Connection
-     * @param featureDataMap a map from chado feature_id to data for that feature
-     * @throws SQLException if there is a problem
-     */
-    protected void finishedProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap) throws SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Populate a GeneticMarker Item from a GFF record
-     */
-    void storeGeneticMarker(Item chromosome, Item geneticMarker, GFFRecord gff) throws ObjectStoreException {
-        BioStoreHook.setSOTerm(getChadoDBConverter(), geneticMarker, "genetic_marker", getChadoDBConverter().getSequenceOntologyRefId());
-        geneticMarker.setReference("organism", organism);
-        geneticMarker.setAttribute("primaryIdentifier", gff.attributeName);
-        geneticMarker.setAttribute("type", gff.type);
-        geneticMarker.setReference("chromosome", chromosome);
-        geneticMarker.setAttribute("length", String.valueOf(gff.end-gff.start+1));
-        Item location = getChadoDBConverter().createItem("Location");
-        location.setAttribute("start", String.valueOf(gff.start));
-        location.setAttribute("end", String.valueOf(gff.end));
-        location.setReference("feature", geneticMarker);
-        location.setReference("locatedOn", chromosome);
-        store(location);
-        geneticMarker.setReference("chromosomeLocation", location);
-        store(geneticMarker);
-    }
-
-    /**
-     * Round a double to the given number of places
-     */
-    public static double round(double value, int places) {
-        if (places < 0) throw new IllegalArgumentException();
-        BigDecimal bd = new BigDecimal(value);
-        bd = bd.setScale(places, RoundingMode.HALF_UP);
-        return bd.doubleValue();
-    }
-
 }
