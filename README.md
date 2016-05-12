@@ -1,31 +1,31 @@
 # intermine_legfed
-Legume Federation data source; install as intermine/bio/sources/legfed.
+Legume Federation data sources; install as intermine/bio/sources/legfed.
 
 This data source directory contains several data sources:
 
-**/legfed-chado-db:**
+**/legfed-chado-db:** - a custom version of FlyMine's chado-db source written by Kim Rutherford.
 
-**SequenceProcessor.java** - a spin of Kim Rutherford's chado SequenceProcessor to support the fields present in the LIS chado database. It is heavily modified from the original under chado-db. It handles genomic, not genetic relationships, and works primarily with the feature, featureloc and feature_relationship tables.
+**SequenceProcessor.java** - a modification to support the fields present in the LIS chado database. It still handles strictly genomic, not genetic items, and works primarily with the feature, featureloc and feature_relationship tables.
 
-**GeneticProcessor.java** - stores the various genetic data and relationships from the LIS chado database. These come from featuremap, featurepos, featureloc, feature_relationship and, of course, feature.
+**GeneticProcessor.java** - stores genetic data and relationships from the LIS chado database. These come from featuremap, featurepos, featureloc, feature_relationship and, of course, feature. Populates GeneFamily, GeneticMap, LinkageGroup, GeneticMarker and QTL objects.
 
-**GOProcessor.java** - parses the GO:terms out of the chado.gene.description field and associates them with the gene. Run the go data source to fill out the GO terms.
+**GOProcessor.java** - parses the GO:terms out of the chado.gene.description field and associates them with the gene. Run the go data source to fill out the GO terms. Populates GOAnnotation.
 
-**FeaturePropProcessor.java** - loads various properties of features from chado.featureprop into class attributes.
+**FeaturePropProcessor.java** - loads various properties of features from chado.featureprop. Doesn't create any new objects, but fills in many attributes.
 
 **/legfed-cmap-file:**
 
-**CMapFileConverter.java** - stores the genetic markers, linkage groups and QTLs from a CMap tab-delimited file export.
+**CMapFileConverter.java** - reads and stores genetic markers, linkage groups and QTLs from a CMap tab-delimited file export. Extends BioFileConverter. Creates GeneticMarker, LinkageGroup and QTL objects if they don't already exist.
 
 **/legfed-geneticmarker-gff:**
 
-**GeneticMarkerGFFConverter.java** - stores genetic marker genomic data from a GFF3 file.
+**GeneticMarkerGFFConverter.java** - reads and stores genetic marker genomic data from a GFF3 file. Extends BioFileConverter. Creates GeneticMarker objects if they don't already exist.
 
 **/legfed-qtlmarker-file:**
 
-**QTLMarkerFileConverter.java** - stores QTL-genetic marker relations from a tab-delimited file. Columns are QTLid, QTL name, marker name.
+**QTLMarkerFileConverter.java** - reads and stores QTL-genetic marker relations from a tab-delimited file. Columns are QTLid, QTL name, marker name. Extends BioFileConverter. Creates GeneticMarker and QTL objects if they don't already exist.
 
 **/legfed-synteny-gff:**
 
-**SyntenyGFFConverter.java** - stores the synteny regions from a GFF dump with records formatted by DAGchainer.
+**SyntenyGFFConverter.java** - reads and stores synteny blocks and synteny regions from a GFF dump with records formatted by DAGchainer. Creates SyntenyBlock, SyntenicRegion objects.
 
