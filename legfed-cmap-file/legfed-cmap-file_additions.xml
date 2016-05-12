@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<classes>
+
+  <class name="QTL" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="secondaryIdentifier" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="comment" type="java.lang.String"/>
+    <attribute name="experimentTraitDescription" type="java.lang.String"/>
+    <attribute name="experimentTraitName" type="java.lang.String"/>
+    <attribute name="publicationLinkageGroup" type="java.lang.String"/>
+    <attribute name="traitUnit" type="java.lang.String"/>
+    <attribute name="analysisMethod" type="java.lang.String"/>
+    <attribute name="identifier" type="java.lang.String"/>
+    <attribute name="peak" type="java.lang.Double"/>
+    <attribute name="studyTreatment" type="java.lang.String"/>
+    <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
+    <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <class name="LinkageGroup" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="secondaryIdentifier" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="length" type="java.lang.Double"/>
+    <attribute name="assignedLinkageGroup" type="java.lang.String"/>
+    <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
+    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
+    <collection name="QTLs" referenced-type="QTL"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <!-- encapsulates a position (cM) on a linkage group -->
+  <class name="LinkageGroupPosition" is-interface="true">
+    <attribute name="position" type="java.lang.Double"/>
+    <reference name="linkageGroup" referenced-type="LinkageGroup"/>
+  </class>
+
+  <!-- encapsulates a range [begin,end] (cM) on a linkage group -->
+  <class name="LinkageGroupRange" is-interface="true">
+    <attribute name="begin" type="java.lang.Double"/>
+    <attribute name="end" type="java.lang.Double"/>
+    <attribute name="length" type="java.lang.Double"/>
+    <reference name="linkageGroup" referenced-type="LinkageGroup"/>
+  </class>
+
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="type" type="java.lang.String"/>
+    <attribute name="comment" type="java.lang.String"/>
+    <attribute name="sourceDescription" type="java.lang.String"/>
+    <attribute name="canonicalMarker" type="java.lang.String"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
+    <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
+  </class>
+
+</classes>
