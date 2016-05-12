@@ -1,0 +1,8 @@
+<project name="legfed-geneticmarker-gff" default="default" basedir=".">
+
+  <description>GeneticMarkerGFFConverter</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+
