@@ -1,4 +1,4 @@
-<project name="legfed-main" default="default" basedir=".">
+<project name="legfed-chado-db-main" default="default" basedir=".">
   <description>build legfed code</description>
   <import file="../../../../../imbuild/library.xml"/> 
 </project>

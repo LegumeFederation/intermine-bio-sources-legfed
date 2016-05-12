@@ -36,7 +36,7 @@ import org.intermine.xml.full.Reference;
  *
  * @author Sam Hokin, NCGR
  */
-public class GOProcessor extends ChadoProcessor {
+public class GOAnnotationProcessor extends ChadoProcessor {
 	
     private static final Logger LOG = Logger.getLogger(GeneticProcessor.class);
 
@@ -44,7 +44,7 @@ public class GOProcessor extends ChadoProcessor {
      * Create a new GeneticProcessor
      * @param chadoDBConverter the ChadoDBConverter that is controlling this processor
      */
-    public GOProcessor(ChadoDBConverter chadoDBConverter) {
+    public GOAnnotationProcessor(ChadoDBConverter chadoDBConverter) {
         super(chadoDBConverter);
     }
 
@@ -55,7 +55,7 @@ public class GOProcessor extends ChadoProcessor {
     @Override
     public void process(Connection connection) throws SQLException, ObjectStoreException {
 
-        LOG.info("Starting GOProcessor.process()");
+        LOG.info("Starting GOAnnotationProcessor.process()");
         
         // initialize our DB statement
         Statement stmt = connection.createStatement();
