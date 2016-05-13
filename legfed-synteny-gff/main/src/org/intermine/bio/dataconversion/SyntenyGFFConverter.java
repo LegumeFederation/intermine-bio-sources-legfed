@@ -101,23 +101,23 @@ public class SyntenyGFFConverter extends BioFileConverter {
             if (!line.startsWith("#")) {
                 GFF3Record gff = new GFF3Record(line);
                 if (gff.getType().equals("syntenic_region")) {
-                    String sourceName = gff.getSequenceID(); // could potentially alter to match the chado values here
-                    String targetName = gff.getTarget();     // could potentially alter to match the chado values here
-                    if (sourceName!=null && !sourceChromosomeMap.containsKey(sourceName)) {
+                    String sourceChrName = gff.getSequenceID();       // could potentially alter to match the chado values here
+                    String targetChrName = getTargetChromosomeName(gff);     // could potentially alter to match the chado values here
+                    if (sourceChrName!=null && !sourceChromosomeMap.containsKey(sourceChrName)) {
                         // create the chromosome Item and add to the source map
                         Item chromosome = createItem("Chromosome");
-                        chromosome.setAttribute("primaryIdentifier", sourceName);
+                        chromosome.setAttribute("primaryIdentifier", sourceChrName);
                         store(chromosome);
-                        sourceChromosomeMap.put(sourceName, chromosome);
-                        LOG.info("Stored new source chromosome:"+sourceName);
+                        sourceChromosomeMap.put(sourceChrName, chromosome);
+                        LOG.info("Stored new source chromosome:"+sourceChrName);
                     }
-                    if (targetName!=null && !targetChromosomeMap.containsKey(targetName)) {
+                    if (targetChrName!=null && !targetChromosomeMap.containsKey(targetChrName)) {
                         // create the chromosome Item and add to the target map
                         Item chromosome = createItem("Chromosome");
-                        chromosome.setAttribute("primaryIdentifier", targetName);
+                        chromosome.setAttribute("primaryIdentifier", targetChrName);
                         store(chromosome);
-                        targetChromosomeMap.put(targetName, chromosome);
-                        LOG.info("Stored new target chromosome:"+targetName);
+                        targetChromosomeMap.put(targetChrName, chromosome);
+                        LOG.info("Stored new target chromosome:"+targetChrName);
                     }
                     // store GFF records in gff map; Name is unique (we hope)
                     gffMap.put(gff.getNames().get(0), gff);
@@ -141,18 +141,18 @@ public class SyntenyGFFConverter extends BioFileConverter {
             String syntenyBlockID = entry.getKey();
             GFF3Record gff = entry.getValue();
             
-            String sourceName = gff.getSequenceID();
-            String targetName = gff.getTarget();
+            String sourceChrName = gff.getSequenceID();
+            String targetChrName = getTargetChromosomeName(gff);
 
             // populate the source region and its location
-            Item sourceChromosome = sourceChromosomeMap.get(sourceName);
+            Item sourceChromosome = sourceChromosomeMap.get(sourceChrName);
             Item sourceRegion = createItem("SyntenicRegion");
             BioStoreHook.setSOTerm(this, sourceRegion, "syntenic_region", getSequenceOntologyRefId());
             Item sourceChromosomeLocation = createItem("Location");
             populateSourceRegion(sourceRegion, gff, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
             
             // populate the target region and its location
-            Item targetChromosome = targetChromosomeMap.get(targetName);
+            Item targetChromosome = targetChromosomeMap.get(targetChrName);
             Item targetRegion = createItem("SyntenicRegion");
             BioStoreHook.setSOTerm(this, targetRegion, "syntenic_region", getSequenceOntologyRefId());
             Item targetChromosomeLocation = createItem("Location");
@@ -259,7 +259,7 @@ public class SyntenyGFFConverter extends BioFileConverter {
     /**
      * Return the DAGchainer target chromosome from a DAGchainer GFF3Record
      */
-    public String getTargetChromosome(GFF3Record gff) {
+    public String getTargetChromosomeName(GFF3Record gff) {
         String[] chunks = gff.getTarget().split(":");
         return chunks[0];
     }
