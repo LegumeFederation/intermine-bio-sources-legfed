@@ -42,6 +42,16 @@ import org.intermine.xml.full.Item;
 public class CMapFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(CMapFileConverter.class);
+
+    // store items at end in close() method to avoid dupes
+    Set<Item> organismSet = new HashSet<Item>();
+
+    Map<String,Item> linkageGroupMap = new HashMap<String,Item>();    // keyed by acc in file
+    Map<String,Item> geneticMarkerMap = new HashMap<String,Item>();   // keyed by acc in file
+    Map<String,Item> qtlMap = new HashMap<String,Item>();             // keyed by acc in file
+
+    Set<Item> linkageGroupPositionSet = new HashSet<Item>();
+    Set<Item> linkageGroupRangeSet = new HashSet<Item>();
     
     /**
      * Create a new CMapFileConverter
@@ -55,13 +65,12 @@ public class CMapFileConverter extends BioFileConverter {
     /**
      * Get the taxon ID from the current file name, e.g. soybean_3847.txt
      */
-    public int getTaxonId() {
+    public String getTaxonId() {
         try {
             String fileName = getCurrentFile().getName();
             String[] chunks = fileName.split("_");
             String[] parts = chunks[1].split("\\.");
-            int taxonId = Integer.parseInt(parts[0]);
-            return taxonId;
+            return parts[0];
         } catch (Exception ex) {
             throw new RuntimeException("Could not parse GFF filename; format should be: no-underscores_12345.gff3 where taxonID=12345. "+ex.getMessage());
         }
@@ -76,20 +85,11 @@ public class CMapFileConverter extends BioFileConverter {
 
         LOG.info("Processing CMap file "+getCurrentFile().getName()+"...");
         
-        // these are keyed by acc in file
-        Map<String,Item> linkageGroupMap = new HashMap<String,Item>();
-        Map<String,Item> geneticMarkerMap = new HashMap<String,Item>();
-        Map<String,Item> qtlMap = new HashMap<String,Item>();
-
-        // these are just collected in sets for final storage
-        Set<Item> linkageGroupPositionSet = new HashSet<Item>();
-        Set<Item> linkageGroupRangeSet = new HashSet<Item>();
-
-        // create the organism Item - global so can be used in methods
-        int taxonId = getTaxonId();
+        // create and add the organism Item to its map
         Item organism = createItem("Organism");
         BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-        organism.setAttribute("taxonId", String.valueOf(taxonId));
+        organism.setAttribute("taxonId", getTaxonId());
+        organismSet.add(organism);
 
         // ---------------------------------------------------------------------------------------------------------------------------
         // Load linkage groups, genetic markers and QTLs from the CMap file and associate QTLs and genetic markers with linkage groups
@@ -103,6 +103,7 @@ public class CMapFileConverter extends BioFileConverter {
             if (cmap.map_acc!=null) {
                 
                 // add this linkage group to its map if not already in
+                // we'll use map_acc for the primaryIdentifier since map_name is often something minimal like "3" which is likely not unique
                 Item linkageGroup = null;
                 if (linkageGroupMap.containsKey(cmap.map_acc)) {
                     linkageGroup = linkageGroupMap.get(cmap.map_acc);
@@ -110,20 +111,21 @@ public class CMapFileConverter extends BioFileConverter {
                     linkageGroup = createItem("LinkageGroup");
                     BioStoreHook.setSOTerm(this, linkageGroup, "linkage_group", getSequenceOntologyRefId());
                     linkageGroup.setReference("organism", organism);
-                    linkageGroup.setAttribute("secondaryIdentifier", cmap.map_acc);
-                    linkageGroup.setAttribute("primaryIdentifier", cmap.map_name);
+                    linkageGroup.setAttribute("primaryIdentifier", cmap.map_acc);
+                    linkageGroup.setAttribute("secondaryIdentifier", cmap.map_name);
                     linkageGroup.setAttribute("length", String.valueOf(cmap.map_stop));
                     linkageGroupMap.put(cmap.map_acc, linkageGroup);
                 }
                 
                 // add this QTL to this linkage group if appropriate
+                // we'll use map_name as primaryIdentifier since it's hopefully unique and concise
                 if (cmap.isQTL()) {
                     if (!qtlMap.containsKey(cmap.feature_acc)) {
                         Item qtl = createItem("QTL");
                         BioStoreHook.setSOTerm(this, qtl, "QTL", getSequenceOntologyRefId());
                         qtl.setReference("organism", organism);
-                        qtl.setAttribute("secondaryIdentifier", cmap.feature_acc);
                         qtl.setAttribute("primaryIdentifier", cmap.feature_name);
+                        qtl.setAttribute("secondaryIdentifier", cmap.feature_acc);
                         // create and store linkage group range; place it in map as well for future processing
                         Item linkageGroupRange = createItem("LinkageGroupRange");
                         linkageGroupRange.setAttribute("begin", String.valueOf(cmap.feature_start));
@@ -140,13 +142,14 @@ public class CMapFileConverter extends BioFileConverter {
                 }
                 
                 // add this genetic marker to this linkage group if appropriate
+                // we'll use map_name as primaryIdentifier since it's hopefully unique and concise
                 if (cmap.isMarker()) {
                     if (!geneticMarkerMap.containsKey(cmap.feature_acc)) {
                         Item geneticMarker = createItem("GeneticMarker");
                         BioStoreHook.setSOTerm(this, geneticMarker, "genetic_marker", getSequenceOntologyRefId());
                         geneticMarker.setReference("organism", organism);
-                        geneticMarker.setAttribute("secondaryIdentifier", cmap.feature_acc);
                         geneticMarker.setAttribute("primaryIdentifier", cmap.feature_name);
+                        geneticMarker.setAttribute("secondaryIdentifier", cmap.feature_acc);
                         geneticMarker.setAttribute("type", cmap.feature_type_acc);
                         // create and store linkage group position; place it in a map as well for future processing
                         Item linkageGroupPosition = createItem("LinkageGroupPosition");
@@ -168,30 +171,34 @@ public class CMapFileConverter extends BioFileConverter {
         LOG.info("Created "+linkageGroupMap.size()+" LinkageGroup items.");
         LOG.info("Created "+qtlMap.size()+" QTL items.");
         LOG.info("Created "+geneticMarkerMap.size()+" GeneticMarker items.");
+ 
+    }
 
 
-        // ----------------------------------------------------------------
-        // we're done, so store everything
-        // ----------------------------------------------------------------
+    /**
+     * Store the items we've collected from the CMap files
+     */
+    @Override
+    public void close() throws Exception {
+    
+        LOG.info("Storing "+organismSet.size()+" organisms...");
+        for (Item item : organismSet) store(item);
 
-        LOG.info("Storing organism for taxonId="+taxonId+".");
-        store(organism);
-
-        LOG.info("Storing linkage groups...");
+        LOG.info("Storing "+linkageGroupMap.size()+" linkage groups...");
         for (Item item : linkageGroupMap.values()) store(item);
 
-        LOG.info("Storing linkage group positions...");
+        LOG.info("Storing "+linkageGroupPositionSet.size()+" linkage group positions...");
         for (Item item : linkageGroupPositionSet) store(item);
 
-        LOG.info("Storing linkage group ranges...");
+        LOG.info("Storing "+linkageGroupRangeSet.size()+" linkage group ranges...");
         for (Item item : linkageGroupRangeSet) store(item);
 
-        LOG.info("Storing QTLs...");
+        LOG.info("Storing "+qtlMap.size()+" QTLs...");
         for (Item item : qtlMap.values()) store(item);
 
-        LOG.info("Storing genetic markers...");
+        LOG.info("Storing "+geneticMarkerMap.size()+" genetic markers...");
         for (Item item : geneticMarkerMap.values()) store(item);
- 
+
     }
 
     /**

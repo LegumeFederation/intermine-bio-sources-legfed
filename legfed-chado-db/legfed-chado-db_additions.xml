@@ -60,8 +60,8 @@
   </class>
 
   <class name="GeneFamily" is-interface="true">
-    <attribute name="description" type="java.lang.String"/>
     <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
     <collection name="genes" referenced-type="Gene" reverse-reference="geneFamily"/>
   </class>
   

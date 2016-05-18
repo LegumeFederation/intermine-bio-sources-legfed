@@ -14,7 +14,9 @@ import java.io.BufferedReader;
 import java.io.Reader;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -34,6 +36,11 @@ public class QTLMarkerFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(QTLMarkerFileConverter.class);
 
+    // store items at end in close() method to avoid dupes
+    Set<Item> organismSet = new HashSet<Item>();
+    Map<String,Item> qtlMap = new HashMap<String,Item>();
+    Map<String,Item> markerMap = new HashMap<String,Item>();
+
     /**
      * Create a new QTLMarkerFileConverter
      * @param writer the ItemWriter to write out new items
@@ -46,13 +53,12 @@ public class QTLMarkerFileConverter extends BioFileConverter {
     /**
      * Get the taxon ID from the current file name, e.g. soybean_3847.gff3
      */
-    public int getTaxonId() {
+    public String getTaxonId() {
         try {
             String fileName = getCurrentFile().getName();
             String[] chunks = fileName.split("_");
             String[] parts = chunks[1].split("\\.");
-            int taxonId = Integer.parseInt(parts[0]);
-            return taxonId;
+            return parts[0];
         } catch (Exception ex) {
             throw new RuntimeException("Could not parse GFF filename; format should be: no-underscores_12345.gff3 where taxonID=12345. "+ex.getMessage());
         }
@@ -67,14 +73,10 @@ public class QTLMarkerFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
-        // store QTLs and markers in maps
-        Map<String,Item> qtlMap = new HashMap<String,Item>();
-        Map<String,Item> markerMap = new HashMap<String,Item>();
-
-        int taxonId = getTaxonId();
         Item organism = createItem("Organism");
         BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-        organism.setAttribute("taxonId", String.valueOf(taxonId));
+        organism.setAttribute("taxonId", getTaxonId());
+        organismSet.add(organism);
 
         // -------------------------------------------------------------------------------------------------
         // Run through the QTL-Markers file and add the associated markers to the given QTLs
@@ -120,14 +122,17 @@ public class QTLMarkerFileConverter extends BioFileConverter {
         }
             
         qtlMarkerReader.close();
-        LOG.info("Done associating genetic markers with QTLs.");
 
-        // -------------------------------------------------------------
-        // store the Items
-        // -------------------------------------------------------------
+    }
 
-        LOG.info("Storing organism item...");
-        store(organism);
+    /**
+     * Store the items we've collected from the files
+     */
+    @Override
+    public void close() throws Exception {
+
+        LOG.info("Storing "+organismSet.size()+" organism items...");
+        for (Item organism : organismSet) store(organism);
         
         LOG.info("Storing "+qtlMap.size()+" QTL items...");
         for (Item qtl : qtlMap.values()) store(qtl);

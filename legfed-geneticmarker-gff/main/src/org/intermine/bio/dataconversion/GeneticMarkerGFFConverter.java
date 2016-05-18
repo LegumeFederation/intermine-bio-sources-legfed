@@ -14,8 +14,10 @@ import java.io.BufferedReader;
 import java.io.Reader;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -37,6 +39,13 @@ import org.intermine.xml.full.Item;
 public class GeneticMarkerGFFConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(GeneticMarkerGFFConverter.class);
+
+    // the items will all be stored in the close() method, to avoid dupes
+    Set<Item> organismSet = new HashSet<Item>();
+    Map<String,Item> chromosomeMap = new HashMap<String,Item>();
+    Map<String,Item> supercontigMap = new HashMap<String,Item>();
+    Map<String,Item> markerMap = new HashMap<String,Item>();
+    Map<String,Item> locationMap = new HashMap<String,Item>();
     
     /**
      * Create a new GeneticMarkerGFFConverter
@@ -50,13 +59,12 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
     /**
      * Get the taxon ID from the current file name, e.g. soybean_3847.gff3
      */
-    public int getTaxonId() {
+    public String getTaxonId() {
         try {
             String fileName = getCurrentFile().getName();
             String[] chunks = fileName.split("_");
             String[] parts = chunks[1].split("\\.");
-            int taxonId = Integer.parseInt(parts[0]);
-            return taxonId;
+            return parts[0];
         } catch (Exception ex) {
             throw new RuntimeException("Could not parse GFF filename; format should be: no-underscores_12345.gff3 where taxonID=12345. "+ex.getMessage());
         }
@@ -66,21 +74,16 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
      * {@inheritDoc}
      * Process the supplied GFF file to create GeneticMarker Items, along with Chromosome and Supercontig Items from the seqid column.
      */
+    @Override
     public void process(Reader reader) throws Exception {
 
         LOG.info("Processing GFF file "+getCurrentFile().getName()+"...");
 
-        // store everything in maps for uniqueness, store at the end; all keyed by name
-        Map<String,Item> chromosomeMap = new HashMap<String,Item>();
-        Map<String,Item> supercontigMap = new HashMap<String,Item>();
-        Map<String,Item> markerMap = new HashMap<String,Item>();
-        Map<String,Item> locationMap = new HashMap<String,Item>();
-
-        // create the organism Item
-        int taxonId = getTaxonId();
+        // create the organism Item and add it to its map
         Item organism = createItem("Organism");
         BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-        organism.setAttribute("taxonId", String.valueOf(taxonId));
+        organism.setAttribute("taxonId", getTaxonId());
+        organismSet.add(organism);
 
         // -------------------------------------------------------------------------------------------------------------------
         // Load the chromosomes, supercontigs and genetic markers from the GFF file
@@ -150,15 +153,27 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
         }
 
         LOG.info("Created "+markerMap.size()+" distinct GeneticMarker items.");
-        LOG.info("Created "+chromosomeMap.size()+" Chromosome items.");
-        LOG.info("Created "+supercontigMap.size()+" Supercontig items.");
 
-        // now store all the items
-        store(organism);
-        for (Item item : chromosomeMap.values()) store(item);
-        for (Item item : supercontigMap.values()) store(item);
-        for (Item item : locationMap.values()) store(item);
+    }
+
+    /**
+     * Store the items we've collected from the GFF files
+     */
+    @Override
+    public void close() throws Exception {
+
+        LOG.info("Storing "+organismSet.size()+" organism items...");
+	for (Item organism : organismSet) store(organism);
+        
+	LOG.info("Storing "+chromosomeMap.size()+" chromosome items...");
+	for (Item chromosome : chromosomeMap.values()) store(chromosome);
+
+        LOG.info("Storing "+supercontigMap.size()+" supercontig items...");
+        for (Item supercontig : supercontigMap.values()) store(supercontig);
+
+        LOG.info("Storing "+markerMap.size()+" marker and location items...");
         for (Item item : markerMap.values()) store(item);
+        for (Item item : locationMap.values()) store(item);
 
     }
     
