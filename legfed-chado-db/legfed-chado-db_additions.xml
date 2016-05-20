@@ -65,10 +65,9 @@
     <collection name="genes" referenced-type="Gene" reverse-reference="geneFamily"/>
   </class>
   
-  <!-- genomics from SequenceProcessor, plus feature properties from FeaturePropProcessor -->
+  <!-- GeneticMarker genomics from SequenceProcessor, plus feature properties from FeaturePropProcessor -->
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="type" type="java.lang.String"/>
     <attribute name="comment" type="java.lang.String"/>
     <attribute name="sourceDescription" type="java.lang.String"/>
@@ -81,6 +80,7 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="length" type="java.lang.Integer"/>
     <attribute name="note" type="java.lang.String"/>
+    <attribute name="reactomeName" type="java.lang.String"/>
     <reference name="sequence" referenced-type="Sequence"/>
     <reference name="gene" referenced-type="Gene" reverse-reference="polypeptides"/>
     <reference name="MRNA" referenced-type="MRNA" reverse-reference="polypeptide"/>
@@ -91,6 +91,7 @@
     <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
     <reference name="consensusRegionLocation" referenced-type="Location"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+    <collection name="pathways" referenced-type="Pathway" reverse-reference="polypeptides"/>
   </class>
 
   <class name="ProteinMatch" extends="BioEntity" is-interface="true">
@@ -129,19 +130,16 @@
 
   <!-- extensions of core classes -->
   
+  <!-- note MRNA extends Transcript, already has Gene reference -->
   <class name="MRNA" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
-    <!-- note MRNA extends Transcript, already has Gene reference -->
     <reference name="polypeptide" referenced-type="Polypeptide" reverse-reference="MRNA"/>
   </class>
   
   <class name="Exon" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <reference name="MRNA" referenced-type="MRNA"/>
   </class>
   
   <class name="Gene" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="note" type="java.lang.String"/>
     <attribute name="familyRepresentative" type="java.lang.String"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
@@ -150,16 +148,14 @@
     <collection name="goAnnotation" referenced-type="GOAnnotation"/>
   </class>
 
-  <class name="Chromosome" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
-  </class>
-
   <class name="Organism" is-interface="true">
+    <attribute name="chadoId" type="java.lang.Integer"/>
     <attribute name="comment" type="java.lang.String"/>
   </class>
 
-  <!-- add supercontig and location to all sequence features -->
+  <!-- add chadoFeatureId, supercontig and supercontigLocation to all sequence features -->
   <class name="SequenceFeature" is-interface="true">
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <reference name="supercontig" referenced-type="Supercontig" />
     <reference name="supercontigLocation" referenced-type="Location" />
   </class>
@@ -192,6 +188,11 @@
   
   <class name="Publication" is-interface="true">
     <collection name="crossReferences" referenced-type="DatabaseReference" reverse-reference="subject"/>
+  </class>
+
+  <class name="Pathway" is-interface="true">
+    <attribute name="name" type="java.lang.String"/>
+    <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="pathways"/>
   </class>
 
 </classes>

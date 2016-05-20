@@ -35,7 +35,7 @@ import org.intermine.metadata.StringUtil;
 /**
  * DataConverter to read from a Chado database into items
  *
- * @author Kim Rutherford
+ * @author Kim Rutherford, Sam Hokin
  */
 public class ChadoDBConverter extends BioDBConverter {
     
@@ -45,6 +45,8 @@ public class ChadoDBConverter extends BioDBConverter {
     private final Map<Integer, OrganismData> chadoToOrgData = new HashMap<Integer, OrganismData>();
     
     private String processors = "";
+
+    private String reactomeFilename = "";
 
     private final Set<OrganismData> organismsToProcess = new HashSet<OrganismData>();
 
@@ -104,6 +106,21 @@ public class ChadoDBConverter extends BioDBConverter {
      */
     public void setProcessors(String processors) {
         this.processors = processors;
+    }
+
+    /**
+     * Set the name of the reactome file to run in ReactomeProcessor
+     * @param filename the full file name of the tab-delimited reactome file
+     */
+    public void setReactomeFilename(String reactomeFilename) {
+        this.reactomeFilename = reactomeFilename;
+    }
+
+    /**
+     * Return the name of the tab-delimited reactome file
+     */
+    public String getReactomeFilename() {
+        return reactomeFilename;
     }
 
     /**
