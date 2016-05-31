@@ -117,10 +117,14 @@ public class ReactomeProcessor extends ChadoProcessor {
                     pathway.setAttribute("name", pathwayName);
                     pathwayMap.put(pathwayName, pathway);
                 }
-                // remove any trailing .n to get protein string to match against chado polypeptides
-                String[] parts = reactomeName.split("\\.");
+                // form the string to match to the polypeptide name
                 String protein = reactomeName;
-                if (parts.length>2) protein = parts[0]+"."+parts[1];
+                String[] parts = reactomeName.split("\\.");
+                if (parts.length>2) protein = parts[0]+"."+parts[1]; // drop .n assuming it's species.loc.n (e.g. Phvul.007G094900.1)
+                // deal with some special mismatch cases
+                if (protein.startsWith("GLYMA")) protein = "Glyma" + protein.substring(5);
+                if (protein.startsWith("MTR_")) protein = "Medtr" + protein.substring(4);
+                // query for the chado polypeptides
                 String query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+polypeptideCVTermId+" AND name LIKE '"+protein+"%'";
                 rs = stmt.executeQuery(query);
                 while (rs.next()) {
