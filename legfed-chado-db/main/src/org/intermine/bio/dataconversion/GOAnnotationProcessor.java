@@ -38,10 +38,10 @@ import org.intermine.xml.full.Reference;
  */
 public class GOAnnotationProcessor extends ChadoProcessor {
 	
-    private static final Logger LOG = Logger.getLogger(GeneticProcessor.class);
+    private static final Logger LOG = Logger.getLogger(GOAnnotationProcessor.class);
 
     /**
-     * Create a new GeneticProcessor
+     * Create a new GOAnnotationProcessor
      * @param chadoDBConverter the ChadoDBConverter that is controlling this processor
      */
     public GOAnnotationProcessor(ChadoDBConverter chadoDBConverter) {
