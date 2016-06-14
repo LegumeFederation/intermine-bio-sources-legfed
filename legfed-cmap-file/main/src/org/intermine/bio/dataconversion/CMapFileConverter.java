@@ -133,6 +133,10 @@ public class CMapFileConverter extends BioFileConverter {
                         linkageGroupRange.setAttribute("length", String.valueOf(round(cmap.feature_stop-cmap.feature_start,2)));
                         linkageGroupRange.setReference("linkageGroup", linkageGroup);
                         linkageGroupRangeSet.add(linkageGroupRange);
+                        // SOYBASE: add a comment if the length is exactly 2.0 cM - artificially imposed
+                        if (getTaxonId().equals("3847") && (cmap.feature_stop-cmap.feature_start)==2.0) {
+                            qtl.setAttribute("comment", "Length on linkage group arbitrarily set to 2.0 cM.");
+                        }
                         // add to QTL collection
                         qtl.addToCollection("linkageGroupRanges", linkageGroupRange);
                         // add to linkage group collection
