@@ -62,7 +62,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
         int geneCVTermId = getCVTermId(stmt, "gene");
         int geneticMarkerCVTermId = getCVTermId(stmt, "genetic_marker");
         int linkageGroupCVTermId = getCVTermId(stmt, "linkage_group");
-        int polypeptideCVTermId = getCVTermId(stmt, "polypeptide");
+        int proteinCVTermId = getCVTermId(stmt, "polypeptide"); // HACK - treat polypeptides as proteins
         int proteinMatchCVTermId = getCVTermId(stmt, "protein_match");
         int proteinHmmMatchCVTermId = getCVTermId(stmt, "protein_hmm_match");
         int qtlCVTermId = getCVTermId(stmt, "QTL");
@@ -156,13 +156,13 @@ public class FeaturePropProcessor extends ChadoProcessor {
                 for (Item item : geneticMarkerMap.values()) store(item);
             }
 
-            // load polypeptide attributes
-            Map<Integer,Item> polypeptideMap = generateMap(stmt, "Polypeptide", polypeptideCVTermId, organism_id, organism);
-            if (polypeptideMap.size()>0) {
-                LOG.info("Loading attributes for "+polypeptideMap.size()+" Polypeptide items for organism "+taxonId);
-                loadAttributes(stmt, organism_id, polypeptideMap, polypeptideCVTermId, "note", noteCVTermId);
-                LOG.info("Storing polypeptides for organism "+taxonId);
-                for (Item item : polypeptideMap.values()) store(item);
+            // load protein attributes
+            Map<Integer,Item> proteinMap = generateMap(stmt, "Protein", proteinCVTermId, organism_id, organism);
+            if (proteinMap.size()>0) {
+                LOG.info("Loading attributes for "+proteinMap.size()+" Protein items for organism "+taxonId);
+                loadAttributes(stmt, organism_id, proteinMap, proteinCVTermId, "note", noteCVTermId);
+                LOG.info("Storing proteins for organism "+taxonId);
+                for (Item item : proteinMap.values()) store(item);
             }
 
             // load protein match attributes

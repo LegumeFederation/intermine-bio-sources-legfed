@@ -70,6 +70,7 @@ public class GeneticProcessor extends ChadoProcessor {
         String geneticMarkerCVTerm = "genetic_marker";
         String qtlCVTerm = "QTL";
         String geneFamilyCVTerm = "gene family";
+        String consensusRegionCVTerm = "consensus_region";
         
         // build the Organism map from the supplied taxon IDs
         Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
@@ -146,6 +147,13 @@ public class GeneticProcessor extends ChadoProcessor {
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
             // gene family has no SO term
             geneFamily.setAttribute("primaryIdentifier", value);
+            // assume that consensus region primaryIdentifier = geneFamily.primaryIdentifier+"-consensus" to relate to consensus region
+            Item consensusRegion = getChadoDBConverter().createItem("ConsensusRegion");
+            consensusRegion.setAttribute("primaryIdentifier", value+"-consensus");
+            consensusRegion.setReference("geneFamily", geneFamily);
+            store(consensusRegion); // we're done with the consensus region
+            geneFamily.setReference("consensusRegion", consensusRegion);
+            // store this one in its map
             geneFamilyMap.put(value, geneFamily);
         }
         rs0.close();

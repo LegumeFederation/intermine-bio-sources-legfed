@@ -32,14 +32,14 @@ import org.intermine.xml.full.Item;
 import org.intermine.xml.full.Reference;
 
 /**
- * Read plant reactome data in from a tab-delimited file, load pathways and associate them with polypeptides. The file fields are:
+ * Read plant reactome data in from a tab-delimited file, load pathways and associate them with proteins. The file fields are:
  * <pre>
- * pathwayId pathwayName taxonId polypeptideName
+ * pathwayId pathwayName taxonId proteinName
  * </pre>
  * The file is given by the parameter reactome.file in project.xml.
  *
- * The polypeptideName is meant to match the feature.name of polypeptides in chado, without the .1, .2 suffix. Every polypeptide with base name matching
- * polypeptideName will be associated with the pathway.
+ * The proteinName is meant to match the feature.name of polypeptides in chado, without the .1, .2 suffix. Every polypeptide with base name matching
+ * proteinName will be associated with the pathway. See the HACK below where chado names are matched with reactome names on a per-organism basis.
  *
  * @author Sam Hokin, NCGR
  */
@@ -65,7 +65,7 @@ public class ReactomeProcessor extends ChadoProcessor {
         // all Items are stored in maps and saved at the end
         Map<Integer,Item> organismMap = new HashMap<Integer,Item>(); // keyed by taxonId since that's what we get from reactome file
         Map<String,Item> pathwayMap = new HashMap<String,Item>();    // keyed by name, which is all there is
-        Map<Integer,Item> polypeptideMap = new HashMap<Integer,Item>(); // keyed by feature_id since stored from a chado query
+        Map<Integer,Item> proteinMap = new HashMap<Integer,Item>(); // keyed by feature_id since stored from a chado query
 
         // initialize our DB statement
         Statement stmt = connection.createStatement();
@@ -117,29 +117,31 @@ public class ReactomeProcessor extends ChadoProcessor {
                     pathway.setAttribute("name", pathwayName);
                     pathwayMap.put(pathwayName, pathway);
                 }
-                // form the string to match to the polypeptide name
-                String protein = reactomeName;
+                // form the string to match to the protein name
+                String proteinName = reactomeName;
                 String[] parts = reactomeName.split("\\.");
-                if (parts.length>2) protein = parts[0]+"."+parts[1]; // drop .n assuming it's species.loc.n (e.g. Phvul.007G094900.1)
+                if (parts.length>2) proteinName = parts[0]+"."+parts[1]; // drop .n assuming it's species.loc.n (e.g. Phvul.007G094900.1)
+                // HACK START //////////////////////////
                 // deal with some special mismatch cases
-                if (protein.startsWith("GLYMA")) protein = "Glyma" + protein.substring(5);
-                if (protein.startsWith("MTR_")) protein = "Medtr" + protein.substring(4);
+                if (proteinName.startsWith("GLYMA")) proteinName = "Glyma" + proteinName.substring(5);
+                if (proteinName.startsWith("MTR_")) proteinName = "Medtr" + proteinName.substring(4);
+                // HACK END ///////////////////////////
                 // query for the chado polypeptides
-                String query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+polypeptideCVTermId+" AND name LIKE '"+protein+"%'";
+                String query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+polypeptideCVTermId+" AND name LIKE '"+proteinName+"%'";
                 rs = stmt.executeQuery(query);
                 while (rs.next()) {
                     String primaryIdentifier = rs.getString("uniquename");
                     int feature_id = rs.getInt("feature_id");
-                    Item polypeptide = null;
-                    if (polypeptideMap.containsKey((Integer)feature_id)) {
-                        polypeptide = polypeptideMap.get((Integer)feature_id);
+                    Item protein = null;
+                    if (proteinMap.containsKey((Integer)feature_id)) {
+                        protein = proteinMap.get((Integer)feature_id);
                     } else {
-                        polypeptide = getChadoDBConverter().createItem("Polypeptide");
-                        polypeptide.setAttribute("primaryIdentifier", primaryIdentifier);
-                        polypeptideMap.put((Integer)feature_id, polypeptide);
+                        protein = getChadoDBConverter().createItem("Protein");
+                        protein.setAttribute("primaryIdentifier", primaryIdentifier);
+                        proteinMap.put((Integer)feature_id, protein);
                     }
-                    polypeptide.setAttribute("reactomeName", reactomeName);
-                    polypeptide.addToCollection("pathways", pathway);
+                    protein.setAttribute("reactomeName", reactomeName);
+                    protein.addToCollection("pathways", pathway);
                 }
                 rs.close();
             }
@@ -152,8 +154,8 @@ public class ReactomeProcessor extends ChadoProcessor {
         LOG.info("Storing "+pathwayMap.size()+" pathways...");
         for (Item item : pathwayMap.values()) store(item);
 
-        LOG.info("Storing "+polypeptideMap.size()+" polypeptides...");
-        for (Item item : polypeptideMap.values()) store(item);
+        LOG.info("Storing "+proteinMap.size()+" proteins...");
+        for (Item item : proteinMap.values()) store(item);
 
     }
 

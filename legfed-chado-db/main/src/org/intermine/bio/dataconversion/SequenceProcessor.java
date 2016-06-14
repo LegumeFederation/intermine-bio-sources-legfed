@@ -54,7 +54,7 @@ import org.intermine.xml.full.ReferenceList;
  * exon        part_of      mRNA
  * mRNA        part_of      gene
  * </pre>
- * I have removed the polypeptide-gene relationship hack in Kim's version, as that belongs in a post-processor. It's not feature_relationship.
+ * I have removed the polypeptide-gene relationship hack in Kim's version, as that belongs in a post-processor. It's not in feature_relationship.
  * Neither is exon:part_of:gene, as you might expect!
  *
  * This processor is only for genomic quantities. Genetic quantites such as QTLs and linkage groups are dealt with in GeneticProcessor, as well as 
@@ -91,7 +91,7 @@ public class SequenceProcessor extends ChadoProcessor {
 	
     // a list of the one-way relation cvterm names; these will only be processed in the subject-object direction
     // NOTE: this is a SUBSET of DESIRED_RELATIONS!
-    private static final List<String> PARTOF_RELATIONS = Arrays.asList("part_of", "derives_from");
+    private static final List<String> PARTOF_RELATIONS = Arrays.asList("part_of"); // want to reverse derives_from for mRNA.protein
 
     // desired feature cvterm types to query from the chado.feature table INCLUDING those that appear as sources in chado.featureloc
     private static final List<String> DESIRED_FEATURES = Arrays.asList(
@@ -104,10 +104,10 @@ public class SequenceProcessor extends ChadoProcessor {
     // source feature cvterm types, such as chromosome
     private static final List<String> SRC_FEATURE_TYPES = Arrays.asList( "chromosome", "polypeptide", "polypeptide_domain", "supercontig", "consensus_region" );
     
-    // the InterMine info for mapping features to source feature locations; all must be IN SAME ORDER (I know, I should use maps)
-    private static final String[] SRC_FEATURE_IM_CLASSES =    { "Chromosome",         "Polypeptide",         "PolypeptideDomain" ,        "Supercontig",         "ConsensusRegion" };
-    private static final String[] SRC_FEATURE_IM_REFERENCES = { "chromosome",         "polypeptide",         "polypeptideDomain" ,        "supercontig",         "consensusRegion" };
-    private static final String[] SRC_FEATURE_IM_LOCATIONS =  { "chromosomeLocation", "polypeptideLocation", "polypeptideDomainLocation", "supercontigLocation", "consensusRegionLocation" }; 
+    // the InterMine info for mapping chado features to InterMine classes; all must be IN SAME ORDER (I know, I should use maps)
+    private static final String[] SRC_FEATURE_IM_CLASSES =    { "Chromosome",         "Protein",         "ProteinDomain" ,        "Supercontig",         "ConsensusRegion" };
+    private static final String[] SRC_FEATURE_IM_REFERENCES = { "chromosome",         "protein",         "proteinDomain" ,        "supercontig",         "consensusRegion" };
+    private static final String[] SRC_FEATURE_IM_LOCATIONS =  { "chromosomeLocation", "proteinLocation", "proteinDomainLocation", "supercontigLocation", "consensusRegionLocation" }; 
 	
     // Avoid explosion of log messages by only logging missing collections once
     private Set<String> loggedMissingCols = new HashSet<String>();
@@ -394,14 +394,24 @@ public class SequenceProcessor extends ChadoProcessor {
      * @param chadoType the type of the feature from the feature + cvterm tables
      * @param uniqueName the uniquename from chado
      * @param name the name from chado
-     * @param md5checksum the checksum from the chado feature able
+     * @param md5checksum the checksum from the chado feature table
      * @param seqlen the length from the feature table
      * @param organismId the organism id of the feature from chado
      * @return a FeatureData object
      * @throws ObjectStoreException if there is a problem while storing
      */
     protected FeatureData makeFeatureData(int featureId, String chadoType, String uniqueName, String name, String md5checksum, int seqlen, int organismId) throws ObjectStoreException {
+
+        // convert the chado type to InterMine object name by capitalizing and removing underscores
         String interMineType = TypeUtil.javaiseClassName(fixFeatureType(chadoType));
+
+        // HACK START - Polypeptide -> Protein, PolypeptideDomain -> ProteinDomain
+        if (chadoType.equals("polypeptide")) interMineType = "Protein";
+        if (chadoType.equals("polypeptide_domain")) interMineType = "ProteinDomain";
+        // HACK END
+
+        if (DEBUG) debugToLog("makeFeatureData: chadoType="+chadoType+" interMineType="+interMineType);
+
         OrganismData organismData = getChadoDBConverter().getChadoIdToOrgDataMap().get(new Integer(organismId));
 
         Item feature = makeFeature(new Integer(featureId), chadoType, interMineType, name, uniqueName, seqlen, organismData.getTaxonId());
@@ -412,7 +422,7 @@ public class SequenceProcessor extends ChadoProcessor {
         FeatureData fdat = new FeatureData();
         Item organismItem = getChadoDBConverter().getOrganismItem(taxonId);
         feature.setReference("organism", organismItem);
-        if (feature.checkAttribute("md5checksum")) {
+        if (feature.checkAttribute("md5checksum") && md5checksum!=null) {
             feature.setAttribute("md5checksum", md5checksum);
         }
         BioStoreHook.setSOTerm(getChadoDBConverter(), feature, chadoType, getChadoDBConverter().getSequenceOntologyRefId());
@@ -792,16 +802,12 @@ public class SequenceProcessor extends ChadoProcessor {
                     }
                 } else {
 		    if (DEBUG) debugToLog("processCollectionData:"+key.toString()+" actionList==null");
-                    if (PARTOF_RELATIONS.contains(relationType)) {
-                        // special case for part_of relations - try to find a reference or
-                        // collection that has a name that looks right for these objects (of class
-                        // objectClass).  eg.  If the subject is a Transcript and the objectClass
-                        // is Exon then find collections called "exons", "geneParts" (GenePart is
-                        // a superclass of Exon)
-                        fds = getReferenceForRelationship(objectClass, cd);
-                    } else {
-                        continue;
-                    }
+                    // Try to find a reference or
+                    // collection that has a name that looks right for these objects (of class
+                    // objectClass).  eg.  If the subject is a Transcript and the objectClass
+                    // is Exon then find collections called "exons", "geneParts" (GenePart is
+                    // a superclass of Exon), etc.
+                    fds = getReferenceForRelationship(objectClass, cd);
                 }
 
                 if (fds.size() == 0) {

@@ -62,6 +62,7 @@
   <class name="GeneFamily" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
+    <reference name="consensusRegion" referenced-type="ConsensusRegion" reverse-reference="geneFamily"/>
     <collection name="genes" referenced-type="Gene" reverse-reference="geneFamily"/>
   </class>
   
@@ -76,22 +77,17 @@
     <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
   </class>
 
-  <class name="Polypeptide" extends="BioEntity" is-interface="true">
+  <class name="Protein" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
-    <attribute name="length" type="java.lang.Integer"/>
     <attribute name="note" type="java.lang.String"/>
     <attribute name="reactomeName" type="java.lang.String"/>
-    <reference name="sequence" referenced-type="Sequence"/>
-    <reference name="gene" referenced-type="Gene" reverse-reference="polypeptides"/>
-    <reference name="MRNA" referenced-type="MRNA" reverse-reference="polypeptide"/>
     <reference name="chromosome" referenced-type="Chromosome"/>
     <reference name="chromosomeLocation" referenced-type="Location"/>
     <reference name="supercontig" referenced-type="Chromosome"/>
     <reference name="supercontigLocation" referenced-type="Location"/>
     <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
     <reference name="consensusRegionLocation" referenced-type="Location"/>
-    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
-    <collection name="pathways" referenced-type="Pathway" reverse-reference="polypeptides"/>
+    <collection name="pathways" referenced-type="Pathway" reverse-reference="proteins"/>
   </class>
 
   <class name="ProteinMatch" extends="BioEntity" is-interface="true">
@@ -101,19 +97,19 @@
     <attribute name="status" type="java.lang.String"/>
     <attribute name="date" type="java.lang.String"/>
     <reference name="sequence" referenced-type="Sequence"/>
-    <reference name="polypeptide" referenced-type="Polypeptide"/>
-    <reference name="polypeptideLocation" referenced-type="Location"/>
+    <reference name="protein" referenced-type="Protein"/>
+    <reference name="proteinLocation" referenced-type="Location"/>
     <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
     <reference name="consensusRegionLocation" referenced-type="Location"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
   <class name="ProteinHmmMatch" extends="ProteinMatch" is-interface="true">
-    <reference name="polypeptideDomain" referenced-type="PolypeptideDomain"/>
-    <reference name="polypeptideDomainLocation" referenced-type="Location"/>
+    <reference name="proteinDomain" referenced-type="ProteinDomain"/>
+    <reference name="proteinDomainLocation" referenced-type="Location"/>
   </class>
 
-  <class name="PolypeptideDomain" extends="BioEntity" is-interface="true">
+  <class name="ProteinDomain" extends="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
@@ -121,6 +117,7 @@
   <class name="ConsensusRegion" extends="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="length" type="java.lang.Integer"/>
+    <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="consensusRegion"/>
     <reference name="sequence" referenced-type="Sequence"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
@@ -130,10 +127,10 @@
 
   <!-- extensions of core classes -->
   
-  <!-- note MRNA extends Transcript, already has Gene reference -->
-  <class name="MRNA" is-interface="true">
-    <reference name="polypeptide" referenced-type="Polypeptide" reverse-reference="MRNA"/>
-  </class>
+  <!-- note MRNA extends Transcript, already has Gene and Protein reference -->
+  <!-- <class name="MRNA" is-interface="true"> -->
+  <!--   <reference name="protein" referenced-type="Protein" reverse-reference="MRNA"/> -->
+  <!-- </class> -->
   
   <class name="Exon" is-interface="true">
     <reference name="MRNA" referenced-type="MRNA"/>
@@ -143,9 +140,9 @@
     <attribute name="note" type="java.lang.String"/>
     <attribute name="familyRepresentative" type="java.lang.String"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
-    <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="gene"/>
     <collection name="spanningQTLs" referenced-type="QTL" reverse-reference="spannedGenes"/>
     <collection name="goAnnotation" referenced-type="GOAnnotation"/>
+    <collection name="pathways" referenced-type="Pathway" reverse-reference="genes"/>
   </class>
 
   <class name="Organism" is-interface="true">
@@ -190,9 +187,16 @@
     <collection name="crossReferences" referenced-type="DatabaseReference" reverse-reference="subject"/>
   </class>
 
-  <class name="Pathway" is-interface="true">
-    <attribute name="name" type="java.lang.String"/>
-    <collection name="polypeptides" referenced-type="Polypeptide" reverse-reference="pathways"/>
+  <!-- based on Julie's reactome data source -->
+  <class name="Pathway" is-interface="true" >
+     <attribute name="identifier" type="java.lang.String"/>
+     <attribute name="name" type="java.lang.String"/>
+     <attribute name="shortName" type="java.lang.String"/>
+     <attribute name="curated" type="java.lang.Boolean"/>
+     <collection name="genes" referenced-type="Gene" reverse-reference="pathways"/>
+     <collection name="proteins" referenced-type="Protein" reverse-reference="pathways"/>
+     <collection name="dataSets" referenced-type="DataSet"/>
   </class>
+
 
 </classes>
