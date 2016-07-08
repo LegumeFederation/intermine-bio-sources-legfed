@@ -414,7 +414,7 @@ public class SequenceProcessor extends ChadoProcessor {
 
         OrganismData organismData = getChadoDBConverter().getChadoIdToOrgDataMap().get(new Integer(organismId));
 
-        Item feature = makeFeature(new Integer(featureId), chadoType, interMineType, name, uniqueName, seqlen, organismData.getTaxonId());
+        Item feature = makeFeature(new Integer(featureId), interMineType);
         if (feature == null) {
             return null;
         }
@@ -450,20 +450,15 @@ public class SequenceProcessor extends ChadoProcessor {
     }
 
     /**
-     * Make a new feature
+     * Make a new feature, setting chadoFeatureId to the chado.feature.feature_id value
      * @param featureId the chado feature id
-     * @param chadoFeatureType the chado feature type (a SO term)
      * @param interMineType the InterMine type of the feature
-     * @param name the name
-     * @param uniqueName the uniquename
-     * @param seqlen the sequence length (if known)
-     * @param taxonId the NCBI taxon id of the current feature
      * @return the new feature
      */
-    protected Item makeFeature(Integer featureId, String chadoFeatureType, String interMineType,
-			       String name, String uniqueName,
-			       int seqlen, int taxonId) {
-        return getChadoDBConverter().createItem(interMineType);
+    protected Item makeFeature(Integer featureId, String interMineType) {
+        Item feature = getChadoDBConverter().createItem(interMineType);
+        feature.setAttribute("chadoFeatureId", String.valueOf(featureId));
+        return feature;
     }
 
     /**

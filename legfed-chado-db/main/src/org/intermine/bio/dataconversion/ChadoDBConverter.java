@@ -43,12 +43,19 @@ public class ChadoDBConverter extends BioDBConverter {
 
     // a Map from chado organism_id to taxonId
     private final Map<Integer, OrganismData> chadoToOrgData = new HashMap<Integer, OrganismData>();
+
+    // a Map from chado organism_id to taxonId for desired homologue organisms
+    private final Map<Integer, OrganismData> chadoToHomologueOrgData = new HashMap<Integer, OrganismData>();
     
     private String processors = "";
 
     private String reactomeFilename = "";
 
+    private String phytozomeVersion = "";
+
     private final Set<OrganismData> organismsToProcess = new HashSet<OrganismData>();
+
+    private final Set<OrganismData> homologueOrganismsToProcess = new HashSet<OrganismData>();
 
     private final OrganismRepository organismRepository;
 
@@ -124,11 +131,57 @@ public class ChadoDBConverter extends BioDBConverter {
     }
 
     /**
+     * Set the Phytozome version for querying the phylotree table.
+     * @param phytozomeVersion the Phytozome version, e.g. phytozome_10_2
+     */
+    public void setPhytozomeVersion(String phytozomeVersion) {
+        this.phytozomeVersion = phytozomeVersion;
+    }
+
+    /**
+     * Return the Phytozome version
+     */
+    public String getPhytozomeVersion() {
+        return phytozomeVersion;
+    }
+    
+    /**
+     * Set the taxon ids to use when creating the Organism Items for homologues in HomologyProcessor.
+     * Only genes from these organisms will be stored as Homologue.homologue.
+     * @param organisms a space separated list of the organism abbreviations or taxon ids to look up in the organism table
+     */
+    public void setHomologueOrganisms(String organisms) {
+        String[] bits = StringUtil.split(organisms, " ");
+        for (String organismIdString: bits) {
+            LOG.info("setHomologueOrganisms:organismIdString="+organismIdString);
+            OrganismData od = null;
+            try {
+                Integer taxonId = Integer.valueOf(organismIdString);
+                od = organismRepository.getOrganismDataByTaxon(taxonId);
+            } catch (NumberFormatException e) {
+                od = organismRepository.getOrganismDataByAbbreviation(organismIdString);
+            }
+            if (od == null) {
+                throw new RuntimeException("can't find organism for: " + organismIdString);
+            }
+            homologueOrganismsToProcess.add(od);
+        }
+    }
+
+    /**
      * Return a map from chado organism_id to OrganismData object for all the organisms that we are processing.
      * @return the Map
      */
     public Map<Integer, OrganismData> getChadoIdToOrgDataMap() {
         return chadoToOrgData;
+    }
+
+    /**
+     * Return a map from chado organism_id to OrganismData object for the organisms that we are processing for homology.
+     * @return the Map
+     */
+    public Map<Integer, OrganismData> getChadoIdToHomologueOrgDataMap() {
+        return chadoToHomologueOrgData;
     }
 
     /**
@@ -152,6 +205,7 @@ public class ChadoDBConverter extends BioDBConverter {
 
         Map<OrganismData, Integer> tempChadoOrgMap = getChadoOrganismIds(getConnection());
 
+        // build the map of desired organisms to process
         for (OrganismData od: organismsToProcess) {
             Integer chadoId = tempChadoOrgMap.get(od);
             if (chadoId == null) {
@@ -163,6 +217,16 @@ public class ChadoDBConverter extends BioDBConverter {
         if (chadoToOrgData.size() == 0) {
             throw new RuntimeException("can't find any known organisms in the organism table");
         }
+
+        // build the map of desired organisms to process for homology in HomologyProcessor
+        for (OrganismData od: homologueOrganismsToProcess) {
+            Integer chadoId = tempChadoOrgMap.get(od);
+            if (chadoId == null) {
+                throw new RuntimeException("Homologue organism "+od+" not found in the chado organism table");
+            }
+            chadoToHomologueOrgData.put(chadoId, od);
+        }
+        
 
         String[] bits = processors.trim().split("[ \\t]+");
         for (int i = 0; i < bits.length; i++) {
@@ -231,6 +295,14 @@ public class ChadoDBConverter extends BioDBConverter {
      */
     public Set<OrganismData> getOrganismsToProcess() {
         return organismsToProcess;
+    }
+
+    /**
+     * Return the OrganismData objects for the homologue organisms listed in the source configuration.
+     * @return homologueOrganismsToProcess
+     */
+    public Set<OrganismData> getHomologueOrganismsToProcess() {
+        return homologueOrganismsToProcess;
     }
 
     /**

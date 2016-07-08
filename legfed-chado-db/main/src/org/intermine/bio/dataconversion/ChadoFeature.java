@@ -83,7 +83,7 @@ public class ChadoFeature {
     }
 
     /**
-     * Populate the attributes of a SequenceFeature Item with this feature's data; related sequence Item must be passed in
+     * Populate the attributes of a SequenceFeature Item with this feature's data; related Sequence Item must be passed in
      */
     public void populateSequenceFeature(Item sequenceFeature, Item sequence, Item organism) {
         populateBioEntity(sequenceFeature, organism);

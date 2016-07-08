@@ -59,6 +59,8 @@ public class GeneticProcessor extends ChadoProcessor {
         
         // initialize our DB statement
         Statement stmt = connection.createStatement();
+        ResultSet rs; // general-purpose use
+        String query; // general-purpose use
         
         // ---------------------------------------------------------
         // ---------------- INITIAL DATA LOADING -------------------
@@ -69,7 +71,6 @@ public class GeneticProcessor extends ChadoProcessor {
         String linkageGroupCVTerm = "linkage_group";
         String geneticMarkerCVTerm = "genetic_marker";
         String qtlCVTerm = "QTL";
-        String geneFamilyCVTerm = "gene family";
         String consensusRegionCVTerm = "consensus_region";
         
         // build the Organism map from the supplied taxon IDs
@@ -87,8 +88,20 @@ public class GeneticProcessor extends ChadoProcessor {
         }
         LOG.info("Created and stored "+organismMap.size()+" organism Items.");
 
+        // create a comma-separated list of organism IDs for WHERE organism_id IN query clauses
+        String organismSQL = "(";
+        boolean first = true;
+        for (Integer organismId : organismMap.keySet()) {
+            if (first) {
+                organismSQL += organismId;
+                first = false;
+            } else {
+                organismSQL += ","+organismId;
+            }
+        }
+        organismSQL += ")";
+
         // store the Items in maps
-        Map<Integer,Item> geneMap = new HashMap<Integer,Item>();
         Map<Integer,Item> linkageGroupMap = new HashMap<Integer,Item>();
         Map<Integer,Item> geneticMarkerMap = new HashMap<Integer,Item>();
         Map<Integer,Item> qtlMap = new HashMap<Integer,Item>();
@@ -100,23 +113,22 @@ public class GeneticProcessor extends ChadoProcessor {
             Item organism = orgEntry.getValue();
 
             // fill these maps from the feature table
-            populateMap(stmt, geneMap, "Gene", geneCVTerm, organism_id, organism);
             populateMap(stmt, linkageGroupMap, "LinkageGroup", linkageGroupCVTerm, organism_id, organism);
             populateMap(stmt, geneticMarkerMap, "GeneticMarker", geneticMarkerCVTerm, organism_id, organism);
             populateMap(stmt, qtlMap, "QTL", qtlCVTerm, organism_id, organism);
 
             // genetic maps are not in the feature table, so we use linkage groups to query them for this organism
             // we'll assume the units are cM, although we can query them if we want to be really pedantic
-            String query = "SELECT * FROM featuremap WHERE featuremap_id IN (" +
+            query = "SELECT * FROM featuremap WHERE featuremap_id IN (" +
                 "SELECT DISTINCT featuremap_id FROM featurepos WHERE feature_id IN (" +
                 "SELECT feature_id FROM feature,cvterm WHERE organism_id="+organism_id+" AND type_id=cvterm_id AND cvterm.name='"+linkageGroupCVTerm+"'))";
             LOG.info("executing query: "+query);
-            ResultSet rs0 = stmt.executeQuery(query);
-            while (rs0.next()) {
+            rs = stmt.executeQuery(query);
+            while (rs.next()) {
                 // featuremap fields
-                int featuremap_id = rs0.getInt("featuremap_id");
-                String name = rs0.getString("name");
-                String description = rs0.getString("description");
+                int featuremap_id = rs.getInt("featuremap_id");
+                String name = rs.getString("name");
+                String description = rs.getString("description");
                 // build the GeneticMap item
                 Item geneticMap = getChadoDBConverter().createItem("GeneticMap");
                 // genetic map has no SO term
@@ -127,54 +139,14 @@ public class GeneticProcessor extends ChadoProcessor {
                 // put it in its map for further processing
                 geneticMapMap.put(new Integer(featuremap_id), geneticMap);
             }
-            rs0.close();
+            rs.close();
         }
 
-        LOG.info("Created "+geneMap.size()+" Gene items.");
         LOG.info("Created "+linkageGroupMap.size()+" LinkageGroup items.");
         LOG.info("Created "+geneticMarkerMap.size()+" GeneticMarker items.");
         LOG.info("Created "+qtlMap.size()+" QTL items.");
         LOG.info("Created "+geneticMapMap.size()+" GeneticMap items.");
 
-        // Gene families are organism-independent; load from the featureprop table
-        // Note: we don't have chado IDs for gene families, so we use their name as the key
-        Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
-        String query = "SELECT DISTINCT featureprop.value FROM featureprop,cvterm WHERE type_id=cvterm_id AND cvterm.name='"+geneFamilyCVTerm+"'";
-        LOG.info("executing query: "+query);
-        ResultSet rs0 = stmt.executeQuery(query);
-        while (rs0.next()) {
-            String value = rs0.getString("value");
-            Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
-            // gene family has no SO term
-            geneFamily.setAttribute("primaryIdentifier", value);
-            // assume that consensus region primaryIdentifier = geneFamily.primaryIdentifier+"-consensus" to relate to consensus region
-            Item consensusRegion = getChadoDBConverter().createItem("ConsensusRegion");
-            consensusRegion.setAttribute("primaryIdentifier", value+"-consensus");
-            consensusRegion.setReference("geneFamily", geneFamily);
-            store(consensusRegion); // we're done with the consensus region
-            geneFamily.setReference("consensusRegion", consensusRegion);
-            // store this one in its map
-            geneFamilyMap.put(value, geneFamily);
-        }
-        rs0.close();
-        
-        // Grab the gene family descriptions from phylotree, which we can't assume exists or contains records matching those above
-        for (Map.Entry<String,Item> entry : geneFamilyMap.entrySet()) {
-            String name = entry.getKey();
-            Item geneFamily = entry.getValue();
-            try {
-                ResultSet rs1 = stmt.executeQuery("SELECT comment FROM phylotree WHERE name='"+name+"'");
-                if (rs1.next()) {
-                    geneFamily.setAttribute("description", rs1.getString("comment"));
-                }
-                rs1.close();
-            } catch (Exception ex) {
-                LOG.error(ex.toString());
-            }
-        }
-
-        LOG.info("Created "+geneFamilyMap.size()+" GeneFamily items.");
-        
         //---------------------------------------------------------
         // ---------------- DATA ASSOCIATION ----------------------
         //---------------------------------------------------------
@@ -209,43 +181,26 @@ public class GeneticProcessor extends ChadoProcessor {
         for (Map.Entry<Integer,Item> entry : qtlMap.entrySet()) {
             int feature_id = entry.getKey().intValue();
             Item qtl = entry.getValue();
-            ResultSet rs1 = stmt.executeQuery("SELECT * FROM pub WHERE pub_id IN (SELECT pub_id FROM feature_cvterm WHERE feature_id="+feature_id+")");
-            while (rs1.next()) {
+            rs = stmt.executeQuery("SELECT * FROM pub WHERE pub_id IN (SELECT pub_id FROM feature_cvterm WHERE feature_id="+feature_id+")");
+            while (rs.next()) {
                 Item publication;
-                int pub_id = rs1.getInt("pub_id");
-                if (qtlPubMap.containsKey(new Integer(pub_id))) {
+                Integer pubId = new Integer(rs.getInt("pub_id"));
+                if (qtlPubMap.containsKey(pubId)) {
                     // pub already exists, so get from the map
-                    publication = qtlPubMap.get(new Integer(pub_id));
+                    publication = qtlPubMap.get(pubId);
                 } else {
                     // create it, set the attributes from the ResultSet, add it to its map
                     publication = getChadoDBConverter().createItem("Publication");
-                    setPublicationAttributes(publication, rs1);
-                    qtlPubMap.put(new Integer(pub_id), publication);
+                    setPublicationAttributes(publication, rs);
+                    qtlPubMap.put(pubId, publication);
                 }
                 // add the QTL reference to the Publication (reverse-referenced)
                 publication.addToCollection("bioEntities", qtl);
             }
-            rs1.close();
+            rs.close();
         }
         LOG.info("***** Done creating "+qtlPubMap.size()+" Publication items associated with QTLs.");
         
-        // query the featureprop table to associate our genes with gene families
-        for (Map.Entry<Integer,Item> entry : geneMap.entrySet()) {
-            int feature_id = (int) entry.getKey(); // gene
-            Item gene = entry.getValue();
-            ResultSet rs1 = stmt.executeQuery("SELECT featureprop.* FROM featureprop,cvterm WHERE feature_id="+feature_id+" AND type_id=cvterm_id AND cvterm.name='"+geneFamilyCVTerm+"'");
-            while (rs1.next()) {
-                // add reference to the GeneFamily to this Gene (reversed-referenced)
-                String value = rs1.getString("value");             // the description
-                Item geneFamily = geneFamilyMap.get(value);
-                if (geneFamily!=null) {
-                    gene.setReference("geneFamily", geneFamily);
-                }
-            }
-            rs1.close();
-        }
-        LOG.info("***** Done associating genes with gene families from featureprop.");
-
         // query the featurepos table for linkage groups and genetic markers associated with our genetic maps
         // Note: for linkage groups, ignore the mappos=0 start entry; use mappos>0 entry to get the length of the linkage group
         for (Map.Entry<Integer,Item> entry : geneticMapMap.entrySet()) {
@@ -346,12 +301,6 @@ public class GeneticProcessor extends ChadoProcessor {
 
         LOG.info("Storing genetic map publications...");
         for (Item item : gmPubMap.values()) store(item);
-
-        LOG.info("Storing genes...");
-        for (Item item : geneMap.values()) store(item);
-
-        LOG.info("Storing gene families...");
-        for (Item item : geneFamilyMap.values()) store(item);
 
         LOG.info("Storing linkage groups...");
         for (Item item : linkageGroupMap.values()) store(item);
