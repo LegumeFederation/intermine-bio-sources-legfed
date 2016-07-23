@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<classes>
+
+  <class name="MRNA" is-interface="true">
+    <collection name="expressionValues" referenced-type="ExpressionValue" reverse-reference="mRNA"/>
+  </class>
+
+  <class name="ExpressionSource" is-interface="true">
+    <attribute name="name" type="java.lang.String"/>
+    <attribute name="geo" type="java.lang.String"/>
+    <attribute name="bioProject" type="java.lang.String"/>
+    <attribute name="sra" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <reference name="publication" referenced-type="Publication"/>
+    <collection name="samples" referenced-type="ExpressionSample" reverse-reference="source"/>
+  </class>
+  
+  <class name="ExpressionSample" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
+    <reference name="source" referenced-type="ExpressionSource" reverse-reference="samples"/>
+  </class>
+
+  <class name="ExpressionValue" is-interface="true">
+    <attribute name="value" type="java.lang.Double"/>
+    <attribute name="unit" type="java.lang.String"/>
+    <reference name="expressionSample" referenced-type="ExpressionSample"/>
+    <reference name="mRNA" referenced-type="MRNA" reverse-reference="expressionValues"/>
+  </class>
+
+</classes>
