@@ -87,6 +87,8 @@
     <reference name="supercontigLocation" referenced-type="Location"/>
     <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
     <reference name="consensusRegionLocation" referenced-type="Location"/>
+    <collection name="proteinMatches" referenced-type="ProteinMatch" reverse-reference="protein"/>
+    <collection name="proteinDomains" referenced-type="ProteinDomain" reverse-reference="proteins"/>
     <collection name="pathways" referenced-type="Pathway" reverse-reference="proteins"/>
   </class>
 
@@ -97,7 +99,7 @@
     <attribute name="status" type="java.lang.String"/>
     <attribute name="date" type="java.lang.String"/>
     <reference name="sequence" referenced-type="Sequence"/>
-    <reference name="protein" referenced-type="Protein"/>
+    <reference name="protein" referenced-type="Protein" reverse-reference="proteinMatches"/>
     <reference name="proteinLocation" referenced-type="Location"/>
     <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
     <reference name="consensusRegionLocation" referenced-type="Location"/>
@@ -105,13 +107,18 @@
   </class>
 
   <class name="ProteinHmmMatch" extends="ProteinMatch" is-interface="true">
-    <reference name="proteinDomain" referenced-type="ProteinDomain"/>
+    <reference name="proteinDomain" referenced-type="ProteinDomain" reverse-reference="proteinHmmMatches"/>
     <reference name="proteinDomainLocation" referenced-type="Location"/>
   </class>
 
   <class name="ProteinDomain" extends="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="interproId" type="java.lang.String"/>
+    <attribute name="interproName" type="java.lang.String"/>
+    <attribute name="interproShortName" type="java.lang.String"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+    <collection name="proteinHmmMatches" referenced-type="ProteinHmmMatch" reverse-reference="proteinDomain"/>
+    <collection name="proteins" referenced-type="Protein" reverse-reference="proteinDomains"/>
   </class>
 
   <class name="ConsensusRegion" extends="BioEntity" is-interface="true">
@@ -126,11 +133,6 @@
   <class name="Supercontig"  extends="SequenceFeature" is-interface="true"/>
 
   <!-- extensions of core classes -->
-  
-  <!-- note MRNA extends Transcript, already has Gene and Protein reference -->
-  <!-- <class name="MRNA" is-interface="true"> -->
-  <!--   <reference name="protein" referenced-type="Protein" reverse-reference="MRNA"/> -->
-  <!-- </class> -->
   
   <class name="Exon" is-interface="true">
     <reference name="MRNA" referenced-type="MRNA"/>
