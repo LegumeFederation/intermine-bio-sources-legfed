@@ -100,7 +100,7 @@ public class ExpressionFileConverter extends BioFileConverter {
         LOG.info("Loading expression source:"+sourceName);
         Item source = createItem("ExpressionSource");
         source.setReference("organism", organism);
-        source.setAttribute("name", sourceName);
+        source.setAttribute("primaryIdentifier", sourceName);
         if (geo.length()>0) source.setAttribute("geo", geo);
         if (bioProject.length()>0) source.setAttribute("bioProject", bioProject);
         if (sra.length()>0) source.setAttribute("sra", sra);
@@ -150,13 +150,14 @@ public class ExpressionFileConverter extends BioFileConverter {
         String[] numSamplesLine = (String[]) tsvIter.next();
         int numSamples = Integer.parseInt(numSamplesLine[0]);
         
-        // 4. Sample name and description in same order as the expression columns
+        // 4. Sample number, name and description in same order as the expression columns
         Item[] samples = new Item[numSamples];
         for (int i=0; i<numSamples; i++) {
             String[] sampleLine = (String[]) tsvIter.next();
             samples[i] = createItem("ExpressionSample");
-            samples[i].setAttribute("primaryIdentifier", sampleLine[0]);
-            samples[i].setAttribute("description", sampleLine[1]);
+            samples[i].setAttribute("num", sampleLine[0]);
+            samples[i].setAttribute("primaryIdentifier", sampleLine[1]);
+            samples[i].setAttribute("description", sampleLine[2]);
             samples[i].setReference("source", source);
             store(samples[i]);
         }

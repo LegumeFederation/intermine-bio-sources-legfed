@@ -6,7 +6,7 @@
   </class>
 
   <class name="ExpressionSource" is-interface="true">
-    <attribute name="name" type="java.lang.String"/>
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="geo" type="java.lang.String"/>
     <attribute name="bioProject" type="java.lang.String"/>
     <attribute name="sra" type="java.lang.String"/>
@@ -17,6 +17,7 @@
   
   <class name="ExpressionSample" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="num" type="java.lang.Integer"/>
     <attribute name="description" type="java.lang.String"/>
     <reference name="source" referenced-type="ExpressionSource" reverse-reference="samples"/>
   </class>

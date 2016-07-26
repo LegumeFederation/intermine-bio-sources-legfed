@@ -93,7 +93,6 @@
   </class>
 
   <class name="ProteinMatch" extends="BioEntity" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="length" type="java.lang.Integer"/>
     <attribute name="signatureDesc" type="java.lang.String"/>
     <attribute name="status" type="java.lang.String"/>
@@ -112,7 +111,6 @@
   </class>
 
   <class name="ProteinDomain" extends="BioEntity" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="interproId" type="java.lang.String"/>
     <attribute name="interproName" type="java.lang.String"/>
     <attribute name="interproShortName" type="java.lang.String"/>
@@ -122,7 +120,6 @@
   </class>
 
   <class name="ConsensusRegion" extends="BioEntity" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="length" type="java.lang.Integer"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="consensusRegion"/>
     <reference name="sequence" referenced-type="Sequence"/>
@@ -153,9 +150,13 @@
     <attribute name="comment" type="java.lang.String"/>
   </class>
 
-  <!-- add chadoFeatureId, supercontig and supercontigLocation to all sequence features -->
-  <class name="SequenceFeature" is-interface="true">
+  <!-- add chadoFeatureId to all BioEntity subclasses -->
+  <class name="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+  </class>
+  
+  <!-- supercontig and supercontigLocation to all SequenceFeature subclasses -->
+  <class name="SequenceFeature" is-interface="true">
     <reference name="supercontig" referenced-type="Supercontig" />
     <reference name="supercontigLocation" referenced-type="Location" />
   </class>
