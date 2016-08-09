@@ -29,3 +29,7 @@ A custom version of FlyMine's chado-db source written by Kim Rutherford.
 #### legfed-synteny-gff
 
 **SyntenyGFFConverter.java** - reads and stores synteny blocks and synteny regions from a GFF dump with records formatted by DAGchainer. Creates SyntenyBlock, SyntenicRegion objects.
+
+#### legfed-expression
+
+**ExpressionFileConverter.java** - reads a tab-delimited expression file of custom format into ExpressionSource, ExpressionSample and ExpressionValue objects.
