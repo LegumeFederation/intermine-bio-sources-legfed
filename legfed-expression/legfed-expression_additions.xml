@@ -10,7 +10,6 @@
     <attribute name="geo" type="java.lang.String"/>
     <attribute name="bioProject" type="java.lang.String"/>
     <attribute name="sra" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
     <reference name="publication" referenced-type="Publication"/>
     <collection name="samples" referenced-type="ExpressionSample" reverse-reference="source"/>
   </class>

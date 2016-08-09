@@ -53,20 +53,6 @@ public class ExpressionFileConverter extends BioFileConverter {
     }
 
     /**
-     * Sets the list of taxonIds that should be imported
-     *
-     * @param taxonIds a space-separated list of taxonIds
-     */
-    public void setOrganisms(String taxonIds) {
-        String[] chunks = taxonIds.split(" ");
-        if (chunks.length!=1) {
-            throw new RuntimeException("Only one taxon ID may be supplied.");
-        } else {
-            taxonId = taxonIds;
-        }
-    }
-
-    /**
      * Called for each file found by ant.
      *
      * {@inheritDoc}
@@ -75,12 +61,6 @@ public class ExpressionFileConverter extends BioFileConverter {
 
         LOG.info("Processing expression file:"+getCurrentFile().getName()+"...");
         
-        // create and store organism
-        Item organism = createItem("Organism");
-        organism.setAttribute("taxonId", taxonId);
-        store(organism);
-
-
         // parse the tab-delimited file
         Iterator<?> tsvIter;
         try {
@@ -99,13 +79,12 @@ public class ExpressionFileConverter extends BioFileConverter {
 
         LOG.info("Loading expression source:"+sourceName);
         Item source = createItem("ExpressionSource");
-        source.setReference("organism", organism);
         source.setAttribute("primaryIdentifier", sourceName);
         if (geo.length()>0) source.setAttribute("geo", geo);
         if (bioProject.length()>0) source.setAttribute("bioProject", bioProject);
         if (sra.length()>0) source.setAttribute("sra", sra);
         // create and store the publication if it exists; this requires Internet access
-        if (pmid!=null) {
+        if (pmid!=null && pmid.trim().length()>0) {
             try {
                 int id = Integer.parseInt(pmid);
                 PubMedSummary pms = new PubMedSummary(id);
@@ -162,12 +141,13 @@ public class ExpressionFileConverter extends BioFileConverter {
             store(samples[i]);
         }
 
-        // 5. expression data - rely on mRNA merge on primaryIdentifier, organism
+        // 5. expression data - rely on mRNA merge on primaryIdentifier
+        // If mRNAId does not end in .#, append ".1" to convert from gene to mRNA accession
         while (tsvIter.hasNext()) {
             String[] line = (String[]) tsvIter.next();
             String mRNAId = line[0];
+            if (mRNAId.charAt(mRNAId.length()-2)!='.') mRNAId += ".1";
             Item mRNA = createItem("MRNA");
-            mRNA.setReference("organism", organism);
             mRNA.setAttribute("primaryIdentifier", mRNAId);
             store(mRNA);
             // load the expression values
