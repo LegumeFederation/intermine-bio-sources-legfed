@@ -59,7 +59,6 @@ public class FeaturePropProcessor extends ChadoProcessor {
         Statement stmt = connection.createStatement();
         
         // feature types of interest
-        int geneCVTermId = getCVTermId(stmt, "gene");
         int geneticMarkerCVTermId = getCVTermId(stmt, "genetic_marker");
         int linkageGroupCVTermId = getCVTermId(stmt, "linkage_group");
         int proteinCVTermId = getCVTermId(stmt, "polypeptide"); // HACK - treat polypeptides as proteins
@@ -110,15 +109,6 @@ public class FeaturePropProcessor extends ChadoProcessor {
             LOG.info("Storing organism "+taxonId+"...");
             store(organism);
 
-            // load gene attributes
-            Map<Integer,Item> geneMap = generateMap(stmt, "Gene", geneCVTermId, organism_id, organism);
-            if (geneMap.size()>0) {
-                LOG.info("Loading attributes for "+geneMap.size()+" Gene items for organism "+taxonId);
-                loadAttributes(stmt, organism_id, geneMap, geneCVTermId, "note", noteCVTermId);
-                LOG.info("Storing genes for organism "+taxonId);
-                for (Item item : geneMap.values()) store(item);
-            }
-            
             // load linkage group attributes
             Map<Integer,Item> linkageGroupMap = generateMap(stmt, "LinkageGroup", linkageGroupCVTermId, organism_id, organism);
             if (linkageGroupMap.size()>0) {

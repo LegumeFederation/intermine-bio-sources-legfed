@@ -136,7 +136,6 @@
   </class>
   
   <class name="Gene" is-interface="true">
-    <attribute name="note" type="java.lang.String"/>
     <attribute name="familyRepresentative" type="java.lang.String"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
     <collection name="spanningQTLs" referenced-type="QTL" reverse-reference="spannedGenes"/>

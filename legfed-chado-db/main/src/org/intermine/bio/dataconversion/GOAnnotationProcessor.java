@@ -29,7 +29,7 @@ import org.intermine.xml.full.Item;
 import org.intermine.xml.full.Reference;
 
 /**
- * Store the GO annotations parsed from the gene.note field in the LIS chado database.
+ * Store the gene description and GO annotations parsed from the gene.description field in the LIS chado database.
  *
  * Since this processer deals only with chado data, Items are stored in maps with Integer keys equal to
  * the chado feature.feature_id.
@@ -82,44 +82,48 @@ public class GOAnnotationProcessor extends ChadoProcessor {
             int organism_id = orgEntry.getKey().intValue();
             Item organism = orgEntry.getValue();
         
-            // load the relevant genes from the gene table, then parse out the GO identifiers
+            // load the relevant genes from the gene table, store the description, then parse out the GO identifiers
             String query = "SELECT * FROM gene WHERE organism_id="+organism_id;
             LOG.info("executing query: "+query);
             ResultSet rs = stmt.executeQuery(query);
             while (rs.next()) {
-                // parse the description for GO identifiers, creating a GOAnnotation each time, and adding it to the gene's collection
+                String primaryIdentifier = rs.getString("uniquename");
                 String description = rs.getString("description");
-                String[] goNumbers = StringUtils.substringsBetween(description, "GO:", " ");
-                if (goNumbers!=null) {
-                    // create the Gene item and store the minimal stuff required for merging (and note that gene.symbol is bogus)
+                if (description!=null) {
                     Item gene = getChadoDBConverter().createItem("Gene");
                     gene.setReference("organism", organism);
-                    gene.setAttribute("primaryIdentifier", rs.getString("uniquename"));
-                    // add the GO terms
-                    for (int j=0; j<goNumbers.length; j++) {
-                        String identifier = "GO:"+goNumbers[j];
-                        // get the GO term from the map if it's there; otherwise create, store and add it to the map.
-                        Item goTerm;
-                        if (goTermMap.containsKey(identifier)) {
-                            goTerm = goTermMap.get(identifier);
-                        } else {
-                            goTerm = getChadoDBConverter().createItem("GOTerm");
-                            goTerm.setAttribute("identifier", identifier);
-                            store(goTerm);
-                            goTermMap.put(identifier, goTerm);
+                    gene.setAttribute("primaryIdentifier", primaryIdentifier);
+                    gene.setAttribute("description", description);
+                    // parse the description for GO identifiers, creating a GOAnnotation each time, and adding it to the gene's collection
+                    String[] goNumbers = StringUtils.substringsBetween(description, "GO:", " ");
+                    if (goNumbers!=null) {
+                        // create the Gene item and store the minimal stuff required for merging (and note that gene.symbol is bogus)
+                        // add the GO terms
+                        for (int j=0; j<goNumbers.length; j++) {
+                            String identifier = "GO:"+goNumbers[j];
+                            // get the GO term from the map if it's there; otherwise create, store and add it to the map.
+                            Item goTerm;
+                            if (goTermMap.containsKey(identifier)) {
+                                goTerm = goTermMap.get(identifier);
+                            } else {
+                                goTerm = getChadoDBConverter().createItem("GOTerm");
+                                goTerm.setAttribute("identifier", identifier);
+                                store(goTerm);
+                                goTermMap.put(identifier, goTerm);
+                            }
+                            // create and store the GOAnnotation linking this gene to this GO term
+                            Item goAnnotation = getChadoDBConverter().createItem("GOAnnotation");
+                            goAnnotation.setReference("subject", gene);
+                            goAnnotation.setReference("ontologyTerm", goTerm);
+                            store(goAnnotation);
+                            // have to manually set reverse reference since no reverse-reference from subject defined in OntologyAnnotation
+                            gene.addToCollection("goAnnotation", goAnnotation);
                         }
-                        // create and store the GOAnnotation linking this gene to this GO term
-                        Item goAnnotation = getChadoDBConverter().createItem("GOAnnotation");
-                        goAnnotation.setReference("subject", gene);
-                        goAnnotation.setReference("ontologyTerm", goTerm);
-                        store(goAnnotation);
-                        // have to manually set reverse reference since no reverse-reference from subject defined in OntologyAnnotation
-                        gene.addToCollection("goAnnotation", goAnnotation);
                     }
                     // store the gene
                     store(gene);
-                }
-            }
+                } // description not null
+            } // rs.next
             rs.close();
             
         } // organism
