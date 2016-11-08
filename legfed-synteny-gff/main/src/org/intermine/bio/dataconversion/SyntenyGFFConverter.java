@@ -52,8 +52,8 @@ public class SyntenyGFFConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(SyntenyGFFConverter.class);
 
-    static final RANGE_SEPARATOR = "-";
-    static final REGION_SEPARATOR = "|";
+    static final String RANGE_SEPARATOR = "-";
+    static final String REGION_SEPARATOR = "|";
 
     // define these maps globally and then only store them once in the close() method to avoid duplicate store conflicts
     Map<String,Item> organismMap = new HashMap<String,Item>();
