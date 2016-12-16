@@ -71,6 +71,9 @@ public class QTLMarkerFileConverter extends BioFileConverter {
     @Override
     public void process(Reader reader) throws Exception {
 
+        // don't process README files
+        if (getCurrentFile().getName().equals("README")) return;
+
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
         Item organism = createItem("Organism");
@@ -115,8 +118,8 @@ public class QTLMarkerFileConverter extends BioFileConverter {
                     markerMap.put(rec.markerName, marker);
                 }
                 // add this genetic marker to this QTL's collection
-                LOG.info("Adding QTL="+rec.qtlName+" Genetic Marker="+rec.markerName+" to associatedGeneticMarkers.");
-                qtl.addToCollection("associatedGeneticMarkers", marker);
+                LOG.info("Adding QTL="+rec.qtlName+" Genetic Marker="+rec.markerName+" to associatedMarkers.");
+                qtl.addToCollection("associatedMarkers", marker);
             }
 
         }
@@ -132,13 +135,13 @@ public class QTLMarkerFileConverter extends BioFileConverter {
     public void close() throws Exception {
 
         LOG.info("Storing "+organismSet.size()+" organism items...");
-        for (Item organism : organismSet) store(organism);
+        store(organismSet);
         
         LOG.info("Storing "+qtlMap.size()+" QTL items...");
-        for (Item qtl : qtlMap.values()) store(qtl);
+        store(qtlMap.values());
 
         LOG.info("Storing "+markerMap.size()+" genetic marker items...");
-        for (Item marker : markerMap.values()) store(marker);
+        store(markerMap.values());
 
     }
     

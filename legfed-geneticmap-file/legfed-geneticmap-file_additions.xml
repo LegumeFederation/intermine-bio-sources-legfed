@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<classes>
+
+  <class name="GeneticMap" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="secondaryIdentifier" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="geneticMaps"/>
+    <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="geneticMaps"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="geneticMaps"/>
+    <collection name="publications" referenced-type="Publication"/>
+  </class>
+
+  <class name="MappingPopulation" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <reference name="parentA" referenced-type="Germplasm"/>
+    <reference name="parentB" referenced-type="Germplasm"/>
+    <collection name="geneticMaps" referenced-type="GeneticMap" reverse-reference="mappingPopulations"/>
+  </class>
+
+  <!-- minimal definition, more in the legfed-germplasm-file source -->
+  <class name="Germplasm" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+  </class>
+
+  <class name="LinkageGroup" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="number" type="java.lang.Integer"/>
+    <attribute name="length" type="java.lang.Double"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
+    <collection name="markers" referenced-type="GeneticMarker"/>
+    <collection name="QTLs" referenced-type="QTL"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+    <attribute name="type" type="java.lang.String"/>
+    <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
+    <collection name="geneticMaps" referenced-type="GeneticMap" reverse-reference="markers"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedMarkers"/>
+  </class>
+
+  <!-- encapsulates a position (cM) on a linkage group -->
+  <class name="LinkageGroupPosition" is-interface="true">
+    <attribute name="position" type="java.lang.Double"/>
+    <reference name="linkageGroup" referenced-type="LinkageGroup"/>
+  </class>
+
+  <class name="QTL" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="secondaryIdentifier" type="java.lang.String"/>
+    <attribute name="comment" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
+    <collection name="geneticMaps" referenced-type="GeneticMap" reverse-reference="QTLs"/>
+    <collection name="associatedMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+  </class>
+
+  <!-- encapsulates a range [begin,end] (cM) on a linkage group -->
+  <class name="LinkageGroupRange" is-interface="true">
+    <attribute name="begin" type="java.lang.Double"/>
+    <attribute name="end" type="java.lang.Double"/>
+    <attribute name="length" type="java.lang.Double"/>
+    <reference name="linkageGroup" referenced-type="LinkageGroup"/>
+  </class>
+
+  <!-- we don't load genes here, but there is no way to extend the data model in a post-processor, where these collections are created. -->
+  <class name="Gene" is-interface="true">
+    <collection name="spanningQTLs" referenced-type="QTL" reverse-reference="spannedGenes"/>
+  </class>
+
+
+
+</classes>

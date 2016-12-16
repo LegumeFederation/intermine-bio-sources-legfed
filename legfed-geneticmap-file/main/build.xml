@@ -1,0 +1,4 @@
+<project name="legfed-geneticmap-file-main" default="default" basedir=".">
+  <description>build legfed-geneticmap-file code</description>
+  <import file="../../../../../imbuild/library.xml"/> 
+</project>

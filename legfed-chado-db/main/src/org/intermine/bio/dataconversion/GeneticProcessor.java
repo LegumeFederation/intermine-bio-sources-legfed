@@ -23,6 +23,8 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 
+import org.ncgr.pubmed.PubMedSearch;
+
 import org.intermine.bio.util.OrganismData;
 import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Attribute;
@@ -297,22 +299,22 @@ public class GeneticProcessor extends ChadoProcessor {
         // ----------------------------------------------------------------
 
         LOG.info("Storing genetic maps...");
-        for (Item item : geneticMapMap.values()) store(item);
+        store(geneticMapMap.values());
 
         LOG.info("Storing genetic map publications...");
-        for (Item item : gmPubMap.values()) store(item);
+        store(gmPubMap.values());
 
         LOG.info("Storing linkage groups...");
-        for (Item item : linkageGroupMap.values()) store(item);
+        store(linkageGroupMap.values());
 
         LOG.info("Storing genetic markers...");
-        for (Item item : geneticMarkerMap.values()) store(item);
+        store(geneticMarkerMap.values());
  
         LOG.info("Storing QTLs...");
-        for (Item item : qtlMap.values()) store(item);
+        store(qtlMap.values());
 
         LOG.info("Storing QTL publications...");
-        for (Item item : qtlPubMap.values()) store(item);
+        store(qtlPubMap.values());
 
     }
 

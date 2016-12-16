@@ -4,13 +4,13 @@
   <class name="QTL" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <reference name="organism" referenced-type="Organism"/>
-    <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="associatedMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
-    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedMarkers"/>
   </class>
 
 </classes>

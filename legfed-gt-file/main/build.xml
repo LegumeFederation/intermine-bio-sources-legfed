@@ -1,0 +1,4 @@
+<project name="legfed-gt-file-main" default="default" basedir=".">
+  <description>build legfed-gt-file code</description>
+  <import file="../../../../../imbuild/library.xml"/> 
+</project>

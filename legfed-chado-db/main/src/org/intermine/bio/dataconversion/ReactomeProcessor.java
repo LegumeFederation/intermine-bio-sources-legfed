@@ -149,13 +149,13 @@ public class ReactomeProcessor extends ChadoProcessor {
                                                        
         // store all the stuff
         LOG.info("Storing "+organismMap.size()+" organisms...");
-        for (Item item : organismMap.values()) store(item);
+        store(organismMap.values());
 
         LOG.info("Storing "+pathwayMap.size()+" pathways...");
-        for (Item item : pathwayMap.values()) store(item);
+        store(pathwayMap.values());
 
         LOG.info("Storing "+proteinMap.size()+" proteins...");
-        for (Item item : proteinMap.values()) store(item);
+        store(proteinMap.values());
 
     }
 

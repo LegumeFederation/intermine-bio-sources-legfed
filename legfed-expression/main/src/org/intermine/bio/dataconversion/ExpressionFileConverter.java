@@ -28,6 +28,7 @@ import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.util.FormattedTextParser;
 import org.intermine.xml.full.Item;
 
+import org.ncgr.intermine.PublicationTools;
 import org.ncgr.pubmed.PubMedSummary;
 
 /**
@@ -85,39 +86,8 @@ public class ExpressionFileConverter extends BioFileConverter {
         if (sra.length()>0) source.setAttribute("sra", sra);
         // create and store the publication if it exists; this requires Internet access
         if (pmid!=null && pmid.trim().length()>0) {
-            try {
-                int id = Integer.parseInt(pmid);
-                PubMedSummary pms = new PubMedSummary(id);
-                Item publication = createItem("Publication");
-                publication.setAttribute("title", pms.title);
-                if (pms.doi.length()>0) publication.setAttribute("doi", pms.doi);
-                if (pms.issue.length()>0) publication.setAttribute("issue", pms.issue);
-                publication.setAttribute("pubMedId", String.valueOf(pms.id));
-                publication.setAttribute("pages", pms.pages);
-                // parse year, month from PubDate
-                String[] dateBits = pms.pubDate.split(" ");
-                publication.setAttribute("year",dateBits[0]);
-                publication.setAttribute("month",dateBits[1]);
-                publication.setAttribute("volume", pms.volume);
-                publication.setAttribute("journal", pms.fullJournalName);
-                // authors collection
-                boolean firstAuthor = true;
-                for (String author : pms.authorList) {
-                    if (firstAuthor) {
-                        publication.setAttribute("firstAuthor", author);
-                        firstAuthor = false;
-                    }
-                    Item authorItem = createItem("Author");
-                    authorItem.setAttribute("name", author);
-                    store(authorItem);
-                    publication.addToCollection("authors", authorItem);
-                }
-                // store it and add reference to ExpressionSource
-                store(publication);
-                source.setReference("publication", publication);
-            } catch (Exception ex) {
-                throw new RuntimeException("Cannot create publication with PMID="+pmid, ex);
-            }
+            Item publication = PublicationTools.storePublicationFromPMID(this, Integer.parseInt(pubMedId));
+            if (publication!=null) source.setReference("publication", publication);
         }
         store(source);
 

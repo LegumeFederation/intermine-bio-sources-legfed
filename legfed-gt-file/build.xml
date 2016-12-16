@@ -1,0 +1,8 @@
+<project name="legfed-gt-file" default="default" basedir=".">
+
+  <description>GTFileConverter</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+

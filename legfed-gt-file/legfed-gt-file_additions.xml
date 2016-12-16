@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<classes>
+
+  <class name="MappingPopulation" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <reference name="parentA" referenced-type="Germplasm"/>
+    <reference name="parentB" referenced-type="Germplasm"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <reference name="publication" referenced-type="Publication"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="mappingPopulations"/>
+    <collection name="lines" referenced-type="GenotypingLine" reverse-reference="mappingPopulation"/>
+  </class>
+
+  <!-- minimal definition, more in the legfed-germplasm-file source -->
+  <class name="Germplasm" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+  </class>
+
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+    <attribute name="type" type="java.lang.String"/>
+    <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="markers"/>
+  </class>
+
+  <class name="GenotypingLine" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <reference name="mappingPopulation" referenced-type="MappingPopulation" reverse-reference="lines"/>
+  </class>
+
+  <class name="GenotypeValue" is-interface="true">
+    <attribute name="value" type="java.lang.String"/>
+    <reference name="marker" referenced-type="GeneticMarker"/>
+    <reference name="line" referenced-type="GenotypingLine"/>
+  </class>
+  
+</classes>

@@ -1,0 +1,8 @@
+<project name="legfed-germplasm-file" default="default" basedir=".">
+
+  <description>GermplasmFileConverter</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+

@@ -36,19 +36,35 @@ public class CMapRecord implements Comparable {
     public CMapRecord(String line) {
 
         if (!line.startsWith("map_acc")) {
-            // parse line
-            String[] parts = line.split("\t");
-            map_acc = parts[0];
-            map_name = parts[1];
-            map_start = Double.parseDouble(parts[2]);
-            map_stop = Double.parseDouble(parts[3]);
-            feature_acc = parts[4];
-            feature_name = parts[5];
-            feature_aliases = parts[6];
-            feature_start = Double.parseDouble(parts[7]);
-            feature_stop = Double.parseDouble(parts[8]);
-            feature_type_acc = parts[9];
-            is_landmark = Integer.parseInt(parts[10])==1;
+            try {
+                // parse line
+                String[] parts = line.split("\t");
+                map_acc = parts[0];
+                map_name = parts[1];
+                map_start = Double.parseDouble(parts[2]);
+                map_stop = Double.parseDouble(parts[3]);
+                feature_acc = parts[4].replace("\"", "");
+                feature_name = parts[5].replace("\"", "");
+                feature_aliases = parts[6];
+                feature_start = Double.parseDouble(parts[7]);
+                feature_stop = Double.parseDouble(parts[8]);
+                feature_type_acc = parts[9];
+                if (parts.length>10) is_landmark = Integer.parseInt(parts[10])==1;
+            } catch (Exception ex) {
+                throw new RuntimeException("Error parsing CMap line:\n"+
+                                           line+"\n"+
+                                           "map_acc="+map_acc+"\n"+
+                                           "map_name="+map_name+"\n"+
+                                           "map_start="+map_start+"\n"+
+                                           "map_stop="+map_stop+"\n"+
+                                           "feature_acc="+feature_acc+"\n"+
+                                           "feature_name="+feature_name+"\n"+
+                                           "feature_aliases="+feature_aliases+"\n"+
+                                           "feature_start="+feature_start+"\n"+
+                                           "feature_stop="+feature_stop+"\n"+
+                                           "feature_type_acc="+feature_type_acc+"\n"+
+                                           "is_landmark="+is_landmark);
+            }
         }
 
     }

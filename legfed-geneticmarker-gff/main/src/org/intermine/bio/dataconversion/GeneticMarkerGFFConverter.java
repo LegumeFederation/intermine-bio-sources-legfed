@@ -163,17 +163,17 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
     public void close() throws Exception {
 
         LOG.info("Storing "+organismSet.size()+" organism items...");
-	for (Item organism : organismSet) store(organism);
+        store(organismSet);
         
 	LOG.info("Storing "+chromosomeMap.size()+" chromosome items...");
-	for (Item chromosome : chromosomeMap.values()) store(chromosome);
+        store(chromosomeMap.values());
 
         LOG.info("Storing "+supercontigMap.size()+" supercontig items...");
-        for (Item supercontig : supercontigMap.values()) store(supercontig);
+        store(supercontigMap.values());
 
         LOG.info("Storing "+markerMap.size()+" marker and location items...");
-        for (Item item : markerMap.values()) store(item);
-        for (Item item : locationMap.values()) store(item);
+        store(markerMap.values());
+        store(locationMap.values());
 
     }
     

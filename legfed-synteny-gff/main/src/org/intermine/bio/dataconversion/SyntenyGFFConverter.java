@@ -208,10 +208,10 @@ public class SyntenyGFFConverter extends BioFileConverter {
     public void close() throws Exception {
 
         LOG.info("Storing "+organismMap.size()+" organism items...");
-	for (Item organism : organismMap.values()) store(organism);
+        store(organismMap.values());
 
 	LOG.info("Storing "+chromosomeMap.size()+" chromosome items...");
-	for (Item chromosome : chromosomeMap.values()) store(chromosome);
+        store(chromosomeMap.values());
 
     }
     

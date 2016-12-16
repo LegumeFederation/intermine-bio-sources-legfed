@@ -1,0 +1,8 @@
+<project name="legfed-geneticmap-file" default="default" basedir=".">
+
+  <description>GeneticMapFileConverter</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+
