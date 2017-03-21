@@ -299,22 +299,22 @@ public class GeneticProcessor extends ChadoProcessor {
         // ----------------------------------------------------------------
 
         LOG.info("Storing genetic maps...");
-        store(geneticMapMap.values());
+        for (Item item : geneticMapMap.values()) store(item);
 
         LOG.info("Storing genetic map publications...");
-        store(gmPubMap.values());
+        for (Item item : gmPubMap.values()) store(item);
 
         LOG.info("Storing linkage groups...");
-        store(linkageGroupMap.values());
+        for (Item item : linkageGroupMap.values()) store(item);
 
         LOG.info("Storing genetic markers...");
-        store(geneticMarkerMap.values());
+        for (Item item : geneticMarkerMap.values()) store(item);
  
         LOG.info("Storing QTLs...");
-        store(qtlMap.values());
+        for (Item item : qtlMap.values()) store(item);
 
         LOG.info("Storing QTL publications...");
-        store(qtlPubMap.values());
+        for (Item item : qtlPubMap.values()) store(item);
 
     }
 

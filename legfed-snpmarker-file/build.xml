@@ -1,0 +1,8 @@
+<project name="legfed-snpmarker-file" default="default" basedir=".">
+
+  <description>SNPMarkerFileConverter</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+

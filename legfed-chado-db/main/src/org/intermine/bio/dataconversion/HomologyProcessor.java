@@ -36,8 +36,9 @@ import org.intermine.xml.full.Reference;
  *
  * phylotree.name = gene family
  * phylotree.phylotree_id -- phylonode.phylotree_id
- * phylonode.feature_id = polypeptide corresponding to Homologue.gene (Gene)
- * phylonode.label = feature.uniquename of polypeptide corresponding to Homologue.homologue (Gene)
+ * phylonode.feature_id = polypeptide corresponding to a homolog in this family
+ * phylonode.feature_id = feature_relationship.subject_id gives object_id = mrna_id of the corresponding mRNA
+ * mrna_id = feature_relationship.subject_id gives object_id = gene_id of the corresponding gene
  *
  * Since this processor deals only with chado data, Items are stored in maps with Integer keys equal to
  * the chado feature.feature_id.
@@ -163,7 +164,7 @@ public class HomologyProcessor extends ChadoProcessor {
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
             geneFamily.setAttribute("primaryIdentifier", name);
             geneFamily.setAttribute("description", description);
-            // assume that consensus region primaryIdentifier = geneFamily.primaryIdentifier+"-consensus" to relate to consensus region
+            // ASSUME that consensus region primaryIdentifier = geneFamily.primaryIdentifier+"-consensus" to relate to consensus region
             Item consensusRegion = getChadoDBConverter().createItem("ConsensusRegion");
             consensusRegion.setAttribute("primaryIdentifier", name+"-consensus");
             consensusRegion.setReference("geneFamily", geneFamily);
@@ -171,30 +172,33 @@ public class HomologyProcessor extends ChadoProcessor {
             // store 'em
             store(geneFamily);
             store(consensusRegion);
-            // query the members of this gene family, which are polypeptides; store derived genes in "source" and "target" sets
+            // query the members of this gene family, polypeptides, that are in the desired organisms by referencing the feature table
             Set<Item> sourceSet = new HashSet<Item>();
             Set<Item> targetSet = new HashSet<Item>();
             rs2 = stmt2.executeQuery("SELECT feature.* FROM phylonode,feature WHERE phylonode.feature_id=feature.feature_id AND organism_id IN "+organismSQL+" AND phylotree_id="+phylotree_id);
             while (rs2.next()) {
+                // organism
                 Integer organismId = new Integer(rs2.getInt("organism_id"));
-                Integer featureId = new Integer(rs2.getInt("feature_id"));
-                String polypeptideName = rs2.getString("uniquename");
-                String geneName = polypeptideName.substring(0, polypeptideName.length()-2); // assume polypeptide=gene.1 or gene.2 etc.
                 Item organism;
                 if (sourceOrganismMap.containsKey(organismId)) {
                     organism = sourceOrganismMap.get(organismId);
                 } else {
                     organism = targetOrganismMap.get(organismId);
                 }
-                if (geneMap.containsKey(geneName)) {
-                    Item gene = geneMap.get(geneName);
-                    if (sourceOrganismMap.containsKey(organismId)) sourceSet.add(gene);
-                    if (targetOrganismMap.containsKey(organismId)) targetSet.add(gene);
-                } else {
-                    // query the feature table for this gene
-                    rs3 = stmt3.executeQuery("SELECT * FROM feature WHERE uniquename='"+geneName+"'");
-                    if (rs3.next()) {
-                        // we have the derived gene in the feature table
+                // extract the gene via two feature_relationship relations: polypeptide -> mRNA -> gene
+                int polypeptide_id = rs2.getInt("feature_id");
+                rs3 = stmt3.executeQuery("SELECT * FROM feature WHERE feature_id=(" +
+                                         "SELECT object_id FROM feature_relationship WHERE subject_id=(" +
+                                         "SELECT object_id FROM feature_relationship WHERE subject_id="+polypeptide_id+"))");
+                if (rs3.next()) {
+                    String geneName = rs3.getString("uniquename");
+                    if (geneMap.containsKey(geneName)) {
+                        // get the already stored gene
+                        Item gene = geneMap.get(geneName);
+                        if (sourceOrganismMap.containsKey(organismId)) sourceSet.add(gene);
+                        if (targetOrganismMap.containsKey(organismId)) targetSet.add(gene);
+                    } else {
+                        // store this new gene
                         Item gene = getChadoDBConverter().createItem("Gene");
                         Item sequence = getChadoDBConverter().createItem("Sequence");
                         ChadoFeature cf = new ChadoFeature(rs3);
@@ -208,20 +212,19 @@ public class HomologyProcessor extends ChadoProcessor {
                         geneMap.put(geneName, gene);
                         if (sourceOrganismMap.containsKey(organismId)) sourceSet.add(gene);
                         if (targetOrganismMap.containsKey(organismId)) targetSet.add(gene);
-                    } else {
-                        // no such gene in the feature table, we'll make one up from our derived name with no other info
-                        Item gene = getChadoDBConverter().createItem("Gene");
-                        gene.setAttribute("primaryIdentifier", geneName);
-                        gene.setReference("organism", organism);
-                        // associate this gene family with this gene (reverse-referenced to GeneFamily)
-                        gene.setReference("geneFamily", geneFamily);
-                        store(gene);
-                        geneMap.put(geneName, gene);
-                        if (sourceOrganismMap.containsKey(organismId)) sourceSet.add(gene);
-                        if (targetOrganismMap.containsKey(organismId)) targetSet.add(gene);
                     }
-                    rs3.close();
                 }
+                // // no such gene in the feature table, we'll make one up from our derived name with no other info
+                //         Item gene = getChadoDBConverter().createItem("Gene");
+                //         gene.setAttribute("primaryIdentifier", geneName);
+                //         gene.setReference("organism", organism);
+                //         // associate this gene family with this gene (reverse-referenced to GeneFamily)
+                //         gene.setReference("geneFamily", geneFamily);
+                //         store(gene);
+                //         geneMap.put(geneName, gene);
+                //         if (sourceOrganismMap.containsKey(organismId)) sourceSet.add(gene);
+                //         if (targetOrganismMap.containsKey(organismId)) targetSet.add(gene);
+                rs3.close();
             }
             rs2.close();
             // create a Homologue Item for every combination of sourceSet and targetSet items

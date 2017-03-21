@@ -14,8 +14,7 @@
 
   <class name="MappingPopulation" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <reference name="parentA" referenced-type="Germplasm"/>
-    <reference name="parentB" referenced-type="Germplasm"/>
+    <collection name="parents" referenced-type="Germplasm" reverse-reference="mappingPopulations"/>
     <collection name="geneticMaps" referenced-type="GeneticMap" reverse-reference="mappingPopulations"/>
   </class>
 
@@ -23,6 +22,7 @@
   <class name="Germplasm" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <reference name="organism" referenced-type="Organism"/>
+    <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="parents"/>
   </class>
 
   <class name="LinkageGroup" is-interface="true">

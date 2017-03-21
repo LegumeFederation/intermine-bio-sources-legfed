@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<classes>
+
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+    <attribute name="type" type="java.lang.String"/>
+    <attribute name="arrayName" type="java.lang.String"/>
+    <attribute name="designSequence" type="java.lang.String"/>
+    <attribute name="alleles" type="java.lang.String"/>
+    <attribute name="source" type="java.lang.String"/>
+    <attribute name="beadType" type="java.lang.Integer"/>
+    <attribute name="stepDescription" type="java.lang.String"/>
+    <reference name="publication" referenced-type="Publication"/>
+    <collection name="associatedGenes" referenced-type="Gene"/>
+  </class>
+
+</classes>

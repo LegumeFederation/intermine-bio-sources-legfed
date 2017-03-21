@@ -56,6 +56,7 @@ public class GTFileConverter extends BioFileConverter {
     // store items at end in close() method, they may be duplicated across files
     Map<String,Item> organismMap = new HashMap<String,Item>();
     Map<String,Item> publicationMap = new HashMap<String,Item>();
+    Map<String,Item> authorMap = new HashMap<String,Item>();
     Map<String,Item> lineMap = new HashMap<String,Item>();
     Map<String,Item> markerMap = new HashMap<String,Item>();
     Map<String,Item> germplasmMap = new HashMap<String,Item>();
@@ -115,40 +116,54 @@ public class GTFileConverter extends BioFileConverter {
 
             } else if (line.startsWith("Parents")) {
 
-                // create Germplasm parents and the MappingPopulation
+                // get Germplasm parents
                 String[] parts = line.split("\t");
-                String parentA = parts[1];
-                String parentB = parts[2];
-                Item germplasmA;
-                Item germplasmB;
-                if (germplasmMap.containsKey(parentA)) {
-                    germplasmA = germplasmMap.get(parentA);
-                } else {
-                    germplasmA = createItem("Germplasm");
-                    germplasmA.setAttribute("primaryIdentifier", parentA);
-                    germplasmA.setReference("organism", organism);
-                    germplasmMap.put(parentA, germplasmA);
-                }
-                if (germplasmMap.containsKey(parentB)) {
-                    germplasmB = germplasmMap.get(parentB);
-                } else {
-                    germplasmB = createItem("Germplasm");
-                    germplasmB.setAttribute("primaryIdentifier", parentB);
-                    germplasmB.setReference("organism", organism);
-                    germplasmMap.put(parentB, germplasmB);
-                }
+                String[] parents = new String[2];
+                parents[0] = parts[1];
+                parents[1] = parts[2];
+                // create MappingPopulation and name for parents
                 mappingPopulation = createItem("MappingPopulation");
-                mappingPopulation.setAttribute("primaryIdentifier", parentA+"_x_"+parentB);
-                mappingPopulation.setReference("parentA", germplasmA);
-                mappingPopulation.setReference("parentB", germplasmB);
-
+                mappingPopulation.setAttribute("primaryIdentifier", parents[0]+"_x_"+parents[1]); // this is how we know parent A and parent B
+                // add parents to collection
+                for (int i=0; i<2; i++) {
+                    Item germplasm;
+                    if (germplasmMap.containsKey(parents[i])) {
+                        germplasm = germplasmMap.get(parents[i]);
+                    } else {
+                        germplasm = createItem("Germplasm");
+                        germplasm.setAttribute("primaryIdentifier", parents[i]);
+                        germplasm.setReference("organism", organism);
+                        germplasmMap.put(parents[i], germplasm);
+                    }
+                    mappingPopulation.addToCollection("parents", germplasm);
+                }
+                
             } else if (line.startsWith("PMID")) {
 
                 // get the Publication if PMID present
                 String[] parts = line.split("\t");
                 String pubMedId = parts[1];
-                Item publication = PublicationTools.storePublicationFromPMID(this, Integer.parseInt(pubMedId));
-                if (publication!=null) mappingPopulation.setReference("publication", publication);
+                if (publicationMap.containsKey(pubMedId)) {
+                    Item publication = publicationMap.get(pubMedId);
+                    mappingPopulation.setReference("publication", publication);
+                } else {
+                    Item publication = PublicationTools.getPublicationFromPMID(this, Integer.parseInt(pubMedId));
+                    if (publication!=null) {
+                        publicationMap.put(pubMedId, publication);
+                        List<Item> authors = PublicationTools.getAuthorsFromPMID(this, Integer.parseInt(pubMedId));
+                        for (Item author : authors) {
+                            String name = author.getAttribute("name").getValue();
+                            if (authorMap.containsKey(name)) {
+                                Item authorToStore = authorMap.get(name);
+                                publication.addToCollection("authors", authorToStore);
+                            } else {
+                                authorMap.put(name, author);
+                                publication.addToCollection("authors", author);
+                            }
+                        }
+                        mappingPopulation.setReference("publication", publication);
+                    }
+                }
 
             } else if (line.startsWith("Lines")) {
 
@@ -163,6 +178,17 @@ public class GTFileConverter extends BioFileConverter {
                     } else {
                         lines[i] = createItem("GenotypingLine");
                         lines[i].setAttribute("primaryIdentifier", lineName);
+                        // try to parse out a number, e.g. 17 from CB27-17, for ordering purposes
+                        String[] chunks = lineName.split("-");
+                        if (chunks.length>1) {
+                            String str = chunks[chunks.length-1]; // supports Foo-Bar-17
+                            try {
+                                Integer number = new Integer(Integer.parseInt(str));
+                                lines[i].setAttribute("number", String.valueOf(number));
+                            } catch (NumberFormatException ex) {
+                                // do nothing, it's not an integer
+                            }
+                        }
                         lineMap.put(lineName, lines[i]);
                     }
                     lines[i].setReference("mappingPopulation", mappingPopulation);
@@ -178,7 +204,7 @@ public class GTFileConverter extends BioFileConverter {
                 } else {
                     marker = createItem("GeneticMarker");
                     marker.setAttribute("primaryIdentifier", gt.marker);
-                    marker.setAttribute("type", "SNP");
+                    marker.setAttribute("type", "SNP"); // TODO: put the marker type in the file header, they don't have to be SNPs
                     marker.setReference("organism", organism);
                     markerMap.put(gt.marker, marker);
                 }
@@ -215,6 +241,8 @@ public class GTFileConverter extends BioFileConverter {
         store(germplasmMap.values());
         store(lineMap.values());
         store(markerMap.values());
+        store(authorMap.values());
+        store(publicationMap.values());
     }
 
 }

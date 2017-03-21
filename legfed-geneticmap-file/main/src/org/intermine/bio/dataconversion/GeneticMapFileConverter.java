@@ -16,6 +16,7 @@ import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
@@ -72,7 +73,8 @@ public class GeneticMapFileConverter extends BioFileConverter {
     Map<String,Item> markerMap = new HashMap<String,Item>();            // keyed by primaryIdentifier
     Map<String,Item> qtlMap = new HashMap<String,Item>();               // keyed by primaryIdentifier
     Map<String,Item> linkageGroupRangeMap = new HashMap<String,Item>(); // keyed by qtl.primaryIdentifier
-    
+    Map<String,Item> publicationMap = new HashMap<String,Item>();       // keyed by pubMedId
+    Map<String,Item> authorMap = new HashMap<String,Item>();            // keyed by name
     /**
      * Create a new GeneticMapFileConverter
      * @param writer the ItemWriter to write out new items
@@ -141,46 +143,60 @@ public class GeneticMapFileConverter extends BioFileConverter {
                 // get the Publication if PMID present
                 String[] parts = line.split("\t");
                 String pubMedId = parts[1];
-                Item publication = PublicationTools.storePublicationFromPMID(this, Integer.parseInt(pubMedId));
-                if (publication!=null) geneticMap.addToCollection("publications", publication);
+                if (publicationMap.containsKey(pubMedId)) {
+                    Item publication = publicationMap.get(pubMedId);
+                    geneticMap.addToCollection("publications", publication);
+                } else {
+                    Item publication = PublicationTools.getPublicationFromPMID(this, Integer.parseInt(pubMedId));
+                    if (publication!=null) {
+                        publicationMap.put(pubMedId, publication);
+                        List<Item> authors = PublicationTools.getAuthorsFromPMID(this, Integer.parseInt(pubMedId));
+                        for (Item author : authors) {
+                            String name = author.getAttribute("name").getValue();
+                            if (authorMap.containsKey(name)) {
+                                Item authorToStore = authorMap.get(name);
+                                publication.addToCollection("authors", authorToStore);
+                            } else {
+                                authorMap.put(name, author);
+                                publication.addToCollection("authors", author);
+                            }
+                        }
+                        geneticMap.addToCollection("publications", publication);
+                    }
+                }
 
             } else if (line.startsWith("Parents")) {
 
-                // create Germplasm parents and a MappingPopulation and add it this GeneticMarker collection
+                // get Germplasm parents
                 String[] parts = line.split("\t");
-                String parentA = parts[1];
-                String parentB = parts[2];
-                Item germplasmA;
-                if (germplasmMap.containsKey(parentA)) {
-                    germplasmA = germplasmMap.get(parentA);
-                } else {
-                    germplasmA = createItem("Germplasm");
-                    germplasmA.setAttribute("primaryIdentifier", parentA);
-                    germplasmA.setReference("organism", organism);
-                    germplasmMap.put(parentA, germplasmA);
-                }
-                Item germplasmB;
-                if (germplasmMap.containsKey(parentB)) {
-                    germplasmB = germplasmMap.get(parentB);
-                } else {
-                    germplasmB = createItem("Germplasm");
-                    germplasmB.setAttribute("primaryIdentifier", parentB);
-                    germplasmB.setReference("organism", organism);
-                    germplasmMap.put(parentB, germplasmB);
-                }
-                String mappingPopulationName =  parentA+"_x_"+parentB;
-                Item mappingPopulation;
+                String[] parents = new String[2];
+                parents[0] = parts[1];
+                parents[1] = parts[2];
+                // create MappingPopulation and name for parents
+                String mappingPopulationName = parents[0]+"_x_"+parents[1];
                 if (mappingPopulationMap.containsKey(mappingPopulationName)) {
-                    mappingPopulation = mappingPopulationMap.get(mappingPopulationName);
+                    Item mappingPopulation = mappingPopulationMap.get(mappingPopulationName);
+                    geneticMap.addToCollection("mappingPopulations", mappingPopulation);
                 } else {
-                    mappingPopulation = createItem("MappingPopulation");
+                    Item mappingPopulation = createItem("MappingPopulation");
                     mappingPopulation.setAttribute("primaryIdentifier", mappingPopulationName);
-                    mappingPopulation.setReference("parentA", germplasmA);
-                    mappingPopulation.setReference("parentB", germplasmB);
-                    mappingPopulationMap.put(mappingPopulationName, mappingPopulation);
+                    // add parents to collection
+                    for (int i=0; i<2; i++) {
+                        if (germplasmMap.containsKey(parents[i])) {
+                            Item germplasm = germplasmMap.get(parents[i]);
+                            mappingPopulation.addToCollection("parents", germplasm);
+                        } else {
+                            Item germplasm = createItem("Germplasm");
+                            germplasm.setAttribute("primaryIdentifier", parents[i]);
+                            germplasm.setReference("organism", organism);
+                            germplasmMap.put(parents[i], germplasm);
+                            mappingPopulation.addToCollection("parents", germplasm);
+                        }
+                    }
+		    mappingPopulationMap.put(mappingPopulationName, mappingPopulation);
+                    geneticMap.addToCollection("mappingPopulations", mappingPopulation);
                 }
-                geneticMap.addToCollection("mappingPopulations", mappingPopulation);
-                                
+
             } else {
 
                 // looks like it's a data record
@@ -295,7 +311,6 @@ public class GeneticMapFileConverter extends BioFileConverter {
      */
     @Override
     public void close() throws Exception {
-    
         store(organismMap.values());
         store(geneticMapMap.values());
         store(germplasmMap.values());
@@ -304,7 +319,8 @@ public class GeneticMapFileConverter extends BioFileConverter {
         store(markerMap.values());
         store(qtlMap.values());
         store(linkageGroupRangeMap.values());
-
+        store(authorMap.values());
+        store(publicationMap.values());
     }
 
     /**
