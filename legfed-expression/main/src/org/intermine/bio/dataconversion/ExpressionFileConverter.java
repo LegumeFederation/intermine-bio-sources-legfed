@@ -37,11 +37,17 @@ import org.ncgr.pubmed.PubMedSummary;
  * @author Sam Hokin
  */
 public class ExpressionFileConverter extends BioFileConverter {
-
-    String taxonId;
     
     private static final Logger LOG = Logger.getLogger(ExpressionFileConverter.class);
 
+    Map<String,Item> transcriptMap = new HashMap<String,Item>();
+
+    Set<Item> authorSet = new HashSet<Item>();
+    Set<Item> publicationSet = new HashSet<Item>();
+    Set<Item> sourceSet = new HashSet<Item>();
+    Set<Item> sampleSet = new HashSet<Item>();
+    Set<Item> valueSet = new HashSet<Item>();
+    
     /**
      * Constructor.
      *
@@ -60,6 +66,7 @@ public class ExpressionFileConverter extends BioFileConverter {
      */
     public void process(Reader reader) throws Exception {
 
+        if (getCurrentFile().getName().equals("README")) return;
         LOG.info("Processing expression file:"+getCurrentFile().getName()+"...");
         
         // parse the tab-delimited file
@@ -86,20 +93,62 @@ public class ExpressionFileConverter extends BioFileConverter {
         if (sra.length()>0) source.setAttribute("sra", sra);
         // create and store the publication if it exists; this requires Internet access
         if (pmid!=null && pmid.trim().length()>0) {
-            Item publication = PublicationTools.storePublicationFromPMID(this, Integer.parseInt(pubMedId));
-            if (publication!=null) source.setReference("publication", publication);
+            try {
+                int id = Integer.parseInt(pmid);
+                PubMedSummary pms = new PubMedSummary(id);
+                Item publication = createItem("Publication");
+                publication.setAttribute("title", pms.title);
+                if (pms.doi.length()>0) publication.setAttribute("doi", pms.doi);
+                if (pms.issue.length()>0) publication.setAttribute("issue", pms.issue);
+                publication.setAttribute("pubMedId", String.valueOf(pms.id));
+                publication.setAttribute("pages", pms.pages);
+                // parse year, month from PubDate
+                String[] dateBits = pms.pubDate.split(" ");
+                publication.setAttribute("year",dateBits[0]);
+                publication.setAttribute("month",dateBits[1]);
+                publication.setAttribute("volume", pms.volume);
+                publication.setAttribute("journal", pms.fullJournalName);
+                // authors collection
+                boolean firstAuthor = true;
+                for (String author : pms.authorList) {
+                    if (firstAuthor) {
+                        publication.setAttribute("firstAuthor", author);
+                        firstAuthor = false;
+                    }
+                    Item authorItem = createItem("Author");
+                    authorItem.setAttribute("name", author);
+                    authorSet.add(authorItem);
+                    publication.addToCollection("authors", authorItem);
+                }
+                // store it and add reference to ExpressionSource
+                publicationSet.add(publication);
+                source.setReference("publication", publication);
+            } catch (Exception ex) {
+                throw new RuntimeException("Cannot create publication with PMID="+pmid, ex);
+            }
         }
-        store(source);
+        sourceSet.add(source);
 
-        // 2. expression unit
+        // 2. URL
+        String[] urlLine = (String[]) tsvIter.next();
+        String url = urlLine[0];
+        source.setAttribute("url", url);
+
+        // 3. Description
+        String[] descriptionLine = (String[]) tsvIter.next();
+        String description = descriptionLine[0];
+        source.setAttribute("description", description);
+
+        // 4. expression unit
         String[] unitLine = (String[]) tsvIter.next();
         String unit = unitLine[0];
+        source.setAttribute("unit", unit);
 
-        // 3. number of samples
+        // 5. number of samples
         String[] numSamplesLine = (String[]) tsvIter.next();
         int numSamples = Integer.parseInt(numSamplesLine[0]);
         
-        // 4. Sample number, name and description in same order as the expression columns
+        // 6. Sample number, name and description in same order as the expression columns
         Item[] samples = new Item[numSamples];
         for (int i=0; i<numSamples; i++) {
             String[] sampleLine = (String[]) tsvIter.next();
@@ -108,29 +157,67 @@ public class ExpressionFileConverter extends BioFileConverter {
             samples[i].setAttribute("primaryIdentifier", sampleLine[1]);
             samples[i].setAttribute("description", sampleLine[2]);
             samples[i].setReference("source", source);
-            store(samples[i]);
+            sampleSet.add(samples[i]);
         }
 
-        // 5. expression data - rely on mRNA merge on primaryIdentifier
-        // If mRNAId does not end in .#, append ".1" to convert from gene to mRNA accession
+        // 7. expression data
+        // If transcriptId does not end in .#, append ".n" to convert from gene to transcript accession, assuming .1, .2, .3 in order of rows in expression file
         while (tsvIter.hasNext()) {
             String[] line = (String[]) tsvIter.next();
-            String mRNAId = line[0];
-            if (mRNAId.charAt(mRNAId.length()-2)!='.') mRNAId += ".1";
-            Item mRNA = createItem("MRNA");
-            mRNA.setAttribute("primaryIdentifier", mRNAId);
-            store(mRNA);
+            String transcriptId = line[0];
+            if (transcriptId.charAt(transcriptId.length()-2)!='.') {
+                // it's a gene, not transcript ID, so increment .suffix until we've got a new transcriptId
+                int n = 1;
+                while (transcriptMap.containsKey(transcriptId+"."+n)) {
+                    n++;
+                }
+                transcriptId += "."+n;
+            }
+            Item transcript = null;
+            if (transcriptMap.containsKey(transcriptId)) {
+                // transcript exists from previous expression file
+                transcript = transcriptMap.get(transcriptId);
+            } else {
+                // new transcript
+                transcript  = createItem("Transcript");
+            }
+            transcript.setAttribute("primaryIdentifier", transcriptId);
+            transcriptMap.put(transcriptId, transcript);
             // load the expression values
-            int offset = 1;
             for (int i=0; i<numSamples; i++) {
-                Item expressionValue = createItem("ExpressionValue");
-                expressionValue.setAttribute("value", line[i+offset]);
-                expressionValue.setAttribute("unit", unit);
-                expressionValue.setReference("expressionSample", samples[i]);
-                expressionValue.setReference("mRNA", mRNA);
-                store(expressionValue);
+                Item value = createItem("ExpressionValue");
+                value.setAttribute("value", line[i+1]);
+                value.setReference("sample", samples[i]);
+                value.setReference("transcript", transcript);
+                valueSet.add(value);
             }
         }
+
+    }
+
+    /**
+     * Store the items we've held in sets or maps.
+     */
+    @Override
+    public void close() throws Exception {
+
+        LOG.info("Storing "+transcriptMap.size()+" transcript items...");
+        for (Item transcript : transcriptMap.values()) store(transcript);
+
+        LOG.info("Storing "+authorSet.size()+" author items...");
+        for (Item author : authorSet) store(author);
+
+        LOG.info("Storing "+publicationSet.size()+" publication items...");
+        for (Item publication : publicationSet) store(publication);
+        
+        LOG.info("Storing "+sourceSet.size()+" ExpressionSource items...");
+        for (Item source : sourceSet) store(source);
+        
+        LOG.info("Storing "+sampleSet.size()+" ExpressionSample items...");
+        for (Item sample : sampleSet) store(sample);
+
+        LOG.info("Storing "+valueSet.size()+" ExpressionValue items...");
+        for (Item value : valueSet) store(value);
 
     }
 

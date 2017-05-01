@@ -86,42 +86,42 @@ public class FeaturePropProcessor extends ChadoProcessor {
         
         // loop over the requested organisms
         Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        for (Map.Entry<Integer,OrganismData> entry : chadoToOrgData.entrySet()) {
+        for (Integer organismId : chadoToOrgData.keySet()) {
+
+            int organism_id = organismId.intValue();
+            OrganismData organismData = chadoToOrgData.get(organismId);
             
             // create and store organism Item
-            Integer organismId = entry.getKey();
-            int organism_id = organismId.intValue();
-            OrganismData organismData = entry.getValue();
             int taxonId = organismData.getTaxonId();
-            LOG.info("Initializing organism Item...");
+            String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
+            if (variety!=null) organism.setAttribute("variety", variety);
             // add organism.comment if it exists
             ResultSet rs = stmt.executeQuery("SELECT * FROM organism WHERE organism_id="+organism_id);
             if (rs.next()) {
                 String comment = rs.getString("comment");
                 if (comment!=null && comment.trim().length()>0) {
-                    LOG.info("Adding organism.comment");
                     organism.setAttribute("comment", comment.trim());
                 }
             }
             rs.close();
-            LOG.info("Storing organism "+taxonId+"...");
+            LOG.info("Storing organism "+taxonId+" ("+variety+")");
             store(organism);
 
             // load linkage group attributes
             Map<Integer,Item> linkageGroupMap = generateMap(stmt, "LinkageGroup", linkageGroupCVTermId, organism_id, organism);
             if (linkageGroupMap.size()>0) {
-                LOG.info("Loading attributes for "+linkageGroupMap.size()+" LinkageGroup items for organism "+taxonId);
+                LOG.info("Loading attributes for "+linkageGroupMap.size()+" LinkageGroup items for organism "+taxonId+" ("+variety+")");
                 loadAttributes(stmt, organism_id, linkageGroupMap, linkageGroupCVTermId, "assignedLinkageGroup", assignedLinkageGroupCVTermId);
-                LOG.info("Storing linkage groups for organism "+taxonId);
+                LOG.info("Storing linkage groups for organism "+taxonId+" ("+variety+")");
                 for (Item item : linkageGroupMap.values()) store(item);
             }
 
             // load QTL attributes
             Map<Integer,Item> qtlMap = generateMap(stmt, "QTL", qtlCVTermId, organism_id, organism);
             if (qtlMap.size()>0) {
-                LOG.info("Loading attributes for "+qtlMap.size()+" QTL items for organism "+taxonId);
+                LOG.info("Loading attributes for "+qtlMap.size()+" QTL items for organism "+taxonId+" ("+variety+")");
                 loadAttributes(stmt, organism_id, qtlMap, qtlCVTermId, "comment", commentCVTermId);
                 loadAttributes(stmt, organism_id, qtlMap, qtlCVTermId, "experimentTraitDescription", experimentTraitDescriptionCVTermId);
                 loadAttributes(stmt, organism_id, qtlMap, qtlCVTermId, "experimentTraitName", experimentTraitNameCVTermId);
@@ -131,49 +131,49 @@ public class FeaturePropProcessor extends ChadoProcessor {
                 loadAttributes(stmt, organism_id, qtlMap, qtlCVTermId, "identifier", qtlIdentifierCVTermId);
                 loadAttributes(stmt, organism_id, qtlMap, qtlCVTermId, "peak", qtlPeakCVTermId);
                 loadAttributes(stmt, organism_id, qtlMap, qtlCVTermId, "studyTreatment", qtlStudyTreatmentCVTermId);
-                LOG.info("Storing QTLs for organism "+taxonId);
+                LOG.info("Storing QTLs for organism "+taxonId+" ("+variety+")");
                 for (Item item : qtlMap.values()) store(item);
             }
 
             // load genetic marker attributes
             Map<Integer,Item> geneticMarkerMap = generateMap(stmt, "GeneticMarker", geneticMarkerCVTermId, organism_id, organism);
             if (geneticMarkerMap.size()>0) {
-                LOG.info("Loading attributes for "+geneticMarkerMap.size()+" GeneticMarker items for organism "+taxonId);
+                LOG.info("Loading attributes for "+geneticMarkerMap.size()+" GeneticMarker items for organism "+taxonId+" ("+variety+")");
                 loadAttributes(stmt, organism_id, geneticMarkerMap, geneticMarkerCVTermId, "comment", commentCVTermId);
                 loadAttributes(stmt, organism_id, geneticMarkerMap, geneticMarkerCVTermId, "sourceDescription", sourceDescriptionCVTermId);
                 loadAttributes(stmt, organism_id, geneticMarkerMap, geneticMarkerCVTermId, "canonicalMarker", canonicalMarkerCVTermId);
-                LOG.info("Storing genetic markers for organism "+taxonId);
+                LOG.info("Storing genetic markers for organism "+taxonId+" ("+variety+")");
                 for (Item item : geneticMarkerMap.values()) store(item);
             }
 
             // load protein attributes
             Map<Integer,Item> proteinMap = generateMap(stmt, "Protein", proteinCVTermId, organism_id, organism);
             if (proteinMap.size()>0) {
-                LOG.info("Loading attributes for "+proteinMap.size()+" Protein items for organism "+taxonId);
+                LOG.info("Loading attributes for "+proteinMap.size()+" Protein items for organism "+taxonId+" ("+variety+")");
                 loadAttributes(stmt, organism_id, proteinMap, proteinCVTermId, "note", noteCVTermId);
-                LOG.info("Storing proteins for organism "+taxonId);
+                LOG.info("Storing proteins for organism "+taxonId+" ("+variety+")");
                 for (Item item : proteinMap.values()) store(item);
             }
 
             // load protein match attributes
             Map<Integer,Item> proteinMatchMap = generateMap(stmt, "ProteinMatch", proteinMatchCVTermId, organism_id, organism);
             if (proteinMatchMap.size()>0) {
-                LOG.info("Loading attributes for "+proteinMatchMap.size()+" ProteinMatch items for organism "+taxonId);
+                LOG.info("Loading attributes for "+proteinMatchMap.size()+" ProteinMatch items for organism "+taxonId+" ("+variety+")");
                 loadAttributes(stmt, organism_id, proteinMatchMap, proteinMatchCVTermId, "signatureDesc", signatureDescCVTermId);
                 loadAttributes(stmt, organism_id, proteinMatchMap, proteinMatchCVTermId, "status", statusCVTermId);
                 loadAttributes(stmt, organism_id, proteinMatchMap, proteinMatchCVTermId, "date", dateCVTermId);
-                LOG.info("Storing protein matches for organism "+taxonId);
+                LOG.info("Storing protein matches for organism "+taxonId+" ("+variety+")");
                 for (Item item : proteinMatchMap.values()) store(item);
             }
 
             // load protein HMM match attributes
             Map<Integer,Item> proteinHmmMatchMap = generateMap(stmt, "ProteinHmmMatch", proteinHmmMatchCVTermId, organism_id, organism);
             if (proteinHmmMatchMap.size()>0) {
-                LOG.info("Loading attributes for "+proteinHmmMatchMap.size()+" ProteinHmmMatch items for organism "+taxonId);
+                LOG.info("Loading attributes for "+proteinHmmMatchMap.size()+" ProteinHmmMatch items for organism "+taxonId+" ("+variety+")");
                 loadAttributes(stmt, organism_id, proteinHmmMatchMap, proteinHmmMatchCVTermId, "signatureDesc", signatureDescCVTermId);
                 loadAttributes(stmt, organism_id, proteinHmmMatchMap, proteinHmmMatchCVTermId, "status", statusCVTermId);
                 loadAttributes(stmt, organism_id, proteinHmmMatchMap, proteinHmmMatchCVTermId, "date", dateCVTermId);
-                LOG.info("Storing protein HMM matches for organism "+taxonId);
+                LOG.info("Storing protein HMM matches for organism "+taxonId+" ("+variety+")");
                 for (Item item : proteinHmmMatchMap.values()) store(item);
             }
 
@@ -237,7 +237,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
     }
 
     /**
-     * Create a map with records from the feature table; restrict to feature records which have corresponding records in featureprop.
+     * Create a map, keyed with chado feature_id, with records from the feature table; restrict to feature records which have corresponding records in featureprop.
      */
     Map<Integer,Item> generateMap(Statement stmt, String className, int cvTermId, int organism_id, Item organism) throws SQLException {
         Map<Integer,Item> map = new HashMap<Integer,Item>();

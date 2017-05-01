@@ -63,12 +63,13 @@ public class GOAnnotationProcessor extends ChadoProcessor {
         // build an organism map from the supplied taxon IDs
         Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
         Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        for (Map.Entry<Integer,OrganismData> entry : chadoToOrgData.entrySet()) {
-            Integer organismId = entry.getKey();
-            OrganismData organismData = entry.getValue();
+        for (Integer organismId : chadoToOrgData.keySet()) {
+            OrganismData organismData = chadoToOrgData.get(organismId);
             int taxonId = organismData.getTaxonId();
+            String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
+            if (variety!=null) organism.setAttribute("variety", variety);
             store(organism);
             organismMap.put(organismId, organism);
         }
@@ -78,9 +79,9 @@ public class GOAnnotationProcessor extends ChadoProcessor {
         Map<String,Item> goTermMap = new HashMap<String,Item>();
 
         // loop over the organisms to fill the GO terms
-        for (Map.Entry<Integer,Item> orgEntry : organismMap.entrySet()) {
-            int organism_id = orgEntry.getKey().intValue();
-            Item organism = orgEntry.getValue();
+        for (Integer organismId : organismMap.keySet()) {
+            Item organism = organismMap.get(organismId);
+            int organism_id = organismId.intValue();
         
             // load the relevant genes from the gene table, store the description, then parse out the GO identifiers
             String query = "SELECT * FROM gene WHERE organism_id="+organism_id;

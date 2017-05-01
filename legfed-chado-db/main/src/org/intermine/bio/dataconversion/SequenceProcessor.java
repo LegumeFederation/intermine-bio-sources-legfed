@@ -419,8 +419,13 @@ public class SequenceProcessor extends ChadoProcessor {
             return null;
         }
         int taxonId = organismData.getTaxonId();
+	String variety = organismData.getVariety();
+	// DEBUG for ChickpeaMine
+	if (variety==null) {
+	    throw new RuntimeException("Organism variety is NULL. organismId="+organismId);
+	}
         FeatureData fdat = new FeatureData();
-        Item organismItem = getChadoDBConverter().getOrganismItem(taxonId);
+        Item organismItem = getChadoDBConverter().getOrganismItem(taxonId, variety);
         feature.setReference("organism", organismItem);
         if (feature.checkAttribute("md5checksum") && md5checksum!=null) {
             feature.setAttribute("md5checksum", md5checksum);
@@ -428,7 +433,7 @@ public class SequenceProcessor extends ChadoProcessor {
         BioStoreHook.setSOTerm(getChadoDBConverter(), feature, chadoType, getChadoDBConverter().getSequenceOntologyRefId());
         fdat.setFieldExistenceFlags(feature);
 
-        fdat.setIntermineObjectId(store(feature, taxonId));
+        fdat.setIntermineObjectId(store(feature));
         fdat.setItemIdentifier(feature.getIdentifier());
         fdat.setUniqueName(uniqueName);
         fdat.setChadoFeatureName(name);
@@ -441,11 +446,10 @@ public class SequenceProcessor extends ChadoProcessor {
     /**
      * Store the feature Item.
      * @param feature the Item
-     * @param taxonId the taxon id of this feature
      * @return the database id of the new Item
      * @throws ObjectStoreException if an error occurs while storing
      */
-    protected Integer store(Item feature, int taxonId) throws ObjectStoreException {
+    protected Integer store(Item feature) throws ObjectStoreException {
         return getChadoDBConverter().store(feature);
     }
 
@@ -569,8 +573,8 @@ public class SequenceProcessor extends ChadoProcessor {
                 FeatureData srcFeatureData = featureMap.get(srcFeatureId);
                 if (featureMap.containsKey(featureId)) {
                     FeatureData featureData = featureMap.get(featureId);
-                    int taxonId = featureData.organismData.getTaxonId();
-                    Item location = makeLocation(start, end, strand, srcFeatureData, featureData, taxonId, featureId);
+		    // NOTE: removed taxonId, not used!
+                    Item location = makeLocation(start, end, strand, srcFeatureData, featureData, featureId);
 		    if (location!=null) {
 			getChadoDBConverter().store(location); // location should never be null
 		    } else {
@@ -626,18 +630,18 @@ public class SequenceProcessor extends ChadoProcessor {
 
     /**
      * Make a Location of a feature on a SequenceFeature.
+     * NOTE: removed taxonId, not used.
      * @param start the start position
      * @param end the end position
      * @param strand the strand
      * @param srcFeatureData the FeatureData for the src feature
      * @param featureData the FeatureData for the SequenceFeature
-     * @param taxonId of the source feature
      * @param featureId id of feature
      * @return the new Location object
      * @throws ObjectStoreException if there is a problem while storing
      */
-    protected Item makeLocation(int start, int end, int strand, FeatureData srcFeatureData, FeatureData featureData, int taxonId, int featureId) throws ObjectStoreException {
-        Item location = getChadoDBConverter().makeLocation(srcFeatureData.getItemIdentifier(), featureData.getItemIdentifier(), start, end, strand, taxonId);
+    protected Item makeLocation(int start, int end, int strand, FeatureData srcFeatureData, FeatureData featureData, int featureId) throws ObjectStoreException {
+        Item location = getChadoDBConverter().makeLocation(srcFeatureData.getItemIdentifier(), featureData.getItemIdentifier(), start, end, strand);
         return location;
     }
 
@@ -1116,7 +1120,6 @@ public class SequenceProcessor extends ChadoProcessor {
             MultiKey key = new MultiKey("cvterm", fdat.getInterMineType(), cvName);
 
             int taxonId = fdat.organismData.getTaxonId();
-
             List<ConfigAction> actionList = getConfig(taxonId).get(key);
             if (actionList == null) {
                 // no actions configured for this prop

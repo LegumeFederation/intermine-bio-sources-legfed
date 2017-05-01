@@ -101,9 +101,11 @@ public class HomologyProcessor extends ChadoProcessor {
             Integer organismId = entry.getKey();
             OrganismData organismData = entry.getValue();
             int taxonId = organismData.getTaxonId();
+            String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             BioStoreHook.setSOTerm(getChadoDBConverter(), organism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
             organism.setAttribute("taxonId", String.valueOf(taxonId));
+            if (variety!=null) organism.setAttribute("variety", variety);
             sourceOrganismMap.put(organismId, organism);
 	    organismMap.put(organismId, organism);
         }
@@ -119,9 +121,11 @@ public class HomologyProcessor extends ChadoProcessor {
             Integer organismId = entry.getKey();
             OrganismData organismData = entry.getValue();
             int taxonId = organismData.getTaxonId();
+            String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             BioStoreHook.setSOTerm(getChadoDBConverter(), organism, "organism", getChadoDBConverter().getSequenceOntologyRefId());
             organism.setAttribute("taxonId", String.valueOf(taxonId));
+            if (variety!=null) organism.setAttribute("variety", variety);
             targetOrganismMap.put(organismId, organism);
 	    if (!organismMap.containsKey(organismId)) organismMap.put(organismId, organism);
         }

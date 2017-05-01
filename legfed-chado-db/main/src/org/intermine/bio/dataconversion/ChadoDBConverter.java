@@ -46,7 +46,7 @@ public class ChadoDBConverter extends BioDBConverter {
 
     // a Map from chado organism_id to taxonId for desired homologue organisms
     private final Map<Integer, OrganismData> chadoToHomologueOrgData = new HashMap<Integer, OrganismData>();
-    
+
     private String processors = "";
 
     private String reactomeFilename = "";
@@ -94,9 +94,21 @@ public class ChadoDBConverter extends BioDBConverter {
             LOG.info("setOrganisms:organismIdString="+organismIdString);
             OrganismData od = null;
             try {
-                Integer taxonId = Integer.valueOf(organismIdString);
-                od = organismRepository.getOrganismDataByTaxon(taxonId);
+                if (organismIdString.contains("_")) {
+                    // we've got a species variety
+                    String[] parts = organismIdString.split("_");
+                    int taxonId = Integer.valueOf(parts[0]);
+                    String variety = parts[1];
+                    // DEBUG
+                    LOG.info("Creating "+taxonId+" ("+variety+") for organismsToProcess.");
+                    od = organismRepository.createOrganismDataByTaxonVariety(taxonId, variety);
+                } else {
+                    // just a plain species
+                    Integer taxonId = Integer.valueOf(organismIdString);
+                    od = organismRepository.getOrganismDataByTaxon(taxonId);
+                }
             } catch (NumberFormatException e) {
+                LOG.error(e.toString());
                 od = organismRepository.getOrganismDataByAbbreviation(organismIdString);
             }
             if (od == null) {
@@ -156,8 +168,19 @@ public class ChadoDBConverter extends BioDBConverter {
             LOG.info("setHomologueOrganisms:organismIdString="+organismIdString);
             OrganismData od = null;
             try {
-                Integer taxonId = Integer.valueOf(organismIdString);
-                od = organismRepository.getOrganismDataByTaxon(taxonId);
+                if (organismIdString.contains("_")) {
+                    // we've got a species variety
+                    String[] parts = organismIdString.split("_");
+                    int taxonId = Integer.valueOf(parts[0]);
+                    String variety = parts[1];
+                    // DEBUG
+                    LOG.info("Creating "+taxonId+" ("+variety+") for organismsToProcess.");
+                    od = organismRepository.createOrganismDataByTaxonVariety(taxonId, variety);
+                } else {
+                    // just a plain species
+                    Integer taxonId = Integer.valueOf(organismIdString);
+                    od = organismRepository.getOrganismDataByTaxon(taxonId);
+                }
             } catch (NumberFormatException e) {
                 od = organismRepository.getOrganismDataByAbbreviation(organismIdString);
             }
@@ -205,6 +228,14 @@ public class ChadoDBConverter extends BioDBConverter {
 
         Map<OrganismData, Integer> tempChadoOrgMap = getChadoOrganismIds(getConnection());
 
+        // DEBUG
+        for (OrganismData od : tempChadoOrgMap.keySet()) {
+            LOG.info("tempChadoOrgMap: "+od.toString()+" organismId="+tempChadoOrgMap.get(od));
+        }
+        for (OrganismData od : organismsToProcess) {
+            LOG.info("organismsToProcess: "+od.toString());
+        }
+
         // build the map of desired organisms to process
         for (OrganismData od: organismsToProcess) {
             Integer chadoId = tempChadoOrgMap.get(od);
@@ -216,6 +247,10 @@ public class ChadoDBConverter extends BioDBConverter {
 
         if (chadoToOrgData.size() == 0) {
             throw new RuntimeException("can't find any known organisms in the organism table");
+        } else {
+            for (Integer chadoId : chadoToOrgData.keySet()) {
+                LOG.info("process: chadoId="+chadoId+" chadoToOrgData="+chadoToOrgData.get(chadoId).toString());
+            }
         }
 
         // build the map of desired organisms to process for homology in HomologyProcessor
@@ -265,22 +300,36 @@ public class ChadoDBConverter extends BioDBConverter {
             String abbreviation = res.getString("abbreviation");
             String genus = res.getString("genus");
             String species = res.getString("species");
-
+            String variety = null;
+            
             OrganismData od = null;
 
-            if (genus != null && species != null) {
+            if (od==null && genus!=null && species!=null) {
+                // signify alternative varieties with underscore on species in chado, e.g. arietinum_desi, arietinum_kabuli
+                boolean isVariety = species.contains("_");
+                if (isVariety) {
+                    String[] parts = species.split("_");
+                    species = parts[0];
+                    variety = parts[1];
+                }
+                // get plain species
                 od = or.getOrganismDataByGenusSpecies(genus, species);
-            }
-
-            if (od == null) {
-                if (abbreviation != null) {
-                    od = or.getOrganismDataByAbbreviation(abbreviation);
+                if (od!=null) {
+                    // switch to organism variety
+                    int taxonId = od.getTaxonId();
+                    if (isVariety) {
+                        LOG.info("Creating new OrganismData with variety="+variety);
+                        od = or.createOrganismDataByTaxonVariety(taxonId, variety);
+                    }
                 }
             }
 
-            if (od == null) {
-                LOG.warn("can't find OrganismData for species: " + species
-                         + " genus: " + genus + " abbreviation: " + abbreviation);
+            if (od==null && abbreviation!=null) {
+                od = or.getOrganismDataByAbbreviation(abbreviation);
+            }
+
+            if (od==null) {
+                LOG.warn("can't find OrganismData for species: " + species + " genus: " + genus + " abbreviation: " + abbreviation + " variety: " + variety);
             }
 
             retMap.put(od, new Integer(organismId));

@@ -1,15 +1,18 @@
 <?xml version="1.0"?>
 <classes>
 
-  <class name="MRNA" is-interface="true">
-    <collection name="expressionValues" referenced-type="ExpressionValue" reverse-reference="mRNA"/>
+  <class name="Transcript" is-interface="true">
+    <collection name="expressionValues" referenced-type="ExpressionValue" reverse-reference="transcript"/>
   </class>
 
   <class name="ExpressionSource" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="unit" type="java.lang.String"/>
     <attribute name="geo" type="java.lang.String"/>
     <attribute name="bioProject" type="java.lang.String"/>
     <attribute name="sra" type="java.lang.String"/>
+    <attribute name="url" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
     <reference name="publication" referenced-type="Publication"/>
     <collection name="samples" referenced-type="ExpressionSample" reverse-reference="source"/>
   </class>
@@ -23,9 +26,8 @@
 
   <class name="ExpressionValue" is-interface="true">
     <attribute name="value" type="java.lang.Double"/>
-    <attribute name="unit" type="java.lang.String"/>
-    <reference name="expressionSample" referenced-type="ExpressionSample"/>
-    <reference name="mRNA" referenced-type="MRNA" reverse-reference="expressionValues"/>
+    <reference name="sample" referenced-type="ExpressionSample"/>
+    <reference name="transcript" referenced-type="Transcript" reverse-reference="expressionValues"/>
   </class>
 
 </classes>

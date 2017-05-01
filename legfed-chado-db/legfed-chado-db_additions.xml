@@ -147,6 +147,7 @@
   <class name="Organism" is-interface="true">
     <attribute name="chadoId" type="java.lang.Integer"/>
     <attribute name="comment" type="java.lang.String"/>
+    <attribute name="variety" type="java.lang.String"/>
   </class>
 
   <!-- add chadoFeatureId to all BioEntity subclasses -->
