@@ -96,7 +96,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
             String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
-            if (variety!=null) organism.setAttribute("variety", variety);
+            organism.setAttribute("variety", variety); // non-null variety is required
             // add organism.comment if it exists
             ResultSet rs = stmt.executeQuery("SELECT * FROM organism WHERE organism_id="+organism_id);
             if (rs.next()) {

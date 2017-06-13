@@ -77,7 +77,8 @@ public class ReactomeProcessor extends ChadoProcessor {
         int polypeptideCVTermId = rs.getInt("cvterm_id");
         rs.close();
 
-        // build the Organism map from the supplied taxon IDs and optional varietys; these should match the records you want in the reactome file
+        // build the Organism map from the supplied taxon IDs and varieties
+        // NOTE: these should match the records you want in the reactome file
         Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
         for (Integer organismId : chadoToOrgData.keySet()) {
             OrganismData organismData = chadoToOrgData.get(organismId);
@@ -85,10 +86,13 @@ public class ReactomeProcessor extends ChadoProcessor {
             String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
-            if (variety!=null) organism.setAttribute("variety", variety);
-            organism.setAttribute("chadoId", String.valueOf(organismId));
+            organism.setAttribute("variety", variety); // required
             organismMap.put(organismId, organism);
         }
+        if (organismMap.size()==0) {
+            throw new RuntimeException("Property organisms must contain at least one taxon ID in project.xml.");
+        }
+
 
         // read the reactome file
         String reactomeFilename = getChadoDBConverter().getReactomeFilename();

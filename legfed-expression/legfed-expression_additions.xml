@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <classes>
 
-  <class name="Transcript" is-interface="true">
-    <collection name="expressionValues" referenced-type="ExpressionValue" reverse-reference="transcript"/>
+  <class name="Gene" is-interface="true">
+    <collection name="expressionValues" referenced-type="ExpressionValue" reverse-reference="gene"/>
   </class>
 
   <class name="ExpressionSource" is-interface="true">
@@ -27,7 +27,7 @@
   <class name="ExpressionValue" is-interface="true">
     <attribute name="value" type="java.lang.Double"/>
     <reference name="sample" referenced-type="ExpressionSample"/>
-    <reference name="transcript" referenced-type="Transcript" reverse-reference="expressionValues"/>
+    <reference name="gene" referenced-type="Gene" reverse-reference="expressionValues"/>
   </class>
 
 </classes>

@@ -69,9 +69,9 @@ public class GOAnnotationProcessor extends ChadoProcessor {
             String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
-            if (variety!=null) organism.setAttribute("variety", variety);
-            store(organism);
+            organism.setAttribute("variety", variety);
             organismMap.put(organismId, organism);
+            store(organism);
         }
         LOG.info("Created and stored "+organismMap.size()+" organism Items.");
 

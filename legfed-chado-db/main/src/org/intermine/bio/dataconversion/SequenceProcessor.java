@@ -420,10 +420,6 @@ public class SequenceProcessor extends ChadoProcessor {
         }
         int taxonId = organismData.getTaxonId();
 	String variety = organismData.getVariety();
-	// DEBUG for ChickpeaMine
-	if (variety==null) {
-	    throw new RuntimeException("Organism variety is NULL. organismId="+organismId);
-	}
         FeatureData fdat = new FeatureData();
         Item organismItem = getChadoDBConverter().getOrganismItem(taxonId, variety);
         feature.setReference("organism", organismItem);

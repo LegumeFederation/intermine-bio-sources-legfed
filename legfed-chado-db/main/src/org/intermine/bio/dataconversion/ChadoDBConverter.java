@@ -101,7 +101,8 @@ public class ChadoDBConverter extends BioDBConverter {
                     String variety = parts[1];
                     // DEBUG
                     LOG.info("Creating "+taxonId+" ("+variety+") for organismsToProcess.");
-                    od = organismRepository.createOrganismDataByTaxonVariety(taxonId, variety);
+                    OrganismData od1 = organismRepository.getOrganismDataByTaxon(taxonId);
+                    od = organismRepository.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, od1.getGenus(), od1.getSpecies(), variety);
                 } else {
                     // just a plain species
                     Integer taxonId = Integer.valueOf(organismIdString);
@@ -114,6 +115,7 @@ public class ChadoDBConverter extends BioDBConverter {
             if (od == null) {
                 throw new RuntimeException("can't find organism for: " + organismIdString);
             }
+            LOG.info("od="+od);
             organismsToProcess.add(od);
         }
     }
@@ -175,7 +177,8 @@ public class ChadoDBConverter extends BioDBConverter {
                     String variety = parts[1];
                     // DEBUG
                     LOG.info("Creating "+taxonId+" ("+variety+") for organismsToProcess.");
-                    od = organismRepository.createOrganismDataByTaxonVariety(taxonId, variety);
+                    OrganismData od1 = organismRepository.getOrganismDataByTaxon(taxonId);
+                    od = organismRepository.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, od1.getGenus(), od1.getSpecies(), variety);
                 } else {
                     // just a plain species
                     Integer taxonId = Integer.valueOf(organismIdString);
@@ -229,17 +232,18 @@ public class ChadoDBConverter extends BioDBConverter {
         Map<OrganismData, Integer> tempChadoOrgMap = getChadoOrganismIds(getConnection());
 
         // DEBUG
-        for (OrganismData od : tempChadoOrgMap.keySet()) {
-            LOG.info("tempChadoOrgMap: "+od.toString()+" organismId="+tempChadoOrgMap.get(od));
-        }
         for (OrganismData od : organismsToProcess) {
             LOG.info("organismsToProcess: "+od.toString());
+        }
+        for (OrganismData od : tempChadoOrgMap.keySet()) {
+            LOG.info("tempChadoOrgMap: key="+od+" value="+tempChadoOrgMap.get(od));
         }
 
         // build the map of desired organisms to process
         for (OrganismData od: organismsToProcess) {
             Integer chadoId = tempChadoOrgMap.get(od);
             if (chadoId == null) {
+                LOG.error("Organism "+od+" not found in the chado organism table");
                 throw new RuntimeException("Organism "+od+" not found in the chado organism table");
             }
             chadoToOrgData.put(chadoId, od);
@@ -257,7 +261,11 @@ public class ChadoDBConverter extends BioDBConverter {
         for (OrganismData od: homologueOrganismsToProcess) {
             Integer chadoId = tempChadoOrgMap.get(od);
             if (chadoId == null) {
-                throw new RuntimeException("Homologue organism "+od+" not found in the chado organism table");
+                String error = "Homologue organism "+od+" not found in the chado organism table:\n";
+                for (OrganismData orgData : tempChadoOrgMap.keySet()) {
+                    error += orgData.toString()+"\n";
+                }
+                throw new RuntimeException(error);
             }
             chadoToHomologueOrgData.put(chadoId, od);
         }
@@ -300,37 +308,19 @@ public class ChadoDBConverter extends BioDBConverter {
             String abbreviation = res.getString("abbreviation");
             String genus = res.getString("genus");
             String species = res.getString("species");
-            String variety = null;
+
+            // non-default varieties are signified with underscore on species in chado, e.g. arietinum_desi, arietinum_kabuli
+            String variety = OrganismData.DEFAULT_VARIETY;
+            if (genus!=null && species!=null && species.contains("_")) {
+                String[] parts = species.split("_");
+                species = parts[0];
+                variety = parts[1];
+            }
             
-            OrganismData od = null;
+            OrganismData od1 = or.getOrganismDataByGenusSpecies(genus, species); // this is the plain non-variety OrganismData
+            int taxonId = od1.getTaxonId(); // we'll create one using taxonId,variety version
 
-            if (od==null && genus!=null && species!=null) {
-                // signify alternative varieties with underscore on species in chado, e.g. arietinum_desi, arietinum_kabuli
-                boolean isVariety = species.contains("_");
-                if (isVariety) {
-                    String[] parts = species.split("_");
-                    species = parts[0];
-                    variety = parts[1];
-                }
-                // get plain species
-                od = or.getOrganismDataByGenusSpecies(genus, species);
-                if (od!=null) {
-                    // switch to organism variety
-                    int taxonId = od.getTaxonId();
-                    if (isVariety) {
-                        LOG.info("Creating new OrganismData with variety="+variety);
-                        od = or.createOrganismDataByTaxonVariety(taxonId, variety);
-                    }
-                }
-            }
-
-            if (od==null && abbreviation!=null) {
-                od = or.getOrganismDataByAbbreviation(abbreviation);
-            }
-
-            if (od==null) {
-                LOG.warn("can't find OrganismData for species: " + species + " genus: " + genus + " abbreviation: " + abbreviation + " variety: " + variety);
-            }
+            OrganismData od = or.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, genus, species, variety);
 
             retMap.put(od, new Integer(organismId));
         }
@@ -401,4 +391,5 @@ public class ChadoDBConverter extends BioDBConverter {
     public List<ChadoProcessor> getCompletedProcessors() {
         return completedProcessors;
     }
+
 }

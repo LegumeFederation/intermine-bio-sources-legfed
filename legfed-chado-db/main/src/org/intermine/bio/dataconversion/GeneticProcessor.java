@@ -82,9 +82,10 @@ public class GeneticProcessor extends ChadoProcessor {
             OrganismData organismData = chadoToOrgData.get(organismId);
             int taxonId = organismData.getTaxonId();
             String variety = organismData.getVariety();
+            if (variety==null) variety = OrganismData.DEFAULT_VARIETY; // need to provide a non-null default for merging?
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
-            if (variety!=null) organism.setAttribute("variety", variety);
+            organism.setAttribute("variety", variety);
             organismMap.put(organismId, organism);
             store(organism);
         }
