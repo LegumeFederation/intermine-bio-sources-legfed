@@ -1,20 +1,16 @@
 <?xml version="1.0"?>
 <classes>
 
-  <class name="MappingPopulation" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <collection name="parents" referenced-type="Germplasm" reverse-reference="mappingPopulations"/>
-    <reference name="organism" referenced-type="Organism"/>
-    <reference name="publication" referenced-type="Publication"/>
-    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="mappingPopulations"/>
-    <collection name="lines" referenced-type="GenotypingLine" reverse-reference="mappingPopulation"/>
+  <class name="Publication" is-interface="true">
+    <attribute name="lastAuthor" type="java.lang.String"/>
   </class>
 
-  <!-- minimal definition, more in the legfed-germplasm-file source -->
-  <class name="Germplasm" is-interface="true">
+  <class name="MappingPopulation" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
-    <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="parents"/>
+    <collection name="parents" referenced-type="Organism"/>
+    <collection name="publications" referenced-type="Publication"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="mappingPopulations"/>
+    <collection name="lines" referenced-type="GenotypingLine" reverse-reference="mappingPopulation"/>
   </class>
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">

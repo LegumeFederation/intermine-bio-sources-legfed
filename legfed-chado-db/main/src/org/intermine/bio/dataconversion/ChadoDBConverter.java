@@ -166,6 +166,7 @@ public class ChadoDBConverter extends BioDBConverter {
      */
     public void setHomologueOrganisms(String organisms) {
         String[] bits = StringUtil.split(organisms, " ");
+	LOG.info(bits.length+" homologue organisms from:"+organisms);
         for (String organismIdString: bits) {
             LOG.info("setHomologueOrganisms:organismIdString="+organismIdString);
             OrganismData od = null;

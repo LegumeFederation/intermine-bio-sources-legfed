@@ -15,20 +15,33 @@ import java.io.Reader;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+
+import org.ncgr.intermine.PublicationTools;
+import org.ncgr.pubmed.PubMedSummary;
 
 import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store the QTL-marker data and relationships from a tab-delimited file.
+ * Store the QTL-marker data and relationships from tab-delimited files.
+ * The files simply contain the marker name, QTL name, optional trait and optional comma-separated TO terms.
+ * Preceed with mapping populations and publications if desired.
  *
- * The file name gives the taxon ID of the organism. This allows you to have several files in a single src.data.dir 
- * that are run in a single invocation of this converter. The format is: anything-other-than-underscore_3845.txt.
+ * <pre>
+ * PMID     27658053
+ * PMID     12345467
+ * MappingPopulation     ZN016_x_Zhijiang282
+ * MappingPopulation      CB27_x_Sanzi7
+ * #Marker  QTL         Trait       TOTerms
+ * 2_04960  Qpl.zaas-3  Pod length  TO:0002626,TO:1234567
+ * 2_17765  Qpl.zaas-3  Pod length  TO:0002626
+ * </pre>
  *
  * @author Sam Hokin, NCGR
  */
@@ -36,11 +49,15 @@ public class QTLMarkerFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(QTLMarkerFileConverter.class);
 
-    // store items at end in close() method to avoid dupes
-    Set<Item> organismSet = new HashSet<Item>();
-    Map<String,Item> qtlMap = new HashMap<String,Item>();
-    Map<String,Item> markerMap = new HashMap<String,Item>();
+    Map<String,Item> mappingPopulationMap = new HashMap<String,Item>();
+    Map<String,Item> publicationMap = new HashMap<String,Item>();
+    Map<String,Item> authorMap = new HashMap<String,Item>();
 
+    Map<String,Item> markerMap = new HashMap<String,Item>();
+    Map<String,Item> qtlMap = new HashMap<String,Item>();
+    Map<String,Item> toTermMap = new HashMap<String,Item>();
+    Map<String,Set<String>> toAnnotationMap = new HashMap<String,Set<String>>(); // store QTL IDs per TO ID to avoid dupes
+    
     /**
      * Create a new QTLMarkerFileConverter
      * @param writer the ItemWriter to write out new items
@@ -48,20 +65,6 @@ public class QTLMarkerFileConverter extends BioFileConverter {
      */
     public QTLMarkerFileConverter(ItemWriter writer, Model model) {
         super(writer, model);
-    }
-
-    /**
-     * Get the taxon ID from the current file name, e.g. soybean_3847.gff3
-     */
-    public String getTaxonId() {
-        try {
-            String fileName = getCurrentFile().getName();
-            String[] chunks = fileName.split("_");
-            String[] parts = chunks[1].split("\\.");
-            return parts[0];
-        } catch (Exception ex) {
-            throw new RuntimeException("Could not parse GFF filename; format should be: no-underscores_12345.gff3 where taxonID=12345. "+ex.getMessage());
-        }
     }
 
     /**
@@ -76,50 +79,141 @@ public class QTLMarkerFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
-        Item organism = createItem("Organism");
-        BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-        organism.setAttribute("taxonId", getTaxonId());
-        organismSet.add(organism);
-
         // -------------------------------------------------------------------------------------------------
         // Run through the QTL-Markers file and add the associated markers to the given QTLs
-        // NOTE1: marker ZZ is a placeholder, not a real marker
-        // NOTE2: given names are used as _primary_ identifiers
+        // NOTE: given names are used as _primary_ identifiers
         // -------------------------------------------------------------------------------------------------
+
+        Set<Item> qtlPubs = new HashSet<Item>(); // pubs associated with THIS set of QTLs
+	Set<Item> qtlMPs = new HashSet<Item>();  // mapping populations associated with THIS set of QTLs
         
         BufferedReader qtlMarkerReader = new BufferedReader(reader);
-        String line = qtlMarkerReader.readLine(); // header
+	String line;
         while ((line=qtlMarkerReader.readLine())!=null) {
 
-            QTLMarkerRecord rec = new QTLMarkerRecord(line);
-            if (rec.qtlName!=null && rec.markerName!=null && !rec.markerName.equals("ZZ")) {
+	    if (line.startsWith("#")) {
 
-                // find the QTL in the map, or add it with qtlName=primaryIdentifier
-                Item qtl = null;
-                if (qtlMap.containsKey(rec.qtlName)) {
-                    qtl = qtlMap.get(rec.qtlName);
-                } else {
-                    qtl = createItem("QTL");
-                    BioStoreHook.setSOTerm(this, qtl, "QTL", getSequenceOntologyRefId());
-                    qtl.setReference("organism", organism);
-                    qtl.setAttribute("primaryIdentifier", rec.qtlName);
-                    qtlMap.put(rec.qtlName, qtl);
-                }
+		// comment, do nothing
+		
+	    } else if (line.startsWith("PMID")) {
                 
-                // find the genetic marker in the map, or add it with markerName=primaryIdentifier
-                Item marker = null;
-                if (markerMap.containsKey(rec.markerName)) {
-                    marker = markerMap.get(rec.markerName);
+                // load a publication
+                String[] parts = line.split("\t");
+                String pubMedId = parts[1];
+                if (publicationMap.containsKey(pubMedId)) {
+		    LOG.info("Retrieving publication from PMID:"+pubMedId);
+                    qtlPubs.add(publicationMap.get(pubMedId));
                 } else {
-                    marker = createItem("GeneticMarker");
-                    BioStoreHook.setSOTerm(this, marker, "genetic_marker", getSequenceOntologyRefId());
-                    marker.setReference("organism", organism);
-                    marker.setAttribute("primaryIdentifier", rec.markerName);
-                    markerMap.put(rec.markerName, marker);
+		    LOG.info("Creating publication from PMID:"+pubMedId);
+                    Item publication = PublicationTools.getPublicationFromPMID(this, Integer.parseInt(pubMedId));
+                    if (publication!=null) {
+                        List<Item> authors = PublicationTools.getAuthorsFromPMID(this, Integer.parseInt(pubMedId));
+                        for (Item author : authors) {
+                            String name = author.getAttribute("name").getValue();
+                            if (authorMap.containsKey(name)) {
+                                Item authorToStore = authorMap.get(name);
+                                publication.addToCollection("authors", authorToStore);
+                            } else {
+                                authorMap.put(name, author);
+                                publication.addToCollection("authors", author);
+                            }
+                        }
+                        publicationMap.put(pubMedId, publication);
+                        qtlPubs.add(publication);
+                    } else {
+			LOG.error("Publication is null!");
+		    }
                 }
-                // add this genetic marker to this QTL's collection
-                LOG.info("Adding QTL="+rec.qtlName+" Genetic Marker="+rec.markerName+" to associatedMarkers.");
-                qtl.addToCollection("associatedMarkers", marker);
+
+	    } else if (line.startsWith("MappingPopulation")) {
+
+		// load a mapping population
+		String[] parts = line.split("\t");
+		String mpId = parts[1];
+		if (mappingPopulationMap.containsKey(mpId)) {
+		    LOG.info("Retrieving mapping population:"+mpId);
+		    qtlMPs.add(mappingPopulationMap.get(mpId));
+		} else {
+		    LOG.info("Creating mapping population:"+mpId);
+		    Item mappingPopulation = createItem("MappingPopulation");
+		    mappingPopulation.setAttribute("primaryIdentifier", mpId);
+		    mappingPopulationMap.put(mpId, mappingPopulation);
+		    qtlMPs.add(mappingPopulation);
+		}
+
+            } else {
+
+                QTLMarkerRecord rec = new QTLMarkerRecord(line);
+                if (rec.qtlName!=null && rec.markerName!=null) {
+
+                    // find the QTL in the map, or add it with qtlName=primaryIdentifier
+                    Item qtl = null;
+                    if (qtlMap.containsKey(rec.qtlName)) {
+                        qtl = qtlMap.get(rec.qtlName);
+                    } else {
+                        qtl = createItem("QTL");
+                        qtl.setAttribute("primaryIdentifier", rec.qtlName);
+                        if (rec.trait!=null) qtl.setAttribute("secondaryIdentifier", rec.trait);
+			for (Item pub : qtlPubs) qtl.addToCollection("publications", pub);
+			for (Item mp : qtlMPs) qtl.addToCollection("mappingPopulations", mp);
+                        qtlMap.put(rec.qtlName, qtl);
+                    }
+                    
+                    // find the genetic marker in the map, or add it with markerName=primaryIdentifier
+                    Item marker = null;
+                    if (markerMap.containsKey(rec.markerName)) {
+                        marker = markerMap.get(rec.markerName);
+                    } else {
+                        marker = createItem("GeneticMarker");
+                        marker.setAttribute("primaryIdentifier", rec.markerName);
+                        markerMap.put(rec.markerName, marker);
+                    }
+
+                    // add this marker to this QTL's collection
+                    LOG.info("Adding QTL="+rec.qtlName+" Genetic Marker="+rec.markerName+" to associatedGeneticMarkers.");
+                    qtl.addToCollection("associatedGeneticMarkers", marker);
+
+		    // TO terms
+		    if (rec.toTerms!=null && rec.toTerms.length>0) {
+			for (int i=0; i<rec.toTerms.length; i++) {
+			    String toTermId = rec.toTerms[i];
+			    Item toTerm = null;
+			    if (toTermMap.containsKey(toTermId)) {
+				toTerm = toTermMap.get(toTermId);
+			    } else {
+				toTerm = createItem("TOTerm");
+				toTerm.setAttribute("identifier", toTermId);
+				toTermMap.put(toTermId, toTerm);
+			    }
+			    // avoid dupe annotations
+			    if (toAnnotationMap.containsKey(toTermId)) {
+				// see if this QTL is already in
+				Set<String> qtlSet = toAnnotationMap.get(toTermId);
+				if (qtlSet.contains(rec.qtlName)) {
+				    // do nothing
+				} else {
+				    Item toAnnotation = createItem("TOAnnotation");
+				    toAnnotation.setReference("ontologyTerm", toTerm);
+				    toAnnotation.setReference("subject", qtl);
+				    store(toAnnotation);
+				    qtl.addToCollection("ontologyAnnotations", toAnnotation);
+				    qtlSet.add(rec.qtlName);
+				}
+			    } else {
+				// brand new TO term in an annotation
+				Item toAnnotation = createItem("TOAnnotation");
+				toAnnotation.setReference("ontologyTerm", toTerm);
+				toAnnotation.setReference("subject", qtl);
+				store(toAnnotation);
+				qtl.addToCollection("ontologyAnnotations", toAnnotation);
+				Set<String> qtlSet = new HashSet<String>();
+				qtlSet.add(rec.qtlName);
+				toAnnotationMap.put(toTermId, qtlSet);
+			    }
+			}
+		    }
+                }
+
             }
 
         }
@@ -134,14 +228,23 @@ public class QTLMarkerFileConverter extends BioFileConverter {
     @Override
     public void close() throws Exception {
 
-        LOG.info("Storing "+organismSet.size()+" organism items...");
-        store(organismSet);
-        
+	LOG.info("Storing "+mappingPopulationMap.size()+" MappingPopulation items...");
+	store(mappingPopulationMap.values());
+
+        LOG.info("Storing "+publicationMap.size()+" Publication items...");
+        store(publicationMap.values());
+
+        LOG.info("Storing "+authorMap.size()+" Author items...");
+        store(authorMap.values());
+
+        LOG.info("Storing "+markerMap.size()+" GeneticMarker items...");
+        store(markerMap.values());
+
         LOG.info("Storing "+qtlMap.size()+" QTL items...");
         store(qtlMap.values());
 
-        LOG.info("Storing "+markerMap.size()+" genetic marker items...");
-        store(markerMap.values());
+	LOG.info("Storing "+toTermMap.size()+" TOTerm items...");
+	store(toTermMap.values());
 
     }
     

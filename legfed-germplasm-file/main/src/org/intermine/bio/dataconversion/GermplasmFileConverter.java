@@ -27,12 +27,13 @@ import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
 /**
- * Store information about germplasms from tab-delimited germplasm files.
+ * Import organisms from tab-delimited germplasm files.
+ *
  * <pre>
  * taxonId	3917
- * primaryIdentifier	CB27
- * secondaryIdentifier	California Blackeye 27
- * description	"California Blackeye 27" (or CB27) is ideally suited to the Central Valley of California....
+ * variety	CB27
+ * alternateVarietyName	California Blackeye 27
+ * description	California Blackeye 27 (or CB27) is ideally suited to the Central Valley of California....
  * patentNumber	200000183
  * url	https://techtransfer.universityofcalifornia.edu/NCD/10164.html
  * country	United States
@@ -43,9 +44,6 @@ import org.intermine.xml.full.Item;
 public class GermplasmFileConverter extends BioFileConverter {
 
     private static final Logger LOG = Logger.getLogger(GermplasmFileConverter.class);
-
-    // store organisms so we don't duplicate
-    Map<String,Item> organismMap = new HashMap<String,Item>();
 
     /**
      * Create a new GermplasmFileConverter
@@ -68,48 +66,44 @@ public class GermplasmFileConverter extends BioFileConverter {
 
         LOG.info("Processing Germplasm file "+getCurrentFile().getName()+"...");
         
-        // ----------------------------------------------------------
-        // lines, genetic markers, genotypes from the Germplasm file
-        // ----------------------------------------------------------
-
-        Item germplasm = createItem("Germplasm");
+        // the fields
+        String taxonId = null; // not null
+        String variety = null; // not null]
+        String alternateVarietyName = null;
+        String description = null;
+        String patentNumber = null;
+        String url = null;
+        String country = null;
+        
         BufferedReader br = new BufferedReader(reader);
         String line = null;
         while ((line=br.readLine())!=null) {
-
             String[] parts = line.split("\t");
             if (parts.length==2) {
-                
                 String field = parts[0].toLowerCase();
                 String value = parts[1];
-                
-                if (field.equals("taxonid")) {
-                    Item organism;
-                    if (organismMap.containsKey(value)) {
-                        organism = organismMap.get(value);
-                    } else {
-                        organism = createItem("Organism");
-                        BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-                        organism.setAttribute("taxonId", value);
-                        store(organism);
-                        organismMap.put(value, organism);
-                    }
-                    germplasm.setReference("organism", organism);
-                }
-
-                if (field.equals("primaryidentifier")) germplasm.setAttribute("primaryIdentifier", value);
-                if (field.equals("secondaryidentifier")) germplasm.setAttribute("secondaryIdentifier", value);
-                if (field.equals("description")) germplasm.setAttribute("description", value);
-                if (field.equals("patentnumber")) germplasm.setAttribute("patentNumber", value);
-                if (field.equals("url")) germplasm.setAttribute("url", value);
-                if (field.equals("country")) germplasm.setAttribute("country", value);
-
+                if (field.equals("taxonid")) taxonId = value;
+                if (field.equals("variety")) variety = value;
+                if (field.equals("alternatevarietyname")) alternateVarietyName = value;
+                if (field.equals("description")) description = value;
+                if (field.equals("patentnumber")) patentNumber = value;
+                if (field.equals("url")) url = value;
+                if (field.equals("country")) country = value;
             }
-
         }
 
-        // store the germplasm from this file
-        store(germplasm);
+        // store the organism if taxonId and variety are given
+        if (taxonId!=null && variety!=null) {
+            Item organism = createItem("Organism");
+            organism.setAttribute("taxonId", taxonId);
+            organism.setAttribute("variety", variety);
+            if (alternateVarietyName!=null) organism.setAttribute("alternateVarietyName", alternateVarietyName);
+            if (description!=null) organism.setAttribute("comment", description); // use existing comment field from chado importer
+            if (patentNumber!=null) organism.setAttribute("patentNumber", patentNumber);
+            if (url!=null) organism.setAttribute("url", url);
+            if (country!=null) organism.setAttribute("country", country);
+            store(organism);
+        }
 
         // wrap up this file
         br.close();

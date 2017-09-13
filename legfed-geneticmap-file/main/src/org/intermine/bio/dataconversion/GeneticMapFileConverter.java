@@ -35,28 +35,27 @@ import org.intermine.xml.full.Item;
 /**
  * Store the genetic marker, QTL and linkage group data for a genetic map stored in a tab-separated file. Data fields are:
  * <pre>
- * Marker	Type	Linkage group	Position (cM)	QTL	Traits associated
+ * GeneticMap      iSelect-consensus-2016
+ * PMID    27775877
+ * Parents 3920    CB27      IT82E-18
+ * Parents 3920    CB46      IT93K-503-1
+ * Parents 3920    Sanzi     Vita7
+ * Parents 3920    TVu-14676 IT84S-2246-4
+ * Parents 138955  ZN016     Zhijiang282
+ * #Marker LG      Type    Loc   QTL    Traits
+ * 2_30247 1       SNP     0     SW100  Seed weight 100
+ * 2_52445 1       SNP     0     SW100  Seed weight 100
+ * 2_15811 1       SNP     1.35  PT2    Pod thickness 2
+ * ...
  * </pre>
- * The QTL name is put in the QTL.primaryIdentifier, the Traits associated are put in the QTL.secondaryIdentifier.
  *
- * A few tab-separated metadata fields precede the data, and should be in this order:
- * <pre>
- * TaxonID	3917
- * GeneticMap	Size-Drought-2019
- * PMID	12345678
- * Parents	BigTall123	SmallShort456
- * Parents	DResist234	DSuscept567
- * </pre>
- *
- * The file name gives name of the genetic map, e.g. Consensus-2019.tsv.
- *
- * The "Linkage group" column provides the numerical linkage group (chromosome, normally, but can be any LG). This is stored as the LG number.
+ * The LG column provides the numerical linkage group (chromosome, normally, but can be any LG number). This is stored as LinkageGroup.number.
  * The LG primary identifier is formed by prepending the genetic map name. So, for example, the metadata above would lead to a linkage group
- * with primary identifier "Size-Drought-2019_2" and secondary identifier "2".
+ * with primary identifier "iSelect-consensus-2016_1" and number 1.
  *
- * Markers do not get secondary identifiers. They have a unique key (primaryIdentifier,organism). Their type (e.g. SNP) is given in the second column.
+ * Markers do not get secondary identifiers. They have a unique key (primaryIdentifier). Their type (e.g. SNP) is given in the third column.
  *
- * QTL and Traits associated are NOT required.
+ * QTL and Traits are optional.
  *
  * @author Sam Hokin
  */
@@ -65,7 +64,7 @@ public class GeneticMapFileConverter extends BioFileConverter {
     private static final Logger LOG = Logger.getLogger(GeneticMapFileConverter.class);
 
     // items saved at end are stored in maps
-    Map<String,Item> organismMap = new HashMap<String,Item>();          // keyed by taxonID
+    Map<String,Item> organismMap = new HashMap<String,Item>();          // keyed by variety
     Map<String,Item> geneticMapMap = new HashMap<String,Item>();        // keyed by primaryIdentifier
     Map<String,Item> germplasmMap = new HashMap<String,Item>();         // keyed by primaryIdentifier
     Map<String,Item> mappingPopulationMap = new HashMap<String,Item>(); // keyed by primaryIdentifier
@@ -97,7 +96,6 @@ public class GeneticMapFileConverter extends BioFileConverter {
         LOG.info("Processing LinkageGroup file "+getCurrentFile().getName()+"...");
 
         // these objects are created per file
-        Item organism = null;
         Item geneticMap = null;
         String geneticMapName = null;
 
@@ -109,38 +107,26 @@ public class GeneticMapFileConverter extends BioFileConverter {
         String line = null;
         while ((line=br.readLine())!=null) {
 
-            if (line.startsWith("TaxonID")) {
-
-                // get the organism
-                String[] parts = line.split("\t");
-                String taxonID = parts[1];
-                if (organismMap.containsKey(taxonID)) {
-                    organism = organismMap.get(taxonID);
-                } else {
-                    organism = createItem("Organism");
-                    BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-                    organism.setAttribute("taxonId", taxonID);
-                    organismMap.put(taxonID, organism);
-                }
+            if (line.startsWith("#")) {
                 
+                // do nothing, just a comment
+
             } else if (line.startsWith("GeneticMap")) {
 
-                // get the genetic map
+                // get the genetic map name
                 String[] parts = line.split("\t");
                 geneticMapName = parts[1];
                 if (geneticMapMap.containsKey(geneticMapName)) {
                     geneticMap = geneticMapMap.get(geneticMapName);
                 } else {
                     geneticMap = createItem("GeneticMap");
-                    BioStoreHook.setSOTerm(this, geneticMap, "organism", getSequenceOntologyRefId());
                     geneticMap.setAttribute("primaryIdentifier", geneticMapName);
-                    geneticMap.setReference("organism", organism);
                     geneticMapMap.put(geneticMapName, geneticMap);
                 }
                 
             } else if (line.startsWith("PMID")) {
 
-                // get the Publication if PMID present
+                // get a Publication
                 String[] parts = line.split("\t");
                 String pubMedId = parts[1];
                 if (publicationMap.containsKey(pubMedId)) {
@@ -167,11 +153,12 @@ public class GeneticMapFileConverter extends BioFileConverter {
 
             } else if (line.startsWith("Parents")) {
 
-                // get Germplasm parents
+                // get parent organisms
                 String[] parts = line.split("\t");
+		String taxonId = parts[1];
                 String[] parents = new String[2];
-                parents[0] = parts[1];
-                parents[1] = parts[2];
+                parents[0] = parts[2];
+                parents[1] = parts[3];
                 // create MappingPopulation and name for parents
                 String mappingPopulationName = parents[0]+"_x_"+parents[1];
                 if (mappingPopulationMap.containsKey(mappingPopulationName)) {
@@ -182,15 +169,15 @@ public class GeneticMapFileConverter extends BioFileConverter {
                     mappingPopulation.setAttribute("primaryIdentifier", mappingPopulationName);
                     // add parents to collection
                     for (int i=0; i<2; i++) {
-                        if (germplasmMap.containsKey(parents[i])) {
-                            Item germplasm = germplasmMap.get(parents[i]);
-                            mappingPopulation.addToCollection("parents", germplasm);
+                        if (organismMap.containsKey(parents[i])) {
+                            Item organism = organismMap.get(parents[i]);
+                            mappingPopulation.addToCollection("parents", organism);
                         } else {
-                            Item germplasm = createItem("Germplasm");
-                            germplasm.setAttribute("primaryIdentifier", parents[i]);
-                            germplasm.setReference("organism", organism);
-                            germplasmMap.put(parents[i], germplasm);
-                            mappingPopulation.addToCollection("parents", germplasm);
+                            Item organism = createItem("Organism");
+			    organism.setAttribute("taxonId", taxonId);
+                            organism.setAttribute("variety", parents[i]);
+                            organismMap.put(parents[i], organism);
+                            mappingPopulation.addToCollection("parents", organism);
                         }
                     }
 		    mappingPopulationMap.put(mappingPopulationName, mappingPopulation);
@@ -202,20 +189,18 @@ public class GeneticMapFileConverter extends BioFileConverter {
                 // looks like it's a data record
                 GeneticMapRecord record = new GeneticMapRecord(line);
 
-                // construct a fuller LinkageGroup primary identifier from genetic map name and LG number
+                // construct the LinkageGroup primary identifier from genetic map name and LG number
                 String lgID = geneticMapName+"_"+record.lg;
                 
-                // create this linkage group if new
+                // create this linkage group if new; else grab it
                 Item linkageGroup = null;
                 if (linkageGroupMap.containsKey(lgID)) {
                     linkageGroup = linkageGroupMap.get(lgID);
                 } else {
                     linkageGroup = createItem("LinkageGroup");
-                    BioStoreHook.setSOTerm(this, linkageGroup, "linkage_group", getSequenceOntologyRefId());
                     linkageGroup.setAttribute("primaryIdentifier", lgID);
                     linkageGroup.setAttribute("number", String.valueOf(record.lg));
                     linkageGroup.setAttribute("length", "0.0"); // initialize with zero, will be updated by marker positions
-                    linkageGroup.setReference("organism", organism);
                     linkageGroup.setReference("geneticMap", geneticMap);
                     linkageGroupMap.put(lgID, linkageGroup);
                 }
@@ -226,8 +211,6 @@ public class GeneticMapFileConverter extends BioFileConverter {
                     marker = markerMap.get(record.marker);
                 } else {
                     marker = createItem("GeneticMarker");
-                    BioStoreHook.setSOTerm(this, marker, "genetic_marker", getSequenceOntologyRefId());
-                    marker.setReference("organism", organism);
                     marker.setAttribute("primaryIdentifier", record.marker);
                     marker.setAttribute("type", record.type);
                     // create and store this marker's linkage group position
@@ -258,8 +241,6 @@ public class GeneticMapFileConverter extends BioFileConverter {
                     } else {
                         // create new QTL 
                         qtl = createItem("QTL");
-                        BioStoreHook.setSOTerm(this, qtl, "QTL", getSequenceOntologyRefId());
-                        qtl.setReference("organism", organism);
                         qtl.setAttribute("primaryIdentifier", record.qtl);
                         if (record.traits!=null) {
                             qtl.setAttribute("secondaryIdentifier", record.traits);
@@ -281,7 +262,7 @@ public class GeneticMapFileConverter extends BioFileConverter {
                     }
                     
                     // add this marker to this QTL's collection
-                    qtl.addToCollection("associatedMarkers", marker);
+                    qtl.addToCollection("associatedGeneticMarkers", marker);
                     
                     // update this QTL's linkage group range from the current marker position
                     double begin = Double.parseDouble(linkageGroupRange.getAttribute("begin").getValue());
@@ -313,7 +294,6 @@ public class GeneticMapFileConverter extends BioFileConverter {
     public void close() throws Exception {
         store(organismMap.values());
         store(geneticMapMap.values());
-        store(germplasmMap.values());
         store(mappingPopulationMap.values());
         store(linkageGroupMap.values());
         store(markerMap.values());

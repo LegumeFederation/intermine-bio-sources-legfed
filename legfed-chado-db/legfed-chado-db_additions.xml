@@ -3,9 +3,7 @@
 
   <!-- genetics from GeneticProcessor, plus feature properties from FeaturePropProcessor -->
 
-  <class name="QTL" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <attribute name="secondaryIdentifier" type="java.lang.String"/>
+  <class name="QTL" extends="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="comment" type="java.lang.String"/>
     <attribute name="experimentTraitDescription" type="java.lang.String"/>
@@ -16,8 +14,6 @@
     <attribute name="identifier" type="java.lang.String"/>
     <attribute name="peak" type="java.lang.Double"/>
     <attribute name="studyTreatment" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
-    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
     <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
@@ -119,7 +115,8 @@
     <collection name="proteins" referenced-type="Protein" reverse-reference="proteinDomains"/>
   </class>
 
-  <class name="ConsensusRegion" extends="BioEntity" is-interface="true">
+  <class name="ConsensusRegion" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="length" type="java.lang.Integer"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="consensusRegion"/>
     <reference name="sequence" referenced-type="Sequence"/>

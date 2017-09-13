@@ -13,7 +13,7 @@ package org.intermine.bio.dataconversion;
 /**
  * Encapsulates a single tab-delimited LinkageGroup file record of the form:
  * <pre>
- * Marker	Linkage group	Type	Position (cM)	QTL	Traits associated
+ * Marker	LG	Type	Pos (cM)	QTL	Traits
  * </pre>
  * Comparator is based on Linkage group, Position and Marker.
  * QTL and Traits associated are individually optional.

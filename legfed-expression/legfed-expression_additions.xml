@@ -1,6 +1,10 @@
 <?xml version="1.0"?>
 <classes>
 
+  <class name="Publication" is-interface="true">
+    <attribute name="lastAuthor" type="java.lang.String"/>
+  </class>
+
   <class name="Gene" is-interface="true">
     <collection name="expressionValues" referenced-type="ExpressionValue" reverse-reference="gene"/>
   </class>

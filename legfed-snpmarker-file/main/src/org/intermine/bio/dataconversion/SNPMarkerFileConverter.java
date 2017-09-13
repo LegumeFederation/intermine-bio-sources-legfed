@@ -14,6 +14,7 @@ import java.io.BufferedReader;
 import java.io.Reader;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -34,13 +35,15 @@ import org.ncgr.pubmed.PubMedSummary;
  * ArrayName	Illumina Cowpea iSelect Consortium Array
  * MarkerType	SNP
  * PMID	27775877
- * ID	DesignSequence	Alleles	Source	BeadType	StepDescription	3702	3885	...
- * 1_0002	TAC..[A/G]..AGA	A/G	COPA	0	List 1 inside	AT1G53750.1	Phvul.010G122200	...
+ * AssociatedOrganism1  3702_Col0
+ * AssociatedOrganism2  3885_G19833
+ * #ID	   DesignSequence   Alleles Source BeadType StepDescription  AssociatedGene1 AssociatedGene2  ...
+ * 1_0002  TAC..[A/G]..AGA  A/G     COPA   0	    List 1 inside    AT1G53750       Phvul.010G122200 ...
  * </pre>
- * Note that the taxon IDs of associated gene models are given in the appropriate column headers - Arabidopsis thaliana and Phaseolus vulgaris in this example. There can be arbitrarily
- * many organisms providing associated gene models.
+ * Note: genes are matched by primary identifier, so be sure that existing genes in the mine have the same style of primaryIdentifier.
+ * Be sure to list the associated organisms in the same order as the columns containing the gene names.
  *
- * Markers do not get secondary identifiers here. They are merged on (primaryIdentifier,organism).
+ * Markers do not get secondary identifiers here. They are merged strictly on primaryIdentifier.
  *
  * @author Sam Hokin
  */
@@ -49,12 +52,9 @@ public class SNPMarkerFileConverter extends BioFileConverter {
     private static final Logger LOG = Logger.getLogger(SNPMarkerFileConverter.class);
 
     // items saved at end are stored in maps
-    Map<String,Item> organismMap = new HashMap<String,Item>();          // keyed by taxonID
     Map<String,Item> publicationMap = new HashMap<String,Item>();       // keyed by pubMedId
     Map<String,Item> authorMap = new HashMap<String,Item>();            // keyed by name
-
-    // hold the associated organisms in an array
-    Item[] associatedOrganisms;
+    Map<String,Item> geneMap = new HashMap<String,Item>();              // keyed by primaryIdentifier
 
     /**
      * Create a new SNPMarkerFileConverter
@@ -78,10 +78,10 @@ public class SNPMarkerFileConverter extends BioFileConverter {
         LOG.info("Processing SNP Marker file "+getCurrentFile().getName()+"...");
 
         // these objects are created per file
-        Item organism = null;
         Item publication = null;
         String arrayName = null;
         String markerType = null;
+	List<Item> organisms = new ArrayList<Item>();
 
         // -----------------------------------------------------------------------------------------------------------------------------------
         // Load genetic markers and associated data
@@ -91,21 +91,11 @@ public class SNPMarkerFileConverter extends BioFileConverter {
         String line = null;
         while ((line=br.readLine())!=null) {
 
-            if (line.startsWith("TaxonID")) {
+	    if (line.startsWith("#")) {
 
-                // get the organism
-                String[] parts = line.split("\t");
-                String taxonID = parts[1];
-                if (organismMap.containsKey(taxonID)) {
-                    organism = organismMap.get(taxonID);
-                } else {
-                    organism = createItem("Organism");
-                    BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-                    organism.setAttribute("taxonId", taxonID);
-                    organismMap.put(taxonID, organism);
-                }
+		// do nothing, comment
 
-            } else if (line.startsWith("ArrayName")) {
+	    } else if (line.startsWith("ArrayName")) {
 
                 // array name is stored in a string, a marker attribute
                 String[] parts = line.split("\t");
@@ -140,42 +130,32 @@ public class SNPMarkerFileConverter extends BioFileConverter {
                         }
                     }
                 }
+
+	    } else if (line.startsWith("AssociatedOrganism")) {
+
+		// load the organisms in order of the columns
+		String[] parts = line.split("\t");
+		String[] orgBits = parts[1].split("_");
+		String taxonId = orgBits[0];
+		String variety = orgBits[1];
+		Item organism = createItem("Organism");
+		organism.setAttribute("taxonId", taxonId);
+		organism.setAttribute("variety", variety);
+		store(organism);
+		organisms.add(organism);
                 
-            } else if (line.startsWith("ID")) {
-
-                // get the column header, particularly the taxon IDs of the associated genes in the final columns
-                String[] parts = line.split("\t");
-
-                // we have associated organisms
-                if (parts.length>6) {
-                    associatedOrganisms = new Item[parts.length-6];
-                    for (int i=6; i<parts.length; i++) {
-                        String taxonID = parts[i];
-                        if (organismMap.containsKey(taxonID)) {
-                            associatedOrganisms[i-6] = organismMap.get(taxonID);
-                        } else {
-                            Item org = createItem("Organism");
-                            BioStoreHook.setSOTerm(this, org, "organism", getSequenceOntologyRefId());
-                            org.setAttribute("taxonId", taxonID);
-                            organismMap.put(taxonID, org);
-                            associatedOrganisms[i-6] = org;
-                        }
-                    }
-                }
-                                
             } else {
 
                 // looks like it's a data record
                 SNPMarkerRecord record = new SNPMarkerRecord(line);
 
-                // create and store this genetic marker
+                // create and store general stuff
                 Item marker = createItem("GeneticMarker");
-                BioStoreHook.setSOTerm(this, marker, "genetic_marker", getSequenceOntologyRefId());
-                marker.setReference("organism", organism);
                 if (markerType!=null) marker.setAttribute("type", markerType);
                 if (arrayName!=null) marker.setAttribute("arrayName", arrayName);
                 if (publication!=null) marker.setReference("publication", publication);
-                // and now data from the marker record
+
+                // add data from the marker record
                 marker.setAttribute("primaryIdentifier", record.marker);
                 marker.setAttribute("designSequence", record.designSequence);
                 if (record.alleles!=null) marker.setAttribute("alleles", record.alleles);
@@ -185,14 +165,22 @@ public class SNPMarkerFileConverter extends BioFileConverter {
                 if (record.associatedGenes!=null) {
                     for (int i=0; i<record.associatedGenes.length; i++) {
                         if (record.associatedGenes[i]!=null) {
-                            Item gene = createItem("Gene");
-                            gene.setAttribute("primaryIdentifier", record.associatedGenes[i]);
-                            gene.setReference("organism", associatedOrganisms[i]);
-                            store(gene);
+                            String primaryIdentifier = record.associatedGenes[i];
+                            Item gene;
+                            if (geneMap.containsKey(primaryIdentifier)) {
+                                gene = geneMap.get(primaryIdentifier);
+                            } else {
+                                gene = createItem("Gene");
+                                gene.setAttribute("primaryIdentifier", primaryIdentifier);
+				gene.setReference("organism", organisms.get(i));
+                                geneMap.put(record.associatedGenes[i], gene);
+                            }
                             marker.addToCollection("associatedGenes", gene);
                         }
                     }
                 }
+
+                // store this marker, we're done with it
                 store(marker);
 
             }
@@ -205,11 +193,11 @@ public class SNPMarkerFileConverter extends BioFileConverter {
 
 
     /**
-     * Store the items we've collected from the file headers
+     * Store the items held in maps
      */
     @Override
     public void close() throws Exception {
-        store(organismMap.values());
+        store(geneMap.values());
         store(publicationMap.values());
         store(authorMap.values());
     }

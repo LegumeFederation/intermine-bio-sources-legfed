@@ -30,7 +30,7 @@ import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
 /**
- * Store the germplasms, markers, lines and genotype values from a MappingPopulation genotyping file.
+ * Store the organisms, markers, lines and genotype values from a MappingPopulation genotyping file.
  * <pre>
  *         line1 line2 line3 ...
  * marker1     A     a     B ...
@@ -39,9 +39,10 @@ import org.intermine.xml.full.Item;
  *
  * A few tab-separated metadata fields precede the data, and should be in this order:
  * <pre>
- * TaxonID	3917
+ * TaxonID      3920
  * Parents	BigTall123	SmallShort456
  * PMID	12345678
+ * PMID	23456789
  * Lines	Line1	Line2	Line3	...
  * </pre>
  *
@@ -54,12 +55,11 @@ public class GTFileConverter extends BioFileConverter {
     private static final Logger LOG = Logger.getLogger(GTFileConverter.class);
 
     // store items at end in close() method, they may be duplicated across files
-    Map<String,Item> organismMap = new HashMap<String,Item>();
+    Map<String,Item> organismMap = new HashMap<String,Item>();   // keyed by variety
     Map<String,Item> publicationMap = new HashMap<String,Item>();
     Map<String,Item> authorMap = new HashMap<String,Item>();
     Map<String,Item> lineMap = new HashMap<String,Item>();
     Map<String,Item> markerMap = new HashMap<String,Item>();
-    Map<String,Item> germplasmMap = new HashMap<String,Item>();
 
     /**
      * Create a new GTFileConverter
@@ -72,7 +72,7 @@ public class GTFileConverter extends BioFileConverter {
 
     /**
      * {@inheritDoc}
-     * Read in each genotype file and parse the germplasms, organism, lines, markers, and genotypes
+     * Read in each genotype file and parse the organism, lines, markers, and genotypes
      */
     @Override
     public void process(Reader reader) throws Exception {
@@ -81,7 +81,7 @@ public class GTFileConverter extends BioFileConverter {
         if (getCurrentFile().getName().equals("README")) return;
 
         // these objects are created per file
-        Item organism = null;
+        String taxonId = null;
         Item mappingPopulation = null;
         Item[] lines = null;
 
@@ -98,25 +98,16 @@ public class GTFileConverter extends BioFileConverter {
         while ((line=br.readLine())!=null) {
 
             if (MAX_MARKERS>0 && count>MAX_MARKERS) break;  // IF TESTING: limit the number of markers
-            count++;            
+            count++; 
 
             if (line.startsWith("TaxonID")) {
 
-                // get the organism
                 String[] parts = line.split("\t");
-                String taxonID = parts[1];
-                if (organismMap.containsKey(taxonID)) {
-                    organism = organismMap.get(taxonID);
-                } else {
-                    organism = createItem("Organism");
-                    BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-                    organism.setAttribute("taxonId", taxonID);
-                    organismMap.put(taxonID, organism);
-                }
+                taxonId = parts[1];
 
             } else if (line.startsWith("Parents")) {
 
-                // get Germplasm parents
+                // get parent organisms
                 String[] parts = line.split("\t");
                 String[] parents = new String[2];
                 parents[0] = parts[1];
@@ -126,16 +117,16 @@ public class GTFileConverter extends BioFileConverter {
                 mappingPopulation.setAttribute("primaryIdentifier", parents[0]+"_x_"+parents[1]); // this is how we know parent A and parent B
                 // add parents to collection
                 for (int i=0; i<2; i++) {
-                    Item germplasm;
-                    if (germplasmMap.containsKey(parents[i])) {
-                        germplasm = germplasmMap.get(parents[i]);
+                    Item organism;
+                    if (organismMap.containsKey(parents[i])) {
+                        organism = organismMap.get(parents[i]);
                     } else {
-                        germplasm = createItem("Germplasm");
-                        germplasm.setAttribute("primaryIdentifier", parents[i]);
-                        germplasm.setReference("organism", organism);
-                        germplasmMap.put(parents[i], germplasm);
+                        organism = createItem("Organism");
+                        organism.setAttribute("taxonId", taxonId);
+                        organism.setAttribute("variety", parents[i]);
+                        organismMap.put(parents[i], organism);
                     }
-                    mappingPopulation.addToCollection("parents", germplasm);
+                    mappingPopulation.addToCollection("parents", organism);
                 }
                 
             } else if (line.startsWith("PMID")) {
@@ -145,7 +136,7 @@ public class GTFileConverter extends BioFileConverter {
                 String pubMedId = parts[1];
                 if (publicationMap.containsKey(pubMedId)) {
                     Item publication = publicationMap.get(pubMedId);
-                    mappingPopulation.setReference("publication", publication);
+                    mappingPopulation.addToCollection("publications", publication);
                 } else {
                     Item publication = PublicationTools.getPublicationFromPMID(this, Integer.parseInt(pubMedId));
                     if (publication!=null) {
@@ -161,7 +152,7 @@ public class GTFileConverter extends BioFileConverter {
                                 publication.addToCollection("authors", author);
                             }
                         }
-                        mappingPopulation.setReference("publication", publication);
+                        mappingPopulation.addToCollection("publications", publication);
                     }
                 }
 
@@ -205,7 +196,6 @@ public class GTFileConverter extends BioFileConverter {
                     marker = createItem("GeneticMarker");
                     marker.setAttribute("primaryIdentifier", gt.marker);
                     marker.setAttribute("type", "SNP"); // TODO: put the marker type in the file header, they don't have to be SNPs
-                    marker.setReference("organism", organism);
                     markerMap.put(gt.marker, marker);
                 }
                 marker.addToCollection("mappingPopulations", mappingPopulation);
@@ -238,7 +228,6 @@ public class GTFileConverter extends BioFileConverter {
     @Override
     public void close() throws Exception {
         store(organismMap.values());
-        store(germplasmMap.values());
         store(lineMap.values());
         store(markerMap.values());
         store(authorMap.values());

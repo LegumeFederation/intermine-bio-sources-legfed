@@ -95,19 +95,19 @@ public class SequenceProcessor extends ChadoProcessor {
 
     // desired feature cvterm types to query from the chado.feature table INCLUDING those that appear as sources in chado.featureloc
     private static final List<String> DESIRED_FEATURES = Arrays.asList(
-								       "gene", "mRNA", "exon", 
-								       "protein_hmm_match", "protein_match", 
-								       "chromosome", "polypeptide", "polypeptide_domain",
-								       "supercontig", "consensus_region", "genetic_marker"
-								       );
+        							       "gene", "mRNA", "exon", 
+        							       "protein_hmm_match", "protein_match", 
+        							       "chromosome", "polypeptide", "polypeptide_domain",
+        							       "supercontig", "genetic_marker"
+        							       );
 
     // source feature cvterm types, such as chromosome
-    private static final List<String> SRC_FEATURE_TYPES = Arrays.asList( "chromosome", "polypeptide", "polypeptide_domain", "supercontig", "consensus_region" );
-    
+    private static final List<String> SRC_FEATURE_TYPES = Arrays.asList( "chromosome", "polypeptide", "polypeptide_domain", "supercontig" );
+
     // the InterMine info for mapping chado features to InterMine classes; all must be IN SAME ORDER (I know, I should use maps)
-    private static final String[] SRC_FEATURE_IM_CLASSES =    { "Chromosome",         "Protein",         "ProteinDomain" ,        "Supercontig",         "ConsensusRegion" };
-    private static final String[] SRC_FEATURE_IM_REFERENCES = { "chromosome",         "protein",         "proteinDomain" ,        "supercontig",         "consensusRegion" };
-    private static final String[] SRC_FEATURE_IM_LOCATIONS =  { "chromosomeLocation", "proteinLocation", "proteinDomainLocation", "supercontigLocation", "consensusRegionLocation" }; 
+    private static final String[] SRC_FEATURE_IM_CLASSES =    { "Chromosome",         "Protein",         "ProteinDomain" ,        "Supercontig" };
+    private static final String[] SRC_FEATURE_IM_REFERENCES = { "chromosome",         "protein",         "proteinDomain" ,        "supercontig" };
+    private static final String[] SRC_FEATURE_IM_LOCATIONS =  { "chromosomeLocation", "proteinLocation", "proteinDomainLocation", "supercontigLocation" }; 
 	
     // Avoid explosion of log messages by only logging missing collections once
     private Set<String> loggedMissingCols = new HashSet<String>();

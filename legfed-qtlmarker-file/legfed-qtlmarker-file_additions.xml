@@ -1,16 +1,35 @@
 <?xml version="1.0"?>
 <classes>
 
-  <class name="QTL" is-interface="true">
+  <!-- this loader loads markers and associated QTLs, with optional traits and TO terms; publication and mapping population can be placed at top of file -->
+
+  <class name="MappingPopulation" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
-    <collection name="associatedMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
-    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+    <collection name="publications" referenced-type="Publication"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="mappingPopulations"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="mappingPopulations"/>
   </class>
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
-    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
-    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedMarkers"/>
+	<collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>i
+	<collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="markers"/>
+  </class>
+
+  <class name="QTL" extends="BioEntity" is-interface="true">
+    <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="QTLs"/>
+    <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
+  </class>
+
+  <class name="TOAnnotation" extends="OntologyAnnotation" is-interface="true"/>
+
+  <class name="Publication" is-interface="true">
+    <attribute name="lastAuthor" type="java.lang.String"/>
+  </class>
+
+  <!-- we don't load genes here, but we need to create this collection for the post-processor -->
+  <class name="Gene" is-interface="true">
+    <collection name="spanningQTLs" referenced-type="QTL" reverse-reference="spannedGenes"/>
   </class>
 
 </classes>

@@ -1,14 +1,13 @@
 <?xml version="1.0"?>
 <classes>
 
-  <class name="Germplasm" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <attribute name="secondaryIdentifier" type="java.lang.String"/>
-    <attribute name="description" type="java.lang.String"/>
+  <!-- extend Organism to handle some germplasm attributes -->
+  <!-- variety should already be present -->
+  <class name="Organism" is-interface="true">
+    <attribute name="alternateVarietyName" type="java.lang.String"/>
     <attribute name="patentNumber" type="java.lang.String"/>
     <attribute name="url" type="java.lang.String"/>
     <attribute name="country" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
   </class>
 
 </classes>
