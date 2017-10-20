@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- this loader loads genetic markers and chromosome positions along with the marker type and motif string -->
+
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+	<attribute name="type" type="java.lang.String"/>
+	<attribute name="motif" type="java.lang.String"/>
+  </class>
+
+</classes>

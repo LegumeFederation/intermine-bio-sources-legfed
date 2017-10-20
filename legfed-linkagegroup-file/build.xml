@@ -1,0 +1,8 @@
+<project name="legfed-linkagegroup-file" default="default" basedir=".">
+
+  <description>legfed-linkagegroup-file</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+

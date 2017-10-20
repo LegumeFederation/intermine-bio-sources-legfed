@@ -1,0 +1,8 @@
+<project name="legfed-marker-chromosome-file" default="default" basedir=".">
+
+  <description>legfed-marker-chromosome-file</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+

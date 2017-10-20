@@ -79,6 +79,7 @@ public class ChadoDBConverter extends BioDBConverter {
             connection = null;
         } else {
             connection = getDatabase().getConnection();
+            LOG.info("Connection schema:"+connection.getSchema());
         }
     }
 
@@ -160,7 +161,7 @@ public class ChadoDBConverter extends BioDBConverter {
     }
     
     /**
-     * Set the taxon ids to use when creating the Organism Items for homologues in HomologyProcessor.
+     * Set the taxon ids to use when creating the Organism Items for homologues in GeneFamilyProcessor and HomologyProcessor.
      * Only genes from these organisms will be stored as Homologue.homologue.
      * @param organisms a space separated list of the organism abbreviations or taxon ids to look up in the organism table
      */
@@ -230,22 +231,28 @@ public class ChadoDBConverter extends BioDBConverter {
             throw new IllegalArgumentException("processors not set in ChadoDBConverter");
         }
 
-        Map<OrganismData, Integer> tempChadoOrgMap = getChadoOrganismIds(getConnection());
+        Map<OrganismData, Integer> tempChadoOrgMap;
+        try {
+            tempChadoOrgMap = getChadoOrganismIds(getConnection());
+        } catch (Exception e) {
+            LOG.error(e.toString());
+            throw e;
+        }
 
         // DEBUG
         for (OrganismData od : organismsToProcess) {
-            LOG.info("organismsToProcess: "+od.toString());
+            LOG.info("organismsToProcess: ["+od+"]");
         }
         for (OrganismData od : tempChadoOrgMap.keySet()) {
-            LOG.info("tempChadoOrgMap: key="+od+" value="+tempChadoOrgMap.get(od));
+            LOG.info("tempChadoOrgMap: key=["+od+"] value=["+tempChadoOrgMap.get(od)+"]");
         }
 
         // build the map of desired organisms to process
         for (OrganismData od: organismsToProcess) {
             Integer chadoId = tempChadoOrgMap.get(od);
             if (chadoId == null) {
-                LOG.error("Organism "+od+" not found in the chado organism table");
-                throw new RuntimeException("Organism "+od+" not found in the chado organism table");
+                LOG.error("Organism ["+od+"] not found in the chado organism table");
+                throw new RuntimeException("Organism ["+od+"] not found in the chado organism table");
             }
             chadoToOrgData.put(chadoId, od);
         }
@@ -258,13 +265,13 @@ public class ChadoDBConverter extends BioDBConverter {
             }
         }
 
-        // build the map of desired organisms to process for homology in HomologyProcessor
+        // build the map of desired organisms to process for homology in GeneFamilyProcessor and HomologyProcessor
         for (OrganismData od: homologueOrganismsToProcess) {
             Integer chadoId = tempChadoOrgMap.get(od);
             if (chadoId == null) {
-                String error = "Homologue organism "+od+" not found in the chado organism table:\n";
+                String error = "Homologue organism ["+od+"] not found in the chado organism table:\n";
                 for (OrganismData orgData : tempChadoOrgMap.keySet()) {
-                    error += orgData.toString()+"\n";
+                    error += "["+orgData+"]\n";
                 }
                 throw new RuntimeException(error);
             }
@@ -297,19 +304,26 @@ public class ChadoDBConverter extends BioDBConverter {
         
         String query = "select organism_id, abbreviation, genus, species from organism";
         LOG.info("executing: " + query);
+
         Statement stmt = conn.createStatement();
         ResultSet res = stmt.executeQuery(query);
 
+        LOG.info("ResultSet returned.");
+        
         Map<OrganismData, Integer> retMap = new HashMap<OrganismData, Integer>();
-
+        
         OrganismRepository or = OrganismRepository.getOrganismRepository();
 
+        LOG.info("OrganismRepository gotten.");
+        
         while (res.next()) {
             int organismId = res.getInt("organism_id");
             String abbreviation = res.getString("abbreviation");
             String genus = res.getString("genus");
             String species = res.getString("species");
 
+            LOG.info(organismId+":"+abbreviation+":"+genus+":"+species);
+            
             // non-default varieties are signified with underscore on species in chado, e.g. arietinum_desi, arietinum_kabuli
             String variety = OrganismData.DEFAULT_VARIETY;
             if (genus!=null && species!=null && species.contains("_")) {
@@ -320,13 +334,14 @@ public class ChadoDBConverter extends BioDBConverter {
             
             OrganismData od1 = or.getOrganismDataByGenusSpecies(genus, species); // this is the plain non-variety OrganismData
             int taxonId = od1.getTaxonId(); // we'll create one using taxonId,variety version
-
+            
             OrganismData od = or.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, genus, species, variety);
-
+            
             retMap.put(od, new Integer(organismId));
         }
-
+        
         return retMap;
+            
     }
 
     /**

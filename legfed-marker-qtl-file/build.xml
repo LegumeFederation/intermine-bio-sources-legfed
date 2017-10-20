@@ -1,0 +1,8 @@
+<project name="legfed-marker-qtl-file" default="default" basedir=".">
+
+  <description>legfed-marker-qtl-file</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+

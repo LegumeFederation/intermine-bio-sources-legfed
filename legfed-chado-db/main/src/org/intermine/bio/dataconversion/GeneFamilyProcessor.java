@@ -72,6 +72,12 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         
 	// store the full set of organisms in one place for storage since source and target organisms can overlap
 	Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
+
+        // same gene multiple times
+        Map<String,Item> geneMap = new HashMap<String,Item>();
+
+        // same gene family multiple times
+        Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
         
         // build the Organism map from the supplied source taxon IDs
         Set<Integer> sourceOrganisms = new HashSet<Integer>();
@@ -84,6 +90,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
             organism.setAttribute("variety", variety); // required
+            store(organism);
 	    organismMap.put(organismId, organism);
             sourceOrganisms.add(organismId);
         }
@@ -105,6 +112,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                 organism = getChadoDBConverter().createItem("Organism");
                 organism.setAttribute("taxonId", String.valueOf(taxonId));
                 organism.setAttribute("variety", variety); // required
+                store(organism);
                 organismMap.put(organismId, organism);
             }
             targetOrganisms.add(organismId);
@@ -146,9 +154,6 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         }
         targetOrganismSQL += ")";
         LOG.info("Querying target gene records with organism_id in "+targetOrganismSQL);
-
-        // Populate GeneFamily, using featureprop for the names and phylotree for the descriptions (when they exist)
-        Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
 
         // now grab the gene families from featureprop
         rs1 = stmt1.executeQuery("SELECT DISTINCT value FROM featureprop WHERE type_id="+geneFamilyTypeId);
@@ -194,15 +199,16 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                 }
                 store(consensusRegion); // store now, not going to touch it later
                 geneFamily.setReference("consensusRegion", consensusRegion); // reverse-reference
+                store(geneFamily);      // we're done with this gene family
             }
         }
 
         // Now query the source organism genes and set Gene.geneFamily; then query the target organisms for genes in the same gene family
-        Map<String,Item> geneMap = new HashMap<String,Item>();
         for (int source_organism_id : sourceOrganisms) {
             Item sourceOrganism = organismMap.get(source_organism_id);
             // query the source genes gene family
-            rs1 = stmt1.executeQuery("SELECT uniquename,value FROM feature,featureprop"+
+            rs1 = stmt1.executeQuery("SELECT feature.uniquename,featureprop.value" +
+                                     " FROM feature,featureprop"+
                                      " WHERE feature.feature_id=featureprop.feature_id"+
                                      " AND feature.organism_id="+source_organism_id+
                                      " AND feature.type_id="+geneTypeId+
@@ -212,6 +218,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                 String geneFamilyName = rs1.getString("value");
                 Item geneFamily = geneFamilyMap.get(geneFamilyName);
                 if (geneFamily!=null) {
+                    // get the source gene; could already be here from a paralogue
                     Item sourceGene;
                     if (geneMap.containsKey(sourceGeneName)) {
                         sourceGene = geneMap.get(sourceGeneName);
@@ -220,10 +227,11 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                         sourceGene.setAttribute("primaryIdentifier", sourceGeneName);
                         sourceGene.setReference("organism", sourceOrganism);
                         sourceGene.setReference("geneFamily", geneFamily);
+                        store(sourceGene);
                         geneMap.put(sourceGeneName, sourceGene);
                     }
                     // query the target genes for homology
-                    rs2 = stmt2.executeQuery("SELECT organism_id,uniquename FROM feature,featureprop"+
+                    rs2 = stmt2.executeQuery("SELECT feature.organism_id,feature.uniquename FROM feature,featureprop"+
                                              " WHERE feature.feature_id=featureprop.feature_id"+
                                              " AND feature.organism_id IN "+targetOrganismSQL+
                                              " AND feature.type_id="+geneTypeId+
@@ -243,6 +251,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                             targetGene.setAttribute("primaryIdentifier", targetGeneName);
                             targetGene.setReference("organism", targetOrganism);
                             targetGene.setReference("geneFamily", geneFamily);
+                            store(targetGene);
                             geneMap.put(targetGeneName, targetGene);
                         }
                         // homologue
@@ -262,11 +271,6 @@ public class GeneFamilyProcessor extends ChadoProcessor {
             }
             rs1.close();
         }
-
-        // store the stuff stored in maps
-        for (Item item : organismMap.values()) store(item);
-        for (Item item : geneMap.values()) store(item);
-        for (Item item : geneFamilyMap.values()) store(item);
 
     }
 

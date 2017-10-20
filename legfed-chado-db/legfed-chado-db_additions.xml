@@ -21,6 +21,7 @@
 
   <class name="LinkageGroup" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="number" type="java.lang.Integer"/>
     <attribute name="secondaryIdentifier" type="java.lang.String"/>
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="length" type="java.lang.Double"/>

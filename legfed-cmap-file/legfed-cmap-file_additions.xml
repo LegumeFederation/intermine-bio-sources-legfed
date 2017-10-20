@@ -28,6 +28,7 @@
   <class name="LinkageGroup" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="secondaryIdentifier" type="java.lang.String"/>
+    <attribute name="number" type="java.lang.Integer"/>
     <reference name="organism" referenced-type="Organism"/>
     <attribute name="length" type="java.lang.Double"/>
     <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>

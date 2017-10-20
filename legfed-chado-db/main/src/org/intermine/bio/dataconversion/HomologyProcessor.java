@@ -72,6 +72,7 @@ public class HomologyProcessor extends ChadoProcessor {
 	// stuff stored at end
 	Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
         Map<String,Item> geneMap = new HashMap<String,Item>();
+        Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
         
         // initialize our DB stuff
         Statement stmt1 = connection.createStatement();
@@ -161,14 +162,14 @@ public class HomologyProcessor extends ChadoProcessor {
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
             geneFamily.setAttribute("primaryIdentifier", name);
             geneFamily.setAttribute("description", description);
+            geneFamilyMap.put(name, geneFamily);
             // HACK!
             // ASSUME that consensus region primaryIdentifier = geneFamily.primaryIdentifier+"-consensus" to relate to consensus region
             Item consensusRegion = getChadoDBConverter().createItem("ConsensusRegion");
             consensusRegion.setAttribute("primaryIdentifier", name+"-consensus");
             consensusRegion.setReference("geneFamily", geneFamily);
             geneFamily.setReference("consensusRegion", consensusRegion);
-            // store this gene family and consensus region
-            store(geneFamily);
+            // store this consensus region
             store(consensusRegion);
             // query the members of this gene family, polypeptides, that are in the desired organisms by referencing the feature table
             Set<Item> sourceSet = new HashSet<Item>();
@@ -198,7 +199,7 @@ public class HomologyProcessor extends ChadoProcessor {
                         // get the already stored gene
                         gene = geneMap.get(geneName);
                     } else {
-                        // store this new gene
+                        // store this new gene's sequence
                         gene = getChadoDBConverter().createItem("Gene");
                         Item sequence = getChadoDBConverter().createItem("Sequence");
                         ChadoFeature cf = new ChadoFeature(rs3);
@@ -261,6 +262,7 @@ public class HomologyProcessor extends ChadoProcessor {
         if (geneMap.size()>0) {
             store(organismMap.values());
             store(geneMap.values());
+            store(geneFamilyMap.values());
 	}
 
     }

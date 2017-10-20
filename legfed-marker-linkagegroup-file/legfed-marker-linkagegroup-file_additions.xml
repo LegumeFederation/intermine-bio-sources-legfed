@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- this loader loads genetic markers and linkage group positions -->
+
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+    <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
+  </class>
+
+  <class name="LinkageGroupPosition" is-interface="true">
+    <attribute name="position" type="java.lang.Double"/>
+    <reference name="linkageGroup" referenced-type="LinkageGroup"/>
+  </class>
+
+  <class name="LinkageGroup" is-interface="true">
+    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
+  </class>
+
+</classes>

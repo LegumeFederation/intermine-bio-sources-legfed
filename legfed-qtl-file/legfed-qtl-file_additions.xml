@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- this loader loads QTLs and parents, creating mapping population and publication references -->
+  <!-- BioEntity.publications is assumed; when QTL ceases to be BioEntity, then add publications back in -->
+
+  <class name="QTL" extends="BioEntity" is-interface="true">
+	<attribute name="traitName" type="java.lang.String"/>
+	<collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="QTLs"/>
+  </class>
+
+  <class name="MappingPopulation" is-interface="true">
+	<attribute name="primaryIdentifier" type="java.lang.String"/>
+	<collection name="QTLs" referenced-type="QTL" reverse-reference="mappingPopulations"/>
+  </class>
+
+
+</classes>

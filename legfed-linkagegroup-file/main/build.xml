@@ -1,0 +1,4 @@
+<project name="legfed-linkagegroup-file-main" default="default" basedir=".">
+  <description>build LinkageGroupFileConverter</description>
+  <import file="../../../../../imbuild/library.xml"/> 
+</project>

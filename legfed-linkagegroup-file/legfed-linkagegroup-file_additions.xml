@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- this loader loads linkage groups and the genetic maps they belong to -->
+
+  <class name="LinkageGroup" is-interface="true">
+	<attribute name="primaryIdentifier" type="java.lang.String"/>
+	<reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
+  </class>
+
+  <class name="GeneticMap" is-interface="true">
+	<attribute name="primaryIdentifier" type="java.lang.String"/>
+	<collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
+  </class>
+
+
+</classes>

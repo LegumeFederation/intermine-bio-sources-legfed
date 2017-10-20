@@ -1,0 +1,8 @@
+<project name="legfed-qtl-ontology-file" default="default" basedir=".">
+
+  <description>legfed-qtl-ontology-file</description>
+
+  <import file="../../../../imbuild/source.xml"/>
+
+</project>
+

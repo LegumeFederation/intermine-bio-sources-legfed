@@ -1,0 +1,4 @@
+<project name="legfed-marker-linkagegroup-file-main" default="default" basedir=".">
+  <description>build MarkerLinkageGroupFileConverter</description>
+  <import file="../../../../../imbuild/library.xml"/> 
+</project>

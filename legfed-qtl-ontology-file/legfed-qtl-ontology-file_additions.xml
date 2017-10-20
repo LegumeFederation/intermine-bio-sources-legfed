@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- this loader simply loads QTLs and related ontology identifiers, one per line -->
+
+  <class name="QTL" extends="BioEntity" is-interface="true"/>
+
+  <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true"/>
+  <class name="POAnnotation" extends="OntologyAnnotation" is-interface="true"/>
+  <class name="TOAnnotation" extends="OntologyAnnotation" is-interface="true"/>
+
+  <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
+  <class name="POTerm" extends="OntologyTerm" is-interface="true"/>
+  <class name="TOTerm" extends="OntologyTerm" is-interface="true"/>
+
+</classes>
