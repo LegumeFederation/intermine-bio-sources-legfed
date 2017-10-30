@@ -389,7 +389,15 @@ public class GeneticProcessor extends ChadoProcessor {
         if (volume!=null && volume.length()>0 && !volume.equals("NULL")) publication.setAttribute("volume", volume);
         if (journal!=null && journal.length()>0 && !journal.equals("NULL")) publication.setAttribute("journal", journal);
         if (issue!=null && issue.length()>0 && !issue.equals("NULL")) publication.setAttribute("issue", issue);
-        if (year!=null && year.length()>0 && !year.equals("NULL")) publication.setAttribute("year", year);
+	if (year!=null && year.length()>0 && !year.equals("NULL")) {
+	    // only set the year if it's an integer
+	    try {
+		int y = Integer.parseInt(year);
+		publication.setAttribute("year", year);
+	    } catch (Exception e) {
+		LOG.info("Error parsing publication year:"+year);
+	    }
+	}
         if (pages!=null && pages.length()>0 && !pages.equals("NULL")) publication.setAttribute("pages", pages);
         if (firstAuthor!=null && firstAuthor.length()>0) publication.setAttribute("firstAuthor", firstAuthor);
         if (pubMedId!=0) publication.setAttribute("pubMedId", String.valueOf(pubMedId));
