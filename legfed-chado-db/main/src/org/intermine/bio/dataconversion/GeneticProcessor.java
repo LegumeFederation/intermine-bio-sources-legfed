@@ -105,9 +105,9 @@ public class GeneticProcessor extends ChadoProcessor {
         organismSQL += ")";
 
         // store the Items in maps
-        Map<Integer,Item> linkageGroupMap = null;
-        Map<Integer,Item> geneticMarkerMap = null;
-        Map<Integer,Item> qtlMap = null;
+        Map<Integer,Item> linkageGroupMap = new HashMap<Integer,Item>();
+        Map<Integer,Item> geneticMarkerMap = new HashMap<Integer,Item>();
+        Map<Integer,Item> qtlMap = new HashMap<Integer,Item>();
         Map<Integer,Item> geneticMapMap = new HashMap<Integer,Item>();
 
         // loop over the organisms to fill the Item maps 
@@ -115,17 +115,16 @@ public class GeneticProcessor extends ChadoProcessor {
             int organism_id = organismId.intValue();
             Item organism = organismMap.get(organismId);
 
-            // fill these maps from the feature table
-            linkageGroupMap = generateMap(stmt, "LinkageGroup", linkageGroupCVTerm, organism_id, organism);
-            geneticMarkerMap = generateMap(stmt, "GeneticMarker", geneticMarkerCVTerm, organism_id, organism);
-            qtlMap = generateMap(stmt, "QTL", qtlCVTerm, organism_id, organism);
+            // append the maps from the feature table
+            linkageGroupMap.putAll(generateMap(stmt, "LinkageGroup", linkageGroupCVTerm, organism_id, organism));
+            geneticMarkerMap.putAll(generateMap(stmt, "GeneticMarker", geneticMarkerCVTerm, organism_id, organism));
+	    qtlMap.putAll(generateMap(stmt, "QTL", qtlCVTerm, organism_id, organism));
 
             // genetic maps are not in the feature table, so we use linkage groups to query them for this organism
             // we'll assume the units are cM, although we can query them if we want to be really pedantic
             query = "SELECT * FROM featuremap WHERE featuremap_id IN (" +
                 "SELECT DISTINCT featuremap_id FROM featurepos WHERE feature_id IN (" +
                 "SELECT feature_id FROM feature,cvterm WHERE organism_id="+organism_id+" AND type_id=cvterm_id AND cvterm.name='"+linkageGroupCVTerm+"'))";
-            LOG.info("executing query: "+query);
             rs = stmt.executeQuery(query);
             while (rs.next()) {
                 // featuremap fields
@@ -144,11 +143,6 @@ public class GeneticProcessor extends ChadoProcessor {
             }
             rs.close();
         }
-
-        LOG.info("Created "+linkageGroupMap.size()+" LinkageGroup items.");
-        LOG.info("Created "+geneticMarkerMap.size()+" GeneticMarker items.");
-        LOG.info("Created "+qtlMap.size()+" QTL items.");
-        LOG.info("Created "+geneticMapMap.size()+" GeneticMap items.");
 
         //---------------------------------------------------------
         // ---------------- DATA ASSOCIATION ----------------------
@@ -299,22 +293,22 @@ public class GeneticProcessor extends ChadoProcessor {
         // we're done, so store everything
         // ----------------------------------------------------------------
 
-        LOG.info("Storing genetic maps...");
+        LOG.info("Storing "+geneticMapMap.size()+" genetic maps...");
         for (Item item : geneticMapMap.values()) store(item);
 
-        LOG.info("Storing genetic map publications...");
+        LOG.info("Storing "+gmPubMap.size()+" genetic map publications...");
         for (Item item : gmPubMap.values()) store(item);
 
-        LOG.info("Storing linkage groups...");
+        LOG.info("Storing "+linkageGroupMap.size()+" linkage groups...");
         for (Item item : linkageGroupMap.values()) store(item);
 
-        LOG.info("Storing genetic markers...");
+        LOG.info("Storing "+geneticMarkerMap.size()+" genetic markers...");
         for (Item item : geneticMarkerMap.values()) store(item);
  
-        LOG.info("Storing QTLs...");
+        LOG.info("Storing "+qtlMap.size()+" QTLs...");
         for (Item item : qtlMap.values()) store(item);
 
-        LOG.info("Storing QTL publications...");
+        LOG.info("Storing "+qtlPubMap.size()+" QTL publications...");
         for (Item item : qtlPubMap.values()) store(item);
 
     }
@@ -423,9 +417,12 @@ public class GeneticProcessor extends ChadoProcessor {
      * @param organism the corresponding IM organism to associate with the feature
      */
     Map<Integer,Item> generateMap(Statement stmt, String className, String cvTerm, int organism_id, Item organism) throws SQLException {
-        ResultSet rs = stmt.executeQuery("SELECT feature.* FROM feature,cvterm WHERE organism_id="+organism_id+" AND type_id=cvterm_id AND cvterm.name='"+cvTerm+"'");
+	String query = "SELECT feature.* FROM feature,cvterm WHERE organism_id="+organism_id+" AND type_id=cvterm_id AND cvterm.name='"+cvTerm+"'";
+        ResultSet rs = stmt.executeQuery(query);
         Map<Integer,Item> map = new HashMap<Integer,Item>();
+	int count = 0;
         while (rs.next()) {
+	    count++;
             ChadoFeature cf = new ChadoFeature(rs);
             Item item = getChadoDBConverter().createItem(className);
             cf.populateBioEntity(item, organism);
