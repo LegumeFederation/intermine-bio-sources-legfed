@@ -137,9 +137,9 @@
     <attribute name="familyRepresentative" type="java.lang.String"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="genes"/>
     <collection name="spanningQTLs" referenced-type="QTL" reverse-reference="spannedGenes"/>
-    <collection name="goAnnotation" referenced-type="GOAnnotation"/>
     <collection name="pathways" referenced-type="Pathway" reverse-reference="genes"/>
     <collection name="homologues" referenced-type="Homologue" reverse-reference="gene"/>
+    <!-- <collection name="goAnnotation" referenced-type="GOAnnotation"/> -->
   </class>
 
   <class name="Organism" is-interface="true">
@@ -159,19 +159,14 @@
     <reference name="supercontigLocation" referenced-type="Location" />
   </class>
 
-  <!-- definitions inherited from go-annotation for GOProcessor -->
-  
+  <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
+
+  <!-- definitions inherited from go-annotation for GOProcessor, so we don't break the enrichment widget -->
   <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true">
     <attribute name="annotationExtension" type="java.lang.String"/>
     <collection name="evidence" referenced-type="GOEvidence"/>
   </class>
 
-  <class name="GOEvidenceCode" is-interface="true">
-    <attribute name="code" type="java.lang.String" />
-  </class>
-  
-  <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
-  
   <class name="GOEvidence" is-interface="true">
     <attribute name="withText" type="java.lang.String"/>
     <reference name="code" referenced-type="GOEvidenceCode"/>
@@ -179,6 +174,10 @@
     <collection name="with" referenced-type="BioEntity"/>
   </class>
   
+  <class name="GOEvidenceCode" is-interface="true">
+    <attribute name="code" type="java.lang.String" />
+  </class>
+
   <class name="DatabaseReference" is-interface="true">
     <attribute name="identifier" type="java.lang.String"/>
     <reference name="source" referenced-type="DataSource"/>

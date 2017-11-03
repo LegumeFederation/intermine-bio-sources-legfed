@@ -90,7 +90,9 @@ public class GOAnnotationProcessor extends ChadoProcessor {
             while (rs.next()) {
                 String primaryIdentifier = rs.getString("uniquename");
                 String description = rs.getString("description");
-                if (description!=null) {
+                if (description==null) {
+                    LOG.info("Description is null for gene "+primaryIdentifier);
+                } else {
                     Item gene = getChadoDBConverter().createItem("Gene");
                     gene.setReference("organism", organism);
                     gene.setAttribute("primaryIdentifier", primaryIdentifier);
@@ -112,13 +114,14 @@ public class GOAnnotationProcessor extends ChadoProcessor {
                                 store(goTerm);
                                 goTermMap.put(identifier, goTerm);
                             }
-                            // create and store the GOAnnotation linking this gene to this GO term
+                            // create and store the GOAnnotation linking this gene to this GO term; this will populate .ontologyAnnotations from reverse-reference
                             Item goAnnotation = getChadoDBConverter().createItem("GOAnnotation");
                             goAnnotation.setReference("subject", gene);
                             goAnnotation.setReference("ontologyTerm", goTerm);
                             store(goAnnotation);
-                            // have to manually set reverse reference since no reverse-reference from subject defined in OntologyAnnotation
-                            gene.addToCollection("goAnnotation", goAnnotation);
+                            // TEST: try NOT adding these, see if enrichment widget breaks.
+                            // // have to manually set reverse reference since no reverse-reference from subject defined in OntologyAnnotation
+                            // gene.addToCollection("goAnnotation", goAnnotation);
                         }
                     }
                     // store the gene
