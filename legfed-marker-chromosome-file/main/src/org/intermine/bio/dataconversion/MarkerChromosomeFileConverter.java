@@ -26,10 +26,12 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store genetic marker genomic positions, type and motif from a tab-delimited file.
+ * Store genetic marker genomic positions, type and motif from a tab-delimited file. taxonid/variety are entered as shown. (Variety is typically the reference.)
  *
- * primaryIdentifier secondaryIdentifier Type Chromosome Start End Motif
- *
+ * TaxonID 3847
+ * Variety Williams82
+ * #primaryIdentifier secondaryIdentifier Type Chromosome Start   End     Motif
+ * Sat_332            BARCSOYSSR_01_0019  SSR  Gm01       355597  355646  (AT)25
  * @author Sam Hokin, NCGR
  */
 public class MarkerChromosomeFileConverter extends BioFileConverter {
@@ -60,58 +62,83 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
+        // to identify the organism
+        String taxonId = null;
+        String variety = null;
+        Item organism = null;
+
         BufferedReader markerReader = new BufferedReader(reader);
 	String line;
         while ((line=markerReader.readLine())!=null) {
             if (!line.startsWith("#")) {
 
-                MarkerChromosomeRecord rec = new MarkerChromosomeRecord(line);
+                // create the organism if we have the required stuff
+                if (organism==null && taxonId!=null && variety!=null) {
+                    organism = createItem("Organism");
+                    organism.setAttribute("taxonId", taxonId);
+                    organism.setAttribute("variety", variety);
+                    store(organism);
+                }
 
-                // create the marker
-                Item marker = createItem("GeneticMarker");
-                marker.setAttribute("primaryIdentifier", rec.primaryIdentifier);
-                if (rec.secondaryIdentifier.length()>0) marker.setAttribute("secondaryIdentifier", rec.secondaryIdentifier);
-                if (rec.type.length()>0) marker.setAttribute("type", rec.type);
-                if (rec.motif.length()>0) marker.setAttribute("motif", rec.motif);
-                // set the chromosome or supercontig reference
-                // HACK: assume supercontig has "scaffold" or "contig" in the name
-                boolean isSupercontig = (rec.chromosome.toLowerCase().contains("scaffold") || rec.chromosome.toLowerCase().contains("contig"));
-                Item chromosome = null;
-                if (chromosomeMap.containsKey(rec.chromosome)) {
-                    chromosome = chromosomeMap.get(rec.chromosome);
+                // organism or variety line at top
+                if (line.toLowerCase().startsWith("taxonid")) {
+                    String[] parts = line.split("\t");
+                    taxonId = parts[1];
+                } else if (line.toLowerCase().startsWith("variety")) {
+                    String[] parts = line.split("\t");
+                    variety = parts[1];
                 } else {
-                    // create and store this chromosome/supercontig
-                    if (isSupercontig) {
-                        chromosome = createItem("Supercontig");
+
+                    MarkerChromosomeRecord rec = new MarkerChromosomeRecord(line);
+                    
+                    // create the marker
+                    Item marker = createItem("GeneticMarker");
+                    marker.setAttribute("primaryIdentifier", rec.primaryIdentifier);
+                    marker.setReference("organism", organism);
+                    if (rec.secondaryIdentifier.length()>0) marker.setAttribute("secondaryIdentifier", rec.secondaryIdentifier);
+                    if (rec.type.length()>0) marker.setAttribute("type", rec.type);
+                    if (rec.motif.length()>0) marker.setAttribute("motif", rec.motif);
+                    // set the chromosome or supercontig reference
+                    // HACK: assume supercontig has "scaffold" or "contig" in the name
+                    boolean isSupercontig = (rec.chromosome.toLowerCase().contains("scaffold") || rec.chromosome.toLowerCase().contains("contig"));
+                    Item chromosome = null;
+                    if (chromosomeMap.containsKey(rec.chromosome)) {
+                        chromosome = chromosomeMap.get(rec.chromosome);
                     } else {
-                        chromosome = createItem("Chromosome");
+                        // create and store this chromosome/supercontig
+                        if (isSupercontig) {
+                            chromosome = createItem("Supercontig");
+                        } else {
+                            chromosome = createItem("Chromosome");
+                        }
+                        chromosome.setAttribute("primaryIdentifier", rec.chromosome);
+                        store(chromosome);
+                        chromosomeMap.put(rec.chromosome, chromosome);
                     }
-                    chromosome.setAttribute("primaryIdentifier", rec.chromosome);
-                    store(chromosome);
-                    chromosomeMap.put(rec.chromosome, chromosome);
-                }
-                if (isSupercontig) {
-                    marker.setReference("supercontig", chromosome);
-                } else {
-                    marker.setReference("chromosome", chromosome);
-                }
+                    if (isSupercontig) {
+                        marker.setReference("supercontig", chromosome);
+                    } else {
+                        marker.setReference("chromosome", chromosome);
+                    }
+                    
+                    // create and store the Location object
+                    Item location = createItem("Location");
+                    location.setReference("locatedOn", chromosome);
+                    location.setReference("feature", marker);
+                    location.setAttribute("start", String.valueOf(rec.start));
+                    location.setAttribute("end", String.valueOf(rec.end));
+                    location.setAttribute("strand", String.valueOf(+1));
+                    store(location);
+                    
+                    // set the chromosomeLocation/supercontigLocation reference and store the marker
+                    if (isSupercontig) {
+                        marker.setReference("supercontigLocation", location);
+                    } else {
+                        marker.setReference("chromosomeLocation", location);
+                    }                    
+                    store(marker);
 
-                // create and store the Location object
-                Item location = createItem("Location");
-                location.setReference("locatedOn", chromosome);
-                location.setReference("feature", marker);
-                location.setAttribute("start", String.valueOf(rec.start));
-                location.setAttribute("end", String.valueOf(rec.end));
-                location.setAttribute("strand", String.valueOf(+1));
-                store(location);
-
-                // set the chromosomeLocation/supercontigLocation reference and store the marker
-                if (isSupercontig) {
-                    marker.setReference("supercontigLocation", location);
-                } else {
-                    marker.setReference("chromosomeLocation", location);
-                }                    
-                store(marker);
+                }
 
             }
         }
