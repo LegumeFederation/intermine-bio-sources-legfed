@@ -164,6 +164,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
             geneFamilyMap.put(name, geneFamily);
         }
         rs1.close();
+	LOG.info(geneFamilyMap.size()+" gene families retrieved from featureprop.");
 
         // now drill through phylotree populating the existing gene family descriptions
         rs1 = stmt1.executeQuery("SELECT name,comment FROM phylotree");
@@ -174,6 +175,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
             if (geneFamily!=null) geneFamily.setAttribute("description", description);
         }
         rs1.close();
+	LOG.info("Gene family descriptions added from phylotree.");
 
         // Get the consensus regions and their sequences and associate them with gene families
         rs1 = stmt1.executeQuery("SELECT * FROM feature WHERE type_id="+consensusRegionId);
@@ -202,6 +204,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                 store(geneFamily);      // we're done with this gene family
             }
         }
+	LOG.info("Consensus region records created for gene families.");
 
         // Now query the source organism genes and set Gene.geneFamily; then query the target organisms for genes in the same gene family
         for (int source_organism_id : sourceOrganisms) {
