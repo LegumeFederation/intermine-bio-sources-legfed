@@ -79,7 +79,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         // same gene family multiple times
         Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
         
-        // build the Organism map from the supplied source taxon IDs
+        // build sourceOrganisms set from the supplied source taxon IDs and add to the overall organism map
         Set<Integer> sourceOrganisms = new HashSet<Integer>();
         Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
         for (Map.Entry<Integer,OrganismData> entry : chadoToOrgData.entrySet()) {
@@ -99,7 +99,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
             throw new RuntimeException("Property organisms must contain at least one taxon ID in project.xml.");
         }
 
-        // add to the Organism map from the requested target taxon IDs
+        // build the targetOrganisms set from the requested target taxon IDs and add to the overall organism map if not already there
         Set<Integer> targetOrganisms = new HashSet<Integer>();
         Map<Integer,OrganismData> chadoToHomologueOrgData = getChadoDBConverter().getChadoIdToHomologueOrgDataMap();
         for (Map.Entry<Integer,OrganismData> entry : chadoToHomologueOrgData.entrySet()) {
@@ -128,34 +128,18 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         if (rs1.next()) geneFamilyTypeId = rs1.getInt("cvterm_id");
         rs1.close();
         if (geneFamilyTypeId==0) throw new RuntimeException("Could not determine CV term id for 'gene family'.");
-
         int geneTypeId = 0;
         rs1 = stmt1.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='gene'");
         if (rs1.next()) geneTypeId = rs1.getInt("cvterm_id");
         rs1.close();
         if (geneTypeId==0) throw new RuntimeException("Could not determine CV term id for 'gene'.");
-
         int consensusRegionId = 0;
         rs1 = stmt1.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='consensus_region'");
         if (rs1.next()) consensusRegionId = rs1.getInt("cvterm_id");
         rs1.close();
         if (consensusRegionId==0) throw new RuntimeException("Could not determine CV term id for 'consensus_region'.");
 
-        // create a comma-separated list of target organism IDs for WHERE organism_id IN query clause
-        String targetOrganismSQL = "(";
-        boolean first = true;
-        for (int organism_id : targetOrganisms) {
-            if (first) {
-                targetOrganismSQL += organism_id;
-                first = false;
-            } else {
-                targetOrganismSQL += ","+organism_id;
-            }
-        }
-        targetOrganismSQL += ")";
-        LOG.info("Querying target gene records with organism_id in "+targetOrganismSQL);
-
-        // now grab the gene families from featureprop
+        // now grab the gene families from featureprop and put them in a map
         rs1 = stmt1.executeQuery("SELECT DISTINCT value FROM featureprop WHERE type_id="+geneFamilyTypeId);
         while (rs1.next()) {
             String name = rs1.getString("value");
@@ -206,73 +190,67 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         }
 	LOG.info("Consensus region records created for gene families.");
 
-        // Now query the source organism genes and set Gene.geneFamily; then query the target organisms for genes in the same gene family
-        for (int source_organism_id : sourceOrganisms) {
-            Item sourceOrganism = organismMap.get(source_organism_id);
-            // query the source genes gene family
-            rs1 = stmt1.executeQuery("SELECT feature.uniquename,featureprop.value" +
-                                     " FROM feature,featureprop"+
-                                     " WHERE feature.feature_id=featureprop.feature_id"+
-                                     " AND feature.organism_id="+source_organism_id+
-                                     " AND feature.type_id="+geneTypeId+
-                                     " AND featureprop.type_id="+geneFamilyTypeId);
+        // Spin through the gene families and find source-target homologues within each one
+        for (String name : geneFamilyMap.keySet()) {
+            Item geneFamily = geneFamilyMap.get(name);
+            // store the gene names and their organism ID in maps
+            Map<String,Integer> sourceGeneMap = new HashMap<String,Integer>();
+            Map<String,Integer> targetGeneMap = new HashMap<String,Integer>();
+            String query = "SELECT feature.organism_id,feature.uniquename" +
+                " FROM feature,featureprop " +
+                " WHERE feature.feature_id=featureprop.feature_id" +
+                " AND feature.type_id="+geneTypeId +
+                " AND featureprop.type_id="+geneFamilyTypeId +
+                " AND featureprop.value='"+name+"'";
+            rs1 = stmt1.executeQuery(query);
             while (rs1.next()) {
-                String sourceGeneName = rs1.getString("uniquename");
-                String geneFamilyName = rs1.getString("value");
-                Item geneFamily = geneFamilyMap.get(geneFamilyName);
-                if (geneFamily!=null) {
-                    // get the source gene; could already be here from a paralogue
-                    Item sourceGene;
-                    if (geneMap.containsKey(sourceGeneName)) {
-                        sourceGene = geneMap.get(sourceGeneName);
-                    } else {
-                        sourceGene = getChadoDBConverter().createItem("Gene");
-                        sourceGene.setAttribute("primaryIdentifier", sourceGeneName);
-                        sourceGene.setReference("organism", sourceOrganism);
-                        sourceGene.setReference("geneFamily", geneFamily);
-                        store(sourceGene);
-                        geneMap.put(sourceGeneName, sourceGene);
-                    }
-                    // query the target genes for homology
-                    rs2 = stmt2.executeQuery("SELECT feature.organism_id,feature.uniquename FROM feature,featureprop"+
-                                             " WHERE feature.feature_id=featureprop.feature_id"+
-                                             " AND feature.organism_id IN "+targetOrganismSQL+
-                                             " AND feature.type_id="+geneTypeId+
-                                             " AND featureprop.type_id="+geneFamilyTypeId+
-                                             " AND featureprop.value='"+geneFamilyName+"'"+
-                                             " AND uniquename!='"+sourceGeneName+"'");
-                    while (rs2.next()) {
-                        // target gene
-                        int target_organism_id = rs2.getInt("organism_id");
-                        String targetGeneName = rs2.getString("uniquename");
-                        Item targetGene;
-                        if (geneMap.containsKey(targetGeneName)) {
-                            targetGene = geneMap.get(targetGeneName);
-                        } else {
-                            Item targetOrganism = organismMap.get(target_organism_id);
-                            targetGene = getChadoDBConverter().createItem("Gene");
-                            targetGene.setAttribute("primaryIdentifier", targetGeneName);
-                            targetGene.setReference("organism", targetOrganism);
-                            targetGene.setReference("geneFamily", geneFamily);
-                            store(targetGene);
-                            geneMap.put(targetGeneName, targetGene);
-                        }
-                        // homologue
-                        Item homologue = getChadoDBConverter().createItem("Homologue");
-                        String type = "orthologue";
-                        if (source_organism_id==target_organism_id) type = "paralogue";
-                        homologue.setAttribute("type", type);
-                        homologue.setReference("geneFamily", geneFamily);
-                        homologue.setReference("gene", sourceGene);
-                        homologue.setReference("homologue", targetGene);
-                        store(homologue); // store now, not going to touch it later
-                        // add homologue to source gene's collection
-                        sourceGene.addToCollection("homologues", homologue);
-                    }
-                    rs2.close();
-                }
+                int organism_id = rs1.getInt("organism_id");
+                String geneName = rs1.getString("uniquename");
+                if (sourceOrganisms.contains(organism_id)) sourceGeneMap.put(geneName,organism_id);
+                if (targetOrganisms.contains(organism_id)) targetGeneMap.put(geneName,organism_id);
             }
             rs1.close();
+            // create and store the desired genes and homologs from this gene family
+            for (String sourceGeneName : sourceGeneMap.keySet()) {
+                Integer sourceOrganismId = sourceGeneMap.get(sourceGeneName);
+                Item sourceOrganism = organismMap.get(sourceOrganismId);
+                Item sourceGene;
+                if (geneMap.containsKey(sourceGeneName)) {
+                    sourceGene = geneMap.get(sourceGeneName);
+                } else {
+                    sourceGene = getChadoDBConverter().createItem("Gene");
+                    sourceGene.setAttribute("primaryIdentifier", sourceGeneName);
+                    sourceGene.setReference("organism", sourceOrganism);
+                    sourceGene.setReference("geneFamily", geneFamily);
+                    store(sourceGene);
+                    geneMap.put(sourceGeneName, sourceGene);
+                }
+                for (String targetGeneName : targetGeneMap.keySet()) {
+                    Integer targetOrganismId = targetGeneMap.get(targetGeneName);
+                    Item targetOrganism = organismMap.get(targetOrganismId);
+                    Item targetGene;
+                    if (geneMap.containsKey(targetGeneName)) {
+                        targetGene = geneMap.get(targetGeneName);
+                    } else {
+                        targetGene = getChadoDBConverter().createItem("Gene");
+                        targetGene.setAttribute("primaryIdentifier", targetGeneName);
+                        targetGene.setReference("organism", targetOrganism);
+                        targetGene.setReference("geneFamily", geneFamily);
+                        store(targetGene);
+                        geneMap.put(targetGeneName, targetGene);
+                    }
+                    // homologue
+                    Item homologue = getChadoDBConverter().createItem("Homologue");
+                    String type = "sameGeneFamily"; // not really known which sort of homologue they are
+                    homologue.setAttribute("type", type);
+                    homologue.setReference("geneFamily", geneFamily);
+                    homologue.setReference("gene", sourceGene);
+                    homologue.setReference("homologue", targetGene);
+                    store(homologue); // store now, not going to touch it later
+                    // add homologue to source gene's collection
+                    sourceGene.addToCollection("homologues", homologue);
+                }
+            }
         }
 
     }
