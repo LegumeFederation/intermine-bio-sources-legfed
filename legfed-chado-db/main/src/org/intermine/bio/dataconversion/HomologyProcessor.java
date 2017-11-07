@@ -31,7 +31,7 @@ import org.intermine.xml.full.Item;
 import org.intermine.xml.full.Reference;
 
 /**
- * Create and store GeneFamily, Gene.geneFamily, Homologue and Gene.homologues by querying the chado phylotree and phylonode tables, as well as feature.
+ * Create and store Homologue and Gene.homologues by querying the chado phylotree and phylonode tables, as well as feature.
  * This means that homologous genes are defined as genes that share a gene family as found in the chado phylotree.
  *
  * phylotree.name = gene family
@@ -47,6 +47,7 @@ import org.intermine.xml.full.Reference;
  *
  * organisms = taxon IDs of desired organisms to process as source genes for Homologue.gene
  * homologue.organisms = taxon IDs of desired organisms to process as homologue genes for Homologue.homologue
+ * phytozome.version = version of gene families desired, e.g. phytozome_10_2
  *
  * @author Sam Hokin, NCGR
  */
@@ -72,7 +73,6 @@ public class HomologyProcessor extends ChadoProcessor {
 	// stuff stored at end
 	Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
         Map<String,Item> geneMap = new HashMap<String,Item>();
-        Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
         
         // initialize our DB stuff
         Statement stmt1 = connection.createStatement();
@@ -108,6 +108,7 @@ public class HomologyProcessor extends ChadoProcessor {
             organism.setAttribute("taxonId", String.valueOf(taxonId));
             organism.setAttribute("variety", variety); // required
             sourceOrganismMap.put(organismId, organism);
+            store(organism);
 	    organismMap.put(organismId, organism); // overall map
         }
         LOG.info("Created "+sourceOrganismMap.size()+" source organism Items.");
@@ -115,7 +116,7 @@ public class HomologyProcessor extends ChadoProcessor {
             throw new RuntimeException("Property organisms must contain at least one taxon ID in project.xml.");
         }
 
-        // build the homologue (target) organism map from the requested taxon IDs
+        // build the target organism map from the requested taxon IDs
         Map<Integer,Item> targetOrganismMap = new HashMap<Integer,Item>();
         Map<Integer,OrganismData> chadoToHomologueOrgData = getChadoDBConverter().getChadoIdToHomologueOrgDataMap();
         for (Map.Entry<Integer,OrganismData> entry : chadoToHomologueOrgData.entrySet()) {
@@ -127,7 +128,10 @@ public class HomologyProcessor extends ChadoProcessor {
             organism.setAttribute("taxonId", String.valueOf(taxonId));
             organism.setAttribute("variety", variety); // required
             targetOrganismMap.put(organismId, organism);
-	    if (!organismMap.containsKey(organismId)) organismMap.put(organismId, organism);
+	    if (!organismMap.containsKey(organismId)) {
+                store(organism);
+                organismMap.put(organismId, organism);
+            }
         }
         LOG.info("Created "+targetOrganismMap.size()+" target organism Items.");
         if (targetOrganismMap.size()==0) {
@@ -152,25 +156,14 @@ public class HomologyProcessor extends ChadoProcessor {
         LOG.info("Querying phylonode records with organism_id in "+organismSQL);
 
         // run through the phylotree, creating and storing Homologue items for each gene family
-        // also store gene families and consensus regions for relation to gene family
         String q1 = "SELECT * FROM phylotree WHERE name LIKE '"+phytozomeVersion+".%'";
         rs1 = stmt1.executeQuery(q1);
         while (rs1.next()) {
             int phylotree_id = rs1.getInt("phylotree_id");
             String name = rs1.getString("name");
-            String description = rs1.getString("comment");
             Item geneFamily = getChadoDBConverter().createItem("GeneFamily");
             geneFamily.setAttribute("primaryIdentifier", name);
-            geneFamily.setAttribute("description", description);
-            geneFamilyMap.put(name, geneFamily);
-            // HACK!
-            // ASSUME that consensus region primaryIdentifier = geneFamily.primaryIdentifier+"-consensus" to relate to consensus region
-            Item consensusRegion = getChadoDBConverter().createItem("ConsensusRegion");
-            consensusRegion.setAttribute("primaryIdentifier", name+"-consensus");
-            consensusRegion.setReference("geneFamily", geneFamily);
-            geneFamily.setReference("consensusRegion", consensusRegion);
-            // store this consensus region
-            store(consensusRegion);
+            store(geneFamily);
             // query the members of this gene family, polypeptides, that are in the desired organisms by referencing the feature table
             Set<Item> sourceSet = new HashSet<Item>();
             Set<Item> targetSet = new HashSet<Item>();
@@ -207,13 +200,13 @@ public class HomologyProcessor extends ChadoProcessor {
                         store(sequence);
                         // associate this gene family with this gene (reverse-referenced to GeneFamily.genes)
                         gene.setReference("geneFamily", geneFamily);
-                        // add to maps and sets
+                        store(gene);
                         geneMap.put(geneName, gene);
                     }
                     if (sourceOrganismMap.containsKey(organismId)) sourceSet.add(gene);
                     if (targetOrganismMap.containsKey(organismId)) targetSet.add(gene);
                 } else {
-                    // HACK!
+                    // HACK
                     // Arabidopsis genes are NOT in feature table, so we have to munge polypeptide name to get gene name, else we lose Arabidopsis
                     String[] parts = polypeptideName.split("\\.");
                     String geneName = parts[0];
@@ -227,6 +220,7 @@ public class HomologyProcessor extends ChadoProcessor {
                         gene.setAttribute("primaryIdentifier", geneName);
                         gene.setReference("geneFamily", geneFamily);
                         gene.setReference("organism", organism);
+                        store(gene);
                         geneMap.put(geneName, gene);
                     }
                     if (sourceOrganismMap.containsKey(organismId)) sourceSet.add(gene);
@@ -243,7 +237,7 @@ public class HomologyProcessor extends ChadoProcessor {
                     String targetGeneId = targetGene.getAttribute("primaryIdentifier").getValue();
                     String targetOrganismRefId = targetGene.getReference("organism").getRefId();
                     if (!sourceGeneId.equals(targetGeneId)) {
-                        String type = "orthologue";
+                        String type = "sameGeneFamily";
                         if (sourceOrganismRefId.equals(targetOrganismRefId)) type = "paralogue";
                         // forward reference source to target
                         Item forward = getChadoDBConverter().createItem("Homologue");
@@ -257,13 +251,6 @@ public class HomologyProcessor extends ChadoProcessor {
             }
         }
         rs1.close();
-
-        // store the stuff that was held in maps IF we've stored any homology
-        if (geneMap.size()>0) {
-            store(organismMap.values());
-            store(geneMap.values());
-            store(geneFamilyMap.values());
-	}
 
     }
 

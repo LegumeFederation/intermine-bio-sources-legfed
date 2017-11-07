@@ -185,7 +185,6 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                 }
                 store(consensusRegion); // store now, not going to touch it later
                 geneFamily.setReference("consensusRegion", consensusRegion); // reverse-reference
-                store(geneFamily);      // we're done with this gene family
             }
         }
 	LOG.info("Consensus region records created for gene families.");
@@ -251,6 +250,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                     sourceGene.addToCollection("homologues", homologue);
                 }
             }
+	    store(geneFamily);      // we're done with this gene family
         }
 
     }

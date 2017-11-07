@@ -139,7 +139,6 @@
     <collection name="spanningQTLs" referenced-type="QTL" reverse-reference="spannedGenes"/>
     <collection name="pathways" referenced-type="Pathway" reverse-reference="genes"/>
     <collection name="homologues" referenced-type="Homologue" reverse-reference="gene"/>
-    <!-- <collection name="goAnnotation" referenced-type="GOAnnotation"/> -->
   </class>
 
   <class name="Organism" is-interface="true">
