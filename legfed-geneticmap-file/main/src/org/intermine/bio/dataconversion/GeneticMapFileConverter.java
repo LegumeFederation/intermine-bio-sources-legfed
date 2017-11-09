@@ -24,8 +24,7 @@ import java.util.HashSet;
 
 import org.apache.log4j.Logger;
 
-import org.ncgr.intermine.PublicationTools;
-import org.ncgr.pubmed.PubMedSummary;
+import org.ncgr.intermine.PubMedPublication;
 
 import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
@@ -133,10 +132,11 @@ public class GeneticMapFileConverter extends BioFileConverter {
                     Item publication = publicationMap.get(pubMedId);
                     geneticMap.addToCollection("publications", publication);
                 } else {
-                    Item publication = PublicationTools.getPublicationFromPMID(this, Integer.parseInt(pubMedId));
+                    LOG.info("Attempting to get publication details for PMID="+pubMedId);
+                    PubMedPublication pubMedPub = new PubMedPublication(this, Integer.parseInt(pubMedId));
+                    Item publication = pubMedPub.getPublication();
                     if (publication!=null) {
-                        publicationMap.put(pubMedId, publication);
-                        List<Item> authors = PublicationTools.getAuthorsFromPMID(this, Integer.parseInt(pubMedId));
+                        List<Item> authors = pubMedPub.getAuthors();
                         for (Item author : authors) {
                             String name = author.getAttribute("name").getValue();
                             if (authorMap.containsKey(name)) {
@@ -147,6 +147,7 @@ public class GeneticMapFileConverter extends BioFileConverter {
                                 publication.addToCollection("authors", author);
                             }
                         }
+                        publicationMap.put(pubMedId, publication);
                         geneticMap.addToCollection("publications", publication);
                     }
                 }

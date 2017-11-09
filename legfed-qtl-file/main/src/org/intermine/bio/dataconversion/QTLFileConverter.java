@@ -15,10 +15,11 @@ import java.io.Reader;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import org.ncgr.intermine.PublicationTools;
+import org.ncgr.intermine.PubMedPublication;
 import org.ncgr.pubmed.PubMedSummary;
 
 import org.intermine.dataconversion.ItemWriter;
@@ -28,7 +29,7 @@ import org.intermine.xml.full.Item;
 /**
  * Store QTL data and relationships from tab-delimited files.
  *
- * QTLName Parent_1 Parent_2 TraitName Journal Year Volume Page Title PMID
+ * QTLName Parent_1 Parent_2 TraitName [PMID] [Journal Year Volume Page Title]
  *
  * Parents are munged into a mapping population name, e.g. Sanzi_x_Vita7 for parents Sanzi and Vita7.
  *
@@ -73,92 +74,101 @@ public class QTLFileConverter extends BioFileConverter {
 	String line;
         while ((line=qtlReader.readLine())!=null) {
 
-            QTLRecord rec = new QTLRecord(line);
-            if (rec.qtlName!=null) {
+            if (!line.startsWith("#")) {
+
+                QTLRecord rec = new QTLRecord(line);
+                if (rec.qtlName!=null) {
                     
-                // find the QTL in the map, or add it with qtlName=primaryIdentifier
-                Item qtl = null;
-                if (qtlMap.containsKey(rec.qtlName)) {
-                    qtl = qtlMap.get(rec.qtlName);
-                } else {
-                    qtl = createItem("QTL");
-                    qtl.setAttribute("primaryIdentifier", rec.qtlName);
-                    qtl.setAttribute("traitName", rec.traitName);
-                    qtlMap.put(rec.qtlName, qtl);
-                }
-
-                // mapping population, if parents present
-                if (rec.parent1.length()>0 && rec.parent2.length()>0) {
-                    String mappingPopulationID = rec.parent1+"_x_"+rec.parent2;
-                    Item mappingPopulation = null;
-                    if (mappingPopulationMap.containsKey(mappingPopulationID)) {
-                        mappingPopulation = mappingPopulationMap.get(mappingPopulationID);
+                    // find the QTL in the map, or add it with qtlName=primaryIdentifier
+                    Item qtl = null;
+                    if (qtlMap.containsKey(rec.qtlName)) {
+                        qtl = qtlMap.get(rec.qtlName);
                     } else {
-                        mappingPopulation = createItem("MappingPopulation");
-                        mappingPopulation.setAttribute("primaryIdentifier", mappingPopulationID);
-                        mappingPopulationMap.put(mappingPopulationID, mappingPopulation);
+                        qtl = createItem("QTL");
+                        qtl.setAttribute("primaryIdentifier", rec.qtlName);
+                        qtl.setAttribute("traitName", rec.traitName);
+                        qtlMap.put(rec.qtlName, qtl);
                     }
-                    qtl.addToCollection("mappingPopulations", mappingPopulation);
-                }
-
-                // publication, if present
-                if (rec.pubTitle.length()>0) {
-                    Item publication;
-                    if (publicationMap.containsKey(rec.pubTitle)) {
-                        publication = publicationMap.get(rec.pubTitle);
-                    } else {
-                        PubMedSummary pms;
-                        if (rec.pubPMID==0) {
-                            // search on title
-                            pms = new PubMedSummary(rec.pubTitle);
+                    
+                    // mapping population, if parents present
+                    if (rec.parent1.trim().length()>0 && rec.parent2.trim().length()>0) {
+                        String mappingPopulationID = rec.parent1+"_x_"+rec.parent2;
+                        Item mappingPopulation = null;
+                        if (mappingPopulationMap.containsKey(mappingPopulationID)) {
+                            mappingPopulation = mappingPopulationMap.get(mappingPopulationID);
                         } else {
-                            // search on PMID
-                            pms = new PubMedSummary(rec.pubPMID);
+                            mappingPopulation = createItem("MappingPopulation");
+                            mappingPopulation.setAttribute("primaryIdentifier", mappingPopulationID);
+                            mappingPopulationMap.put(mappingPopulationID, mappingPopulation);
                         }
-                        if (pms.id>0) {
-                            publication = createItem("Publication");
-                            publication.setAttribute("title", pms.title);
-                            publication.setAttribute("pubMedId", String.valueOf(pms.id));
-                            if (pms.doi!=null && pms.doi.length()>0) publication.setAttribute("doi", pms.doi);
-                            if (pms.issue!=null && pms.issue.length()>0) publication.setAttribute("issue", pms.issue);
-                            if (pms.pages!=null && pms.pages.length()>0) publication.setAttribute("pages", pms.pages);
-                            // parse year, month from PubDate
-                            if (pms.pubDate!=null && pms.pubDate.length()>0) {
-                                String[] dateBits = pms.pubDate.split(" ");
-                                publication.setAttribute("year",dateBits[0]);
-                                if (dateBits.length>1) publication.setAttribute("month",dateBits[1]);
+                        qtl.addToCollection("mappingPopulations", mappingPopulation);
+                    }
+
+                    // publication, if present, either a PMID or info columns
+                    if (rec.pubPMID!=0 || (rec.pubTitle!=null && rec.pubTitle.trim().length()>0)) {
+                        Item publication;
+                        if (rec.pubPMID!=0 && publicationMap.containsKey(String.valueOf(rec.pubPMID))) {
+                            // use PMID as key if PMID is present
+                            publication = publicationMap.get(String.valueOf(rec.pubPMID));
+                        } else if (rec.pubTitle!=null && rec.pubTitle.trim().length()>0 && publicationMap.containsKey(rec.pubTitle)) {
+                            // use title as key if PMID is absent
+                            publication = publicationMap.get(rec.pubTitle);
+                        } else {
+                            LOG.info("Creating new publication: PMID="+rec.pubPMID+", Title="+rec.pubTitle);
+                            // new publication
+                            PubMedSummary pms;
+                            if (rec.pubPMID!=0) {
+                                // search on PMID
+                                pms = new PubMedSummary(rec.pubPMID);
+                            } else {
+                                // search on title
+                                pms = new PubMedSummary(rec.pubTitle);
                             }
-                            if (pms.volume.length()>0) publication.setAttribute("volume", pms.volume);
-                            if (pms.fullJournalName.length()>0) publication.setAttribute("journal", pms.fullJournalName);
-                            // authors collection
-                            if (pms.authorList!=null && pms.authorList.size()>0) {
-                                boolean firstAuthor = true;
-                                for (String author : pms.authorList) {
-                                    if (firstAuthor) {
-                                        publication.setAttribute("firstAuthor", author);
-                                        firstAuthor = false;
+                            if (pms.id>0) {
+                                // it's in PubMed, so use that information
+                                PubMedPublication pubMedPub = new PubMedPublication(this, pms);
+                                publication = pubMedPub.getPublication();
+                                if (publication!=null) {
+                                    List<Item> authors = pubMedPub.getAuthors();
+                                    for (Item author : authors) {
+                                        String name = author.getAttribute("name").getValue();
+                                        if (authorMap.containsKey(name)) {
+                                            Item authorToStore = authorMap.get(name);
+                                            publication.addToCollection("authors", authorToStore);
+                                        } else {
+                                            authorMap.put(name, author);
+                                            publication.addToCollection("authors", author);
+                                        }
                                     }
-                                    Item authorItem;
-                                    if (authorMap.containsKey(author)) {
-                                        authorItem = authorMap.get(author);
+                                    if (rec.pubPMID!=0) {
+                                        // key on PMID if PMID was present in record
+                                        publicationMap.put(String.valueOf(pms.id), publication);
                                     } else {
-                                        authorItem = createItem("Author");
-                                        authorItem.setAttribute("name", author);
-                                        authorMap.put(author, authorItem);
+                                        // key on title if PMID was not present in record
+                                        publicationMap.put(rec.pubTitle, publication);
                                     }
-                                    publication.addToCollection("authors", authorItem);
+                                    // add to QTL collection
+                                    qtl.addToCollection("publications", publication);
                                 }
+                            } else if (rec.pubTitle!=null && rec.pubTitle.trim().length()>0) {
+                                // store at least the publication title, no authors
+                                publication = createItem("Publication");
+                                publication.setAttribute("title", rec.pubTitle.trim());
+                                if (rec.pubJournal!=null && rec.pubJournal.trim().length()>0) publication.setAttribute("journal", rec.pubJournal.trim());
+                                if (rec.pubYear!=null && rec.pubYear.trim().length()>0) publication.setAttribute("year", rec.pubYear.trim());
+                                if (rec.pubVolume!=null && rec.pubVolume.trim().length()>0) publication.setAttribute("volume", rec.pubVolume.trim());
+                                if (rec.pubPages!=null && rec.pubPages.trim().length()>0) publication.setAttribute("pages", rec.pubPages.trim());
+                                // key on title
+                                publicationMap.put(rec.pubTitle, publication);
+                                // add to QTL collection
+                                qtl.addToCollection("publications", publication);
                             }
-                            // add to map
-                            publicationMap.put(rec.pubTitle, publication);
-                            // add to QTL collection
-                            qtl.addToCollection("publications", publication);
                         }
                     }
+                    
                 }
                 
             }
-            
         }
         
         qtlReader.close();

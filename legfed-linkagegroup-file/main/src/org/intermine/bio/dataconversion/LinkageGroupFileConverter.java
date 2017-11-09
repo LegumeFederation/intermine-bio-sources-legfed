@@ -27,9 +27,10 @@ import org.intermine.xml.full.Item;
 
 /**
  * Store Linkage Groups and their Genetic Maps from tab-delimited files. An optional length column may be added.
+ * The Number is used simply for sorting purposes, but is required.
  *
- * LinkageGroup        GeneticMap      [Length(cM)]
- * GmComposite2003_D1a GmComposite2003 120.89
+ * LinkageGroup        Number GeneticMap      [Length(cM)]
+ * GmComposite2003_D1a 1      GmComposite2003 120.89
  *
  * @author Sam Hokin, NCGR
  */
@@ -70,13 +71,16 @@ public class LinkageGroupFileConverter extends BioFileConverter {
                 String[] parts = line.split("\t");
                 // req'd
                 String lgID = parts[0];
-                String gmID = parts[1];
+                String number = parts[1];
+                String gmID = parts[2];
                 // optional
                 double length = 0.0;
-                if (parts.length>2) length = Double.parseDouble(parts[2]);
+                if (parts.length>3) length = Double.parseDouble(parts[3]);
 
                 Item lg = createItem("LinkageGroup");
                 lg.setAttribute("primaryIdentifier", lgID);
+                lg.setAttribute("number", number);
+                
                 if (length>0.0) lg.setAttribute("length", String.valueOf(length));
 
                 Item gm = null;

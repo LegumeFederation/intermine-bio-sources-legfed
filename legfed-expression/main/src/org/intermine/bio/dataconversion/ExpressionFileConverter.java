@@ -26,8 +26,7 @@ import org.intermine.metadata.Model;
 import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
-import org.ncgr.intermine.PublicationTools;
-import org.ncgr.pubmed.PubMedSummary;
+import org.ncgr.intermine.PubMedPublication;
 
 /**
  * DataConverter to create ExpressionSource, ExpressionSample and ExpressionValue items from tab-delimited expression files.
@@ -61,8 +60,6 @@ public class ExpressionFileConverter extends BioFileConverter {
 
     // things stored at end
     Map<String,Item> geneMap = new HashMap<String,Item>();
-    Set<Item> authorSet = new HashSet<Item>();
-    Set<Item> publicationSet = new HashSet<Item>();
     Set<Item> sourceSet = new HashSet<Item>();
     Set<Item> sampleSet = new HashSet<Item>();
     Set<Item> valueSet = new HashSet<Item>();
@@ -120,42 +117,18 @@ public class ExpressionFileConverter extends BioFileConverter {
                 source.setAttribute("unit", parts[1]);
             } else if (parts[0].equals("PMID")) {
                 // create and store the publication if it exists; this requires Internet access
-                try {
-                    int id = Integer.parseInt(parts[1]);
-                    PubMedSummary pms = new PubMedSummary(id);
-                    Item publication = createItem("Publication");
-                    publication.setAttribute("title", pms.title);
-                    publication.setAttribute("pubMedId", String.valueOf(pms.id));
-                    if (pms.doi!=null && pms.doi.length()>0) publication.setAttribute("doi", pms.doi);
-                    if (pms.issue!=null && pms.issue.length()>0) publication.setAttribute("issue", pms.issue);
-                    if (pms.pages!=null && pms.pages.length()>0) publication.setAttribute("pages", pms.pages);
-                    // parse year, month from PubDate
-                    if (pms.pubDate!=null && pms.pubDate.length()>0) {
-                        String[] dateBits = pms.pubDate.split(" ");
-                        publication.setAttribute("year",dateBits[0]);
-                        publication.setAttribute("month",dateBits[1]);
-                        publication.setAttribute("volume", pms.volume);
-                        publication.setAttribute("journal", pms.fullJournalName);
+                int id = Integer.parseInt(parts[1]);
+                PubMedPublication pubMedPub = new PubMedPublication(this, id);
+                Item publication = pubMedPub.getPublication();
+                if (publication!=null) {
+                    // store the authors and add them to the publication collection
+                    for (Item author : pubMedPub.getAuthors()) {
+                        store(author);
+                        publication.addToCollection("authors", author);
                     }
-                    // authors collection
-                    if (pms.authorList!=null && pms.authorList.size()>0) {
-                        boolean firstAuthor = true;
-                        for (String author : pms.authorList) {
-                            if (firstAuthor) {
-                                publication.setAttribute("firstAuthor", author);
-                                firstAuthor = false;
-                            }
-                            Item authorItem = createItem("Author");
-                            authorItem.setAttribute("name", author);
-                            authorSet.add(authorItem);
-                            publication.addToCollection("authors", authorItem);
-                        }
-                    }
-                    // store it and add reference to ExpressionSource
-                    publicationSet.add(publication);
+                    // store the publication and add reference to ExpressionSource
+                    store(publication);
                     source.setReference("publication", publication);
-                } catch (Exception ex) {
-                    throw new RuntimeException("Cannot create publication with PMID="+parts[1], ex);
                 }
             } else if (parts[0].equals("Samples")) {
                 // load the samples into an array
@@ -224,12 +197,6 @@ public class ExpressionFileConverter extends BioFileConverter {
         LOG.info("Storing "+geneMap.size()+" gene items...");
         for (Item gene : geneMap.values()) store(gene);
 
-        LOG.info("Storing "+authorSet.size()+" author items...");
-        for (Item author : authorSet) store(author);
-
-        LOG.info("Storing "+publicationSet.size()+" publication items...");
-        for (Item publication : publicationSet) store(publication);
-        
         LOG.info("Storing "+sourceSet.size()+" ExpressionSource items...");
         for (Item source : sourceSet) store(source);
         

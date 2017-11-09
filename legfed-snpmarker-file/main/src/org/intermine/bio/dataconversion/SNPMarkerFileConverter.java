@@ -25,8 +25,7 @@ import org.intermine.metadata.Model;
 import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
-import org.ncgr.intermine.PublicationTools;
-import org.ncgr.pubmed.PubMedSummary;
+import org.ncgr.intermine.PubMedPublication;
 
 /**
  * Store details on SNP array markers from a tab-delimited file. Data fields are:
@@ -115,10 +114,10 @@ public class SNPMarkerFileConverter extends BioFileConverter {
                 if (publicationMap.containsKey(pubMedId)) {
                     publication = publicationMap.get(pubMedId);
                 } else {
-                    publication = PublicationTools.getPublicationFromPMID(this, Integer.parseInt(pubMedId));
+                    PubMedPublication pubMedPub = new PubMedPublication(this, Integer.parseInt(pubMedId));
+                    publication = pubMedPub.getPublication();
                     if (publication!=null) {
-                        publicationMap.put(pubMedId, publication);
-                        List<Item> authors = PublicationTools.getAuthorsFromPMID(this, Integer.parseInt(pubMedId));
+                        List<Item> authors = pubMedPub.getAuthors();
                         for (Item author : authors) {
                             String name = author.getAttribute("name").getValue();
                             if (authorMap.containsKey(name)) {
@@ -128,6 +127,7 @@ public class SNPMarkerFileConverter extends BioFileConverter {
                                 publication.addToCollection("authors", author);
                             }
                         }
+                        publicationMap.put(pubMedId, publication);
                     }
                 }
 
