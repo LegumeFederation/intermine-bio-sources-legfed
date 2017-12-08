@@ -10,8 +10,6 @@ A custom version of FlyMine's chado-db source written by Kim Rutherford.
 
 **GeneticProcessor.java** - stores genetic data and relationships from the LIS chado database. These come from featuremap, featurepos, featureloc, feature_relationship and, of course, feature. Populates GeneFamily, GeneticMap, LinkageGroup, GeneticMarker and QTL objects.
 
-**GOProcessor.java** - parses the GO:terms out of the chado.gene.description field and associates them with the gene. Run the go data source to fill out the GO terms. Populates GOAnnotation.
-
 **FeaturePropProcessor.java** - loads various properties of features from chado.featureprop. Doesn't create any new objects, but fills in many attributes.
 
 #### legfed-cmap-file
