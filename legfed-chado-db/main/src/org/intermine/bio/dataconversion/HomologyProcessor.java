@@ -210,7 +210,6 @@ public class HomologyProcessor extends ChadoProcessor {
                     // Arabidopsis genes are NOT in feature table, so we have to munge polypeptide name to get gene name, else we lose Arabidopsis
                     String[] parts = polypeptideName.split("\\.");
                     String geneName = parts[0];
-                    LOG.info("HACK: assuming gene name is "+geneName);
                     Item gene;
                     if (geneMap.containsKey(geneName)) {
                         gene = geneMap.get(geneName);

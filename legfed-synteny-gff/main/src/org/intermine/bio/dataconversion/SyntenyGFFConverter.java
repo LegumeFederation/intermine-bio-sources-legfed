@@ -34,9 +34,9 @@ import org.intermine.xml.full.Item;
  * any other file name which contains ".3885_chars_3847.gff" and no other dots or underscores.
  *
  * The DAGchainer GFF file lines must look like this:
- * <pre>
+ *
  * phavu.Chr01 DAGchainer syntenic_region 125452 912158 2665.5 - . Name=Pv01.Gm14.2.+;Parent=19;ID=20;Target=glyma.Chr14:48062215..48932270;median_Ks=0.3559
- * </pre>
+ *
  * That is:
  * o The target sequence must be given by a Target attribute.
  * o The Name attribute must be a unique identifier.
@@ -45,6 +45,13 @@ import org.intermine.xml.full.Item;
  * o The record type must be "syntenic_region."
  * o The target strand, + or -, may optionally be given in the last character of the Name attribute, as in this example. Otherwise, strand isn't recorded for the target.
  * The Parent and ID attributes are not used.
+ *
+ * In addition, the source and target organisms are identified by comments at the TOP of the file, such as:
+ *
+ * #SourceTaxonID  130453
+ * #SourceVariety  V14167
+ * #TargetTaxonID  130454
+ * #TargetVariety  K30076
  *
  * @author Sam Hokin, NCGR
  */
@@ -55,7 +62,7 @@ public class SyntenyGFFConverter extends BioFileConverter {
     static final String RANGE_SEPARATOR = "-";
     static final String REGION_SEPARATOR = "|";
 
-    // define these maps globally and then only store them once in the close() method to avoid duplicate store conflicts
+    // these maps prevent duplicate stores
     Map<String,Item> organismMap = new HashMap<String,Item>();
     Map<String,Item> chromosomeMap = new HashMap<String,Item>();
         
@@ -77,144 +84,156 @@ public class SyntenyGFFConverter extends BioFileConverter {
 
         LOG.info("Processing Synteny file "+getCurrentFile().getName()+"...");
 
-        Map<String,GFF3Record> gffMap = new HashMap<String,GFF3Record>();
-
-        // parse the DAGchainer file name for the taxonomy IDs corresponding to the source and target
-        String dagChainerFileName = getCurrentFile().getName();
-        String[] bothChunks = dagChainerFileName.split("_");
-        String[] sourceChunks = bothChunks[0].split("\\.");
-        String[] targetChunks = bothChunks[2].split("\\.");
-        String sourceTaxonId = sourceChunks[1];
-        String targetTaxonId = targetChunks[0];
-        LOG.info("source taxon ID="+sourceTaxonId+"; target taxon ID="+targetTaxonId);
-
-        // create and store organism Items
-        Item sourceOrganism;
-	if (organismMap.containsKey(sourceTaxonId)) {
-	    sourceOrganism = organismMap.get(sourceTaxonId);
-	} else {
-	    sourceOrganism = createItem("Organism");
-	    sourceOrganism.setAttribute("taxonId", String.valueOf(sourceTaxonId));
-	    organismMap.put(sourceTaxonId, sourceOrganism);
-	}
-	Item targetOrganism;
-	if (organismMap.containsKey(targetTaxonId)) {
-	    targetOrganism = organismMap.get(targetTaxonId);
-	} else {
-	    targetOrganism = createItem("Organism");
-	    targetOrganism.setAttribute("taxonId", String.valueOf(targetTaxonId));
-	    organismMap.put(targetTaxonId, targetOrganism);
-	}
-        
-        LOG.info("Created sourceOrganism, taxonId="+sourceTaxonId+" and targetOrganism, taxonId="+targetTaxonId);
+        // constants for each file
+        int sourceTaxonId = 0;
+        String sourceVariety = null;
+        Item sourceOrganism = null;
+        int targetTaxonId = 0;
+        String targetVariety = null;
+        Item targetOrganism = null;
         
         // -------------------------------------------------------------------------------------------------------
         // Load the GFF data into a map. Add new chromosomes to chromosome map, keyed by primaryIdentifier.
         // -------------------------------------------------------------------------------------------------------
 
         BufferedReader gffReader = new BufferedReader(reader);
-        LOG.info("Reading DAGChainer GFF file...");
         String line = null;
         while ((line=gffReader.readLine()) != null) {
-            if (!line.startsWith("#")) {
+
+            // create and store organism Items if info has been loaded
+            if (sourceOrganism==null && sourceTaxonId>0 && sourceVariety!=null && targetOrganism==null && targetTaxonId>0 && targetVariety!=null) {
+                String sourceKey = sourceTaxonId+"_"+sourceVariety;
+                if (organismMap.containsKey(sourceKey)) {
+                    sourceOrganism = organismMap.get(sourceKey);
+                } else {
+                    sourceOrganism = createItem("Organism");
+                    sourceOrganism.setAttribute("taxonId", String.valueOf(sourceTaxonId));
+                    sourceOrganism.setAttribute("variety", sourceVariety);
+                    store(sourceOrganism);
+                    organismMap.put(sourceKey, sourceOrganism);
+                    LOG.info("Created source organism: "+sourceKey);
+                }
+                String targetKey = targetTaxonId+"_"+targetVariety;
+                if (organismMap.containsKey(targetKey)) {
+                    targetOrganism = organismMap.get(targetKey);
+                } else {
+                    targetOrganism = createItem("Organism");
+                    targetOrganism.setAttribute("taxonId", String.valueOf(targetTaxonId));
+                    targetOrganism.setAttribute("variety", targetVariety);
+                    store(targetOrganism);
+                    organismMap.put(targetKey, targetOrganism);
+                    LOG.info("Created target organism: "+targetKey);
+                }
+            }
+
+            if (line.startsWith("#SourceTaxonID")) {
+
+                String[] parts = line.split("\t");
+                sourceTaxonId = Integer.parseInt(parts[1]);
+                LOG.info("sourceTaxonId="+sourceTaxonId);
+
+            } else if (line.startsWith("#SourceVariety")) {
+                
+                String[] parts = line.split("\t");
+                sourceVariety = parts[1];
+                LOG.info("sourceVariety="+sourceVariety);
+
+            } else if (line.startsWith("#TargetTaxonID")) {
+
+                String[] parts = line.split("\t");
+                targetTaxonId = Integer.parseInt(parts[1]);
+                LOG.info("targetTaxonId="+targetTaxonId);
+
+            } else if (line.startsWith("#TargetVariety")) {
+                
+                String[] parts = line.split("\t");
+                targetVariety = parts[1];
+                LOG.info("targetVariety="+targetVariety);
+
+            } else if (line.startsWith("#") || line.trim().length()==0) {
+                
+                // do nothing, comment or line skip
+
+            } else {
+
+                // bail if we don't have sourceOrganism and targetOrganism instantiated
+                if (sourceOrganism==null || targetOrganism==null) {
+                    LOG.error("Source organism and/or target organism not established: "+sourceTaxonId+" ("+sourceVariety+"), "+targetTaxonId+" ("+targetVariety+")");
+                    throw new RuntimeException("Source organism and/or target organism not established: "+sourceTaxonId+" ("+sourceVariety+"), "+targetTaxonId+" ("+targetVariety+")");
+                }
+
+                // load the GFF line
                 GFF3Record gff = new GFF3Record(line);
                 if (gff.getType().equals("syntenic_region")) {
                     String sourceChrName = getSourceChromosomeName(gff);
                     String targetChrName = getTargetChromosomeName(gff);
                     if (targetChrName==null) {
-                        throw new RuntimeException("GFF record is missing Target= attribute:"+line);
+                        throw new RuntimeException("GFF syntenic_region record is missing Target= attribute:"+line);
                     }
-                    if (sourceChrName!=null && !chromosomeMap.containsKey(sourceChrName)) {
-                        // create the chromosome Item and add to the chromosome map
-                        Item chromosome = createItem("Chromosome");
-                        chromosome.setAttribute("primaryIdentifier", sourceChrName);
-                        chromosomeMap.put(sourceChrName, chromosome);
+                    Item sourceChromosome;
+                    if (chromosomeMap.containsKey(sourceChrName)) {
+                        sourceChromosome = chromosomeMap.get(sourceChrName);
+                    } else {
+                        // create and store the source chromosome and add to the chromosome map
+                        sourceChromosome = createItem("Chromosome");
+                        sourceChromosome.setAttribute("primaryIdentifier", sourceChrName);
+                        sourceChromosome.setReference("organism", sourceOrganism);
+                        store(sourceChromosome);
+                        chromosomeMap.put(sourceChrName, sourceChromosome);
                         LOG.info("Created new source chromosome:"+sourceChrName);
                     }
-                    if (targetChrName!=null && !chromosomeMap.containsKey(targetChrName)) {
-                        // create the chromosome Item and add to the chromosome map
-                        Item chromosome = createItem("Chromosome");
-                        chromosome.setAttribute("primaryIdentifier", targetChrName);
-                        chromosomeMap.put(targetChrName, chromosome);
+                    Item targetChromosome;
+                    if (chromosomeMap.containsKey(targetChrName)) {
+                        targetChromosome = chromosomeMap.get(targetChrName);
+                    } else {
+                        // create and store the target chromosome and add to the chromosome map
+                        targetChromosome = createItem("Chromosome");
+                        targetChromosome.setAttribute("primaryIdentifier", targetChrName);
+                        targetChromosome.setReference("organism", targetOrganism);
+                        store(targetChromosome);
+                        chromosomeMap.put(targetChrName, targetChromosome);
                         LOG.info("Created new target chromosome:"+targetChrName);
                     }
-                    // store GFF records in gff map; Name is unique (we hope)
-		    gffMap.put(getSyntenyBlockName(gff), gff);
+
+            
+                    // populate the source region and its location
+                    Item sourceRegion = createItem("SyntenicRegion");
+                    Item sourceChromosomeLocation = createItem("Location");
+                    populateSourceRegion(sourceRegion, gff, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
+                    
+                    // populate the target region and its location
+                    Item targetRegion = createItem("SyntenicRegion");
+                    Item targetChromosomeLocation = createItem("Location");
+                    populateTargetRegion(targetRegion, gff, targetOrganism, targetChromosome, targetChromosomeLocation);
+                    
+                    // get the medianKs value for this block
+                    Map<String, List<String>> attributes = gff.getAttributes();
+                    String medianKs = attributes.get("median_Ks").get(0);
+
+                    // associate the two regions with this synteny block
+                    String syntenyBlockID = getSyntenyBlockName(gff);
+                    Item syntenyBlock = createItem("SyntenyBlock");
+                    syntenyBlock.setAttribute("primaryIdentifier", syntenyBlockID);
+                    syntenyBlock.setAttribute("medianKs", medianKs);
+                    syntenyBlock.setReference("sourceRegion", sourceRegion);
+                    syntenyBlock.setReference("targetRegion", targetRegion);
+                    store(syntenyBlock);
+
+                    // associate the block with the regions and store them
+                    sourceRegion.setReference("syntenyBlock", syntenyBlock);
+                    store(sourceRegion);
+                    store(sourceChromosomeLocation);
+                    targetRegion.setReference("syntenyBlock", syntenyBlock);
+                    store(targetRegion);
+                    store(targetChromosomeLocation);
+
                 }
             }
         }
         gffReader.close();
         
-        LOG.info("Read "+gffMap.size()+" syntenic_region GFF records.");
-        
-        // ----------------------------------------------------------------------
-        // Now spin through the gffMap records and store the SyntenyBlock Items
-        // ----------------------------------------------------------------------
-
-        LOG.info("Creating, linking and storing synteny blocks...");
-
-        for (Map.Entry<String,GFF3Record> entry : gffMap.entrySet()) {
-            
-            String syntenyBlockID = entry.getKey();
-            GFF3Record gff = entry.getValue();
-            
-            String sourceChrName = getSourceChromosomeName(gff);
-            String targetChrName = getTargetChromosomeName(gff);
-
-            // populate the source region and its location
-            Item sourceChromosome = chromosomeMap.get(sourceChrName);
-            Item sourceRegion = createItem("SyntenicRegion");
-            BioStoreHook.setSOTerm(this, sourceRegion, "syntenic_region", getSequenceOntologyRefId());
-            Item sourceChromosomeLocation = createItem("Location");
-            populateSourceRegion(sourceRegion, gff, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
-            
-            // populate the target region and its location
-            Item targetChromosome = chromosomeMap.get(targetChrName);
-            Item targetRegion = createItem("SyntenicRegion");
-            BioStoreHook.setSOTerm(this, targetRegion, "syntenic_region", getSequenceOntologyRefId());
-            Item targetChromosomeLocation = createItem("Location");
-            populateTargetRegion(targetRegion, gff, targetOrganism, targetChromosome, targetChromosomeLocation);
-
-            // get the medianKs value for this block
-            Map<String, List<String>> attributes = gff.getAttributes();
-            String medianKs = attributes.get("median_Ks").get(0);
-
-            // associate the two regions with this synteny block
-            Item syntenyBlock = createItem("SyntenyBlock");
-            LOG.info("Storing SyntenyBlock:"+syntenyBlockID);
-            syntenyBlock.setAttribute("primaryIdentifier", syntenyBlockID);
-            syntenyBlock.setAttribute("medianKs", medianKs);
-            syntenyBlock.setReference("sourceRegion", sourceRegion);
-            syntenyBlock.setReference("targetRegion", targetRegion);
-            store(syntenyBlock);
-
-	    sourceRegion.setReference("syntenyBlock", syntenyBlock);
-            store(sourceRegion);
-            store(sourceChromosomeLocation);
-
-	    targetRegion.setReference("syntenyBlock", syntenyBlock);
-            store(targetRegion);
-            store(targetChromosomeLocation);
-            
-        }
-
     }
 
-    /**
-     * {@inheritDoc}
-     * Store the organisms and chromosomes that were created in processing all the GFF files.
-     */
-    @Override
-    public void close() throws Exception {
-
-        LOG.info("Storing "+organismMap.size()+" organism items...");
-        store(organismMap.values());
-
-	LOG.info("Storing "+chromosomeMap.size()+" chromosome items...");
-        store(chromosomeMap.values());
-
-    }
-    
     /**
      * Populate the attributes of a source SyntenicRegion with a GFF3Record's data.
      *

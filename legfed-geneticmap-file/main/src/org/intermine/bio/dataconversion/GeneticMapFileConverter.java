@@ -96,7 +96,10 @@ public class GeneticMapFileConverter extends BioFileConverter {
 
         // these objects are created per file
         Item geneticMap = null;
-        String geneticMapName = null;
+        Item mappingPopulation = null;
+        Item publication = null;
+        
+        String geneticMapName = null; // used for naming linkage groups
 
         // -----------------------------------------------------------------------------------------------------------------------------------
         // Load genetic markers, linkage groups and QTLs from the LinkageGroup file and associate QTLs and genetic markers with linkage groups
@@ -129,12 +132,11 @@ public class GeneticMapFileConverter extends BioFileConverter {
                 String[] parts = line.split("\t");
                 String pubMedId = parts[1];
                 if (publicationMap.containsKey(pubMedId)) {
-                    Item publication = publicationMap.get(pubMedId);
-                    geneticMap.addToCollection("publications", publication);
+                    publication = publicationMap.get(pubMedId);
                 } else {
                     LOG.info("Attempting to get publication details for PMID="+pubMedId);
                     PubMedPublication pubMedPub = new PubMedPublication(this, Integer.parseInt(pubMedId));
-                    Item publication = pubMedPub.getPublication();
+                    publication = pubMedPub.getPublication();
                     if (publication!=null) {
                         List<Item> authors = pubMedPub.getAuthors();
                         for (Item author : authors) {
@@ -148,7 +150,6 @@ public class GeneticMapFileConverter extends BioFileConverter {
                             }
                         }
                         publicationMap.put(pubMedId, publication);
-                        geneticMap.addToCollection("publications", publication);
                     }
                 }
 
@@ -163,10 +164,9 @@ public class GeneticMapFileConverter extends BioFileConverter {
                 // create MappingPopulation and name for parents
                 String mappingPopulationName = parents[0]+"_x_"+parents[1];
                 if (mappingPopulationMap.containsKey(mappingPopulationName)) {
-                    Item mappingPopulation = mappingPopulationMap.get(mappingPopulationName);
-                    geneticMap.addToCollection("mappingPopulations", mappingPopulation);
+                    mappingPopulation = mappingPopulationMap.get(mappingPopulationName);
                 } else {
-                    Item mappingPopulation = createItem("MappingPopulation");
+                    mappingPopulation = createItem("MappingPopulation");
                     mappingPopulation.setAttribute("primaryIdentifier", mappingPopulationName);
                     // add parents to collection
                     for (int i=0; i<2; i++) {
@@ -182,10 +182,20 @@ public class GeneticMapFileConverter extends BioFileConverter {
                         }
                     }
 		    mappingPopulationMap.put(mappingPopulationName, mappingPopulation);
-                    geneticMap.addToCollection("mappingPopulations", mappingPopulation);
                 }
 
             } else {
+
+                // fill in the genetic map and mapping population collections
+                if (publication!=null) {
+                    geneticMap.addToCollection("publications", publication);
+                }
+                if (mappingPopulation!=null) {
+                    geneticMap.addToCollection("mappingPopulations", mappingPopulation);
+                }
+                if (publication!=null && mappingPopulation!=null) {
+                    mappingPopulation.addToCollection("publications", publication);
+                }
 
                 // looks like it's a data record
                 GeneticMapRecord record = new GeneticMapRecord(line);

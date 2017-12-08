@@ -27,11 +27,22 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store QTL data and relationships from tab-delimited files.
+ * Store QTL data and relationships from tab-delimited files organized by publication.
+ * Parent names are munged into a mapping population name, e.g. Sanzi_x_Vita7 for parents Sanzi and Vita7.
  *
- * QTLName Parent_1 Parent_2 TraitName [PMID] [Journal Year Volume Page Title]
- *
- * Parents are munged into a mapping population name, e.g. Sanzi_x_Vita7 for parents Sanzi and Vita7.
+ * TaxonID     3817
+ * Variety     IT97K-499-35
+ * Parent_1    Sanzi [optional]
+ * Parent_2    Vita7 [optional]
+ * PMID        123456 [optional]
+ * Journal     Intl. J. Genetics [optional]
+ * Year        2007 [optional]
+ * Volume      23 [optional]
+ * Pages       345-357 [optional]
+ * Title       A cowpea genetic map for the ages [optional]
+ * 
+ * #QTLName          TraitName
+ * Seed weight 3-2   Seed weight
  *
  * @author Sam Hokin, NCGR
  */
@@ -39,16 +50,18 @@ public class QTLFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(QTLFileConverter.class);
 
-    // Store QTLs in a map since there may be multiple lines (different pubs)
+    // Typically one organism across all files
+    Map<String,Item> organismMap = new HashMap<String,Item>();
+    
+    // Store QTLs in a map since there may be multiple pubs with the same QTLs
     Map<String,Item> qtlMap = new HashMap<String,Item>();
 
-    // Store mapping populations in a map, presumably far fewer than QTLs
+    // Could have same author on multiple publications
+    Map<String,Item> authorMap = new HashMap<String,Item>();
+
+    // Several publications can use the same mapping population
     Map<String,Item> mappingPopulationMap = new HashMap<String,Item>();
 
-    // Store publications in a map
-    Map<String,Item> publicationMap = new HashMap<String,Item>();
-    Map<String,Item> authorMap = new HashMap<String,Item>();
-    
     /**
      * Create a new QTLFileConverter
      * @param writer the ItemWriter to write out new items
@@ -70,104 +83,152 @@ public class QTLFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
+        // header values
+        int taxonId = 0;
+        String variety = null;
+        String parent1 = null;
+        String parent2 = null;
+        int pmid = 0;
+        String journal = null;
+        int year = 0;
+        String volume = null;
+        String pages = null;
+        String title = null;
+
+        // the Items resulting from the header values
+        Item organism = null;
+        Item mappingPopulation = null;
+        Item publication = null;
+
         BufferedReader qtlReader = new BufferedReader(reader);
-	String line;
+	String line = null;
         while ((line=qtlReader.readLine())!=null) {
+            if (line.trim().length()>0 && !line.startsWith("#")) {
 
-            if (!line.startsWith("#")) {
+                String[] parts = line.split("\t");
+		if (parts.length==2) {
+		    
+		    // header data
+		    if (parts[0].equals("TaxonID")) {
+			taxonId = Integer.parseInt(parts[1].trim());
+		    } else if (parts[0].equals("Variety")) {
+			variety = parts[1].trim();
+		    } else if (parts[0].equals("Parent_1")) {
+			parent1 = parts[1].trim();
+		    } else if (parts[0].equals("Parent_2")) {
+			parent2 = parts[1].trim();
+		    } else if (parts[0].equals("PMID")) {
+			pmid = Integer.parseInt(parts[1].trim());
+		    } else if (parts[0].equals("Journal")) {
+			journal = parts[1].trim();
+		    } else if (parts[0].equals("Year")) {
+			year = Integer.parseInt(parts[1].trim());
+		    } else if (parts[0].equals("Volume")) {
+			volume = parts[1].trim();
+		    } else if (parts[0].equals("Pages")) {
+			pages = parts[1].trim();
+		    } else if (parts[0].equals("Title")) {
+			title = parts[1].trim();
+		    } else {
+			
+			// create and store organism (or pull it from map)
+			if (organism==null && taxonId>0 && variety!=null) {
+			    String organismKey = taxonId+"_"+variety;
+			    if (organismMap.containsKey(organismKey)) {
+				organism = organismMap.get(organismKey);
+			    } else {
+				organism = createItem("Organism");
+				organism.setAttribute("taxonId", String.valueOf(taxonId));
+				organism.setAttribute("variety", variety);
+				store(organism);
+				organismMap.put(organismKey, organism);
+				LOG.info("Stored organism: "+taxonId+" ("+variety+")");
+			    }
+			}
+			
+			// publication, if present, either a PMID or info columns
+			if (publication==null && (pmid!=0 || (title!=null && title.trim().length()>0))) {
+			    LOG.info("Creating new publication: PMID="+pmid+", Title="+title);
+			    // search for PubMed summary, on either PMID or title
+			    PubMedSummary pms;
+			    if (pmid!=0) {
+				pms = new PubMedSummary(pmid);
+			    } else {
+				pms = new PubMedSummary(title);
+			    }
+			    if (pms.id>0) {
+				// it's in PubMed, so use that information
+				PubMedPublication pubMedPub = new PubMedPublication(this, pms);
+				publication = pubMedPub.getPublication();
+				if (publication!=null) {
+				    List<Item> authors = pubMedPub.getAuthors();
+				    for (Item author : authors) {
+					String name = author.getAttribute("name").getValue();
+					if (authorMap.containsKey(name)) {
+					    Item authorToStore = authorMap.get(name);
+					    publication.addToCollection("authors", authorToStore);
+					} else {
+					    authorMap.put(name, author);
+					    publication.addToCollection("authors", author);
+					}
+				    }
+				}
+			    } else if (title!=null && title.trim().length()>0) {
+				// store at least the publication title, no authors
+				publication = createItem("Publication");
+				publication.setAttribute("title", title.trim());
+				if (journal!=null && journal.trim().length()>0) publication.setAttribute("journal", journal.trim());
+				if (year!=0) publication.setAttribute("year", String.valueOf(year));
+				if (volume!=null && volume.trim().length()>0) publication.setAttribute("volume", volume.trim());
+				if (pages!=null && pages.trim().length()>0) publication.setAttribute("pages", pages.trim());
+			    }
+			    store(publication);
+			    LOG.info("Stored publication: "+pmid+" "+title);
+			}
 
-                QTLRecord rec = new QTLRecord(line);
-                if (rec.qtlName!=null) {
-                    
-                    // find the QTL in the map, or add it with qtlName=primaryIdentifier
-                    Item qtl = null;
-                    if (qtlMap.containsKey(rec.qtlName)) {
-                        qtl = qtlMap.get(rec.qtlName);
-                    } else {
-                        qtl = createItem("QTL");
-                        qtl.setAttribute("primaryIdentifier", rec.qtlName);
-                        qtl.setAttribute("traitName", rec.traitName);
-                        qtlMap.put(rec.qtlName, qtl);
-                    }
-                    
-                    // mapping population, if parents present
-                    if (rec.parent1.trim().length()>0 && rec.parent2.trim().length()>0) {
-                        String mappingPopulationID = rec.parent1+"_x_"+rec.parent2;
-                        Item mappingPopulation = null;
-                        if (mappingPopulationMap.containsKey(mappingPopulationID)) {
-                            mappingPopulation = mappingPopulationMap.get(mappingPopulationID);
-                        } else {
-                            mappingPopulation = createItem("MappingPopulation");
-                            mappingPopulation.setAttribute("primaryIdentifier", mappingPopulationID);
-                            mappingPopulationMap.put(mappingPopulationID, mappingPopulation);
-                        }
-                        qtl.addToCollection("mappingPopulations", mappingPopulation);
-                    }
+                        // create and store mapping population (or pull it from map)
+                        if (mappingPopulation==null && parent1!=null && parent2!=null) {
+			    String mappingPopulationID = parent1+"_x_"+parent2;
+			    if (mappingPopulationMap.containsKey(mappingPopulationID)) {
+				mappingPopulation = mappingPopulationMap.get(mappingPopulationID);
+			    } else {
+				mappingPopulation = createItem("MappingPopulation");
+				mappingPopulation.setAttribute("primaryIdentifier", mappingPopulationID);
+				store(mappingPopulation);
+				mappingPopulationMap.put(mappingPopulationID, mappingPopulation);
+				LOG.info("Stored mapping population:"+mappingPopulationID);
+			    }
+                            if (publication!=null) mappingPopulation.addToCollection("publications", publication);
+			}
 
-                    // publication, if present, either a PMID or info columns
-                    if (rec.pubPMID!=0 || (rec.pubTitle!=null && rec.pubTitle.trim().length()>0)) {
-                        Item publication;
-                        if (rec.pubPMID!=0 && publicationMap.containsKey(String.valueOf(rec.pubPMID))) {
-                            // use PMID as key if PMID is present
-                            publication = publicationMap.get(String.valueOf(rec.pubPMID));
-                        } else if (rec.pubTitle!=null && rec.pubTitle.trim().length()>0 && publicationMap.containsKey(rec.pubTitle)) {
-                            // use title as key if PMID is absent
-                            publication = publicationMap.get(rec.pubTitle);
-                        } else {
-                            LOG.info("Creating new publication: PMID="+rec.pubPMID+", Title="+rec.pubTitle);
-                            // new publication
-                            PubMedSummary pms;
-                            if (rec.pubPMID!=0) {
-                                // search on PMID
-                                pms = new PubMedSummary(rec.pubPMID);
-                            } else {
-                                // search on title
-                                pms = new PubMedSummary(rec.pubTitle);
-                            }
-                            if (pms.id>0) {
-                                // it's in PubMed, so use that information
-                                PubMedPublication pubMedPub = new PubMedPublication(this, pms);
-                                publication = pubMedPub.getPublication();
-                                if (publication!=null) {
-                                    List<Item> authors = pubMedPub.getAuthors();
-                                    for (Item author : authors) {
-                                        String name = author.getAttribute("name").getValue();
-                                        if (authorMap.containsKey(name)) {
-                                            Item authorToStore = authorMap.get(name);
-                                            publication.addToCollection("authors", authorToStore);
-                                        } else {
-                                            authorMap.put(name, author);
-                                            publication.addToCollection("authors", author);
-                                        }
-                                    }
-                                    if (rec.pubPMID!=0) {
-                                        // key on PMID if PMID was present in record
-                                        publicationMap.put(String.valueOf(pms.id), publication);
-                                    } else {
-                                        // key on title if PMID was not present in record
-                                        publicationMap.put(rec.pubTitle, publication);
-                                    }
-                                    // add to QTL collection
-                                    qtl.addToCollection("publications", publication);
-                                }
-                            } else if (rec.pubTitle!=null && rec.pubTitle.trim().length()>0) {
-                                // store at least the publication title, no authors
-                                publication = createItem("Publication");
-                                publication.setAttribute("title", rec.pubTitle.trim());
-                                if (rec.pubJournal!=null && rec.pubJournal.trim().length()>0) publication.setAttribute("journal", rec.pubJournal.trim());
-                                if (rec.pubYear!=null && rec.pubYear.trim().length()>0) publication.setAttribute("year", rec.pubYear.trim());
-                                if (rec.pubVolume!=null && rec.pubVolume.trim().length()>0) publication.setAttribute("volume", rec.pubVolume.trim());
-                                if (rec.pubPages!=null && rec.pubPages.trim().length()>0) publication.setAttribute("pages", rec.pubPages.trim());
-                                // key on title
-                                publicationMap.put(rec.pubTitle, publication);
-                                // add to QTL collection
-                                qtl.addToCollection("publications", publication);
-                            }
-                        }
-                    }
-                    
+			// go no further if we do not have an organism
+			if (organism==null) {
+			    LOG.error("No organism created for QTL references.");
+			    throw new RuntimeException("No organism created for QTL references.");
+			}
+			
+			// a QTL and trait
+			String qtlName = parts[0];
+			String traitName = parts[1];
+			
+			// find the QTL in the map, or add it with qtlName=primaryIdentifier
+			Item qtl;
+			if (qtlMap.containsKey(qtlName)) {
+			    qtl = qtlMap.get(qtlName);
+			} else {
+			    qtl = createItem("QTL");
+			    qtl.setAttribute("primaryIdentifier", qtlName);
+			    qtl.setReference("organism", organism);
+			    if (traitName.trim().length()>0) qtl.setAttribute("traitName", traitName);
+			    qtlMap.put(qtlName, qtl);
+			}
+			
+			// add to collections
+			if (mappingPopulation!=null) qtl.addToCollection("mappingPopulations", mappingPopulation);
+			if (publication!=null) qtl.addToCollection("publications", publication);
+
+		    }
                 }
-                
             }
         }
         
@@ -176,23 +237,13 @@ public class QTLFileConverter extends BioFileConverter {
     }
 
     /**
-     * Store the items we've collected in maps and sets
+     * Store the items we've collected in maps and sets across all the files
      */
     @Override
     public void close() throws Exception {
-
         LOG.info("Storing "+qtlMap.size()+" QTL items...");
         store(qtlMap.values());
-
-        LOG.info("Storing "+mappingPopulationMap.size()+" MappingPopulation items...");
-        store(mappingPopulationMap.values());
-
-        LOG.info("Storing "+publicationMap.size()+" Publication items...");
-        store(publicationMap.values());
-
-        LOG.info("Storing "+authorMap.size()+" Author items...");
         store(authorMap.values());
-
     }
     
 }

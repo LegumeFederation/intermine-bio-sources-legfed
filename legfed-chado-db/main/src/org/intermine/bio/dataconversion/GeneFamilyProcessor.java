@@ -148,15 +148,17 @@ public class GeneFamilyProcessor extends ChadoProcessor {
             geneFamilyMap.put(name, geneFamily);
         }
         rs1.close();
-	LOG.info(geneFamilyMap.size()+" gene families retrieved from featureprop.");
+	LOG.info("Created "+geneFamilyMap.size()+" gene families from featureprop query.");
 
         // now drill through phylotree populating the existing gene family descriptions
-        rs1 = stmt1.executeQuery("SELECT name,comment FROM phylotree");
+        rs1 = stmt1.executeQuery("SELECT DISTINCT name,comment FROM phylotree");
         while (rs1.next()) {
             String name = rs1.getString("name");
             String description = rs1.getString("comment");
-            Item geneFamily = geneFamilyMap.get(name);
-            if (geneFamily!=null) geneFamily.setAttribute("description", description);
+            if (geneFamilyMap.containsKey(name)) {
+                Item geneFamily = geneFamilyMap.get(name);
+                geneFamily.setAttribute("description", description);
+            }
         }
         rs1.close();
 	LOG.info("Gene family descriptions added from phylotree.");
@@ -183,74 +185,91 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                     store(sequence); // store now, not going to touch it later
                     consensusRegion.setReference("sequence", sequence);
                 }
-                store(consensusRegion); // store now, not going to touch it later
                 geneFamily.setReference("consensusRegion", consensusRegion); // reverse-reference
+                store(consensusRegion);
             }
         }
 	LOG.info("Consensus region records created for gene families.");
 
         // Spin through the gene families and find source-target homologues within each one
-        for (String name : geneFamilyMap.keySet()) {
-            Item geneFamily = geneFamilyMap.get(name);
+        for (String geneFamilyName : geneFamilyMap.keySet()) {
+            Item geneFamily = geneFamilyMap.get(geneFamilyName);
+            // seem to have to store it here rather than later
+            store(geneFamily);
             // store the gene names and their organism ID in maps
             Map<String,Integer> sourceGeneMap = new HashMap<String,Integer>();
             Map<String,Integer> targetGeneMap = new HashMap<String,Integer>();
-            String query = "SELECT feature.organism_id,feature.uniquename" +
+            String query = "SELECT feature.organism_id,feature.uniquename,feature.name" +
                 " FROM feature,featureprop " +
                 " WHERE feature.feature_id=featureprop.feature_id" +
                 " AND feature.type_id="+geneTypeId +
                 " AND featureprop.type_id="+geneFamilyTypeId +
-                " AND featureprop.value='"+name+"'";
+                " AND featureprop.value='"+geneFamilyName+"'";
             rs1 = stmt1.executeQuery(query);
             while (rs1.next()) {
                 int organism_id = rs1.getInt("organism_id");
-                String geneName = rs1.getString("uniquename");
-                if (sourceOrganisms.contains(organism_id)) sourceGeneMap.put(geneName,organism_id);
-                if (targetOrganisms.contains(organism_id)) targetGeneMap.put(geneName,organism_id);
+                String uniquename = rs1.getString("uniquename");
+		String name = rs1.getString("name");
+		String key = uniquename+"xxx"+name;
+                if (sourceOrganisms.contains(organism_id)) sourceGeneMap.put(key,organism_id);
+                if (targetOrganisms.contains(organism_id)) targetGeneMap.put(key,organism_id);
             }
             rs1.close();
             // create and store the desired genes and homologs from this gene family
-            for (String sourceGeneName : sourceGeneMap.keySet()) {
-                Integer sourceOrganismId = sourceGeneMap.get(sourceGeneName);
+            for (String sourceKey : sourceGeneMap.keySet()) {
+                Integer sourceOrganismId = sourceGeneMap.get(sourceKey);
                 Item sourceOrganism = organismMap.get(sourceOrganismId);
                 Item sourceGene;
-                if (geneMap.containsKey(sourceGeneName)) {
-                    sourceGene = geneMap.get(sourceGeneName);
+                if (geneMap.containsKey(sourceKey)) {
+                    sourceGene = geneMap.get(sourceKey);
                 } else {
+		    String[] parts = sourceKey.split("xxx");
+		    String uniquename = parts[0];
+		    String name = parts[1];
                     sourceGene = getChadoDBConverter().createItem("Gene");
-                    sourceGene.setAttribute("primaryIdentifier", sourceGeneName);
+                    sourceGene.setAttribute("primaryIdentifier", uniquename);
+		    sourceGene.setAttribute("secondaryIdentifier", name);
                     sourceGene.setReference("organism", sourceOrganism);
                     sourceGene.setReference("geneFamily", geneFamily);
-                    store(sourceGene);
-                    geneMap.put(sourceGeneName, sourceGene);
+                    geneMap.put(sourceKey, sourceGene);
                 }
-                for (String targetGeneName : targetGeneMap.keySet()) {
-                    Integer targetOrganismId = targetGeneMap.get(targetGeneName);
-                    Item targetOrganism = organismMap.get(targetOrganismId);
-                    Item targetGene;
-                    if (geneMap.containsKey(targetGeneName)) {
-                        targetGene = geneMap.get(targetGeneName);
-                    } else {
-                        targetGene = getChadoDBConverter().createItem("Gene");
-                        targetGene.setAttribute("primaryIdentifier", targetGeneName);
-                        targetGene.setReference("organism", targetOrganism);
-                        targetGene.setReference("geneFamily", geneFamily);
-                        store(targetGene);
-                        geneMap.put(targetGeneName, targetGene);
+                for (String targetKey : targetGeneMap.keySet()) {
+                    if (!targetKey.equals(sourceKey)) {
+                        Integer targetOrganismId = targetGeneMap.get(targetKey);
+                        Item targetOrganism = organismMap.get(targetOrganismId);
+                        Item targetGene;
+                        if (geneMap.containsKey(targetKey)) {
+                            targetGene = geneMap.get(targetKey);
+                        } else {
+			    String[] parts = targetKey.split("xxx");
+			    String uniquename = parts[0];
+			    String name = parts[1];
+                            targetGene = getChadoDBConverter().createItem("Gene");
+                            targetGene.setAttribute("primaryIdentifier", uniquename);
+			    targetGene.setAttribute("secondaryIdentifier", name);
+                            targetGene.setReference("organism", targetOrganism);
+                            targetGene.setReference("geneFamily", geneFamily);
+                            geneMap.put(targetKey, targetGene);
+                        }
+                        // homologue
+                        Item homologue = getChadoDBConverter().createItem("Homologue");
+                        String type = "sameGeneFamily"; // not really known which sort of homologue they are
+                        homologue.setAttribute("type", type);
+                        homologue.setReference("geneFamily", geneFamily);
+                        homologue.setReference("gene", sourceGene);
+                        homologue.setReference("homologue", targetGene);
+                        store(homologue); // store now, not going to touch it later
+                        // add homologue to source gene's collection
+                        sourceGene.addToCollection("homologues", homologue);
                     }
-                    // homologue
-                    Item homologue = getChadoDBConverter().createItem("Homologue");
-                    String type = "sameGeneFamily"; // not really known which sort of homologue they are
-                    homologue.setAttribute("type", type);
-                    homologue.setReference("geneFamily", geneFamily);
-                    homologue.setReference("gene", sourceGene);
-                    homologue.setReference("homologue", targetGene);
-                    store(homologue); // store now, not going to touch it later
-                    // add homologue to source gene's collection
-                    sourceGene.addToCollection("homologues", homologue);
                 }
             }
-	    store(geneFamily);      // we're done with this gene family
+        }
+
+        // store the genes since it doesn't seem to work if they're stored right after creation
+        LOG.info("Storing "+geneMap.size()+" Gene items.");
+        for (Item gene : geneMap.values()) {
+            store(gene);
         }
 
     }
@@ -265,36 +284,4 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         return getChadoDBConverter().store(item);
     }
     
-    /**
-     * Do any extra processing that is needed before the converter starts querying features
-     * @param connection the Connection
-     * @throws ObjectStoreException if there is a object store problem
-     * @throws SQLException if there is a database problem
-     */
-    protected void earlyExtraProcessing(Connection connection) throws ObjectStoreException, SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Do any extra processing for this database, after all other processing is done
-     * @param connection the Connection
-     * @param featureDataMap a map from chado feature_id to data for that feature
-     * @throws ObjectStoreException if there is a problem while storing
-     * @throws SQLException if there is a problem
-     */
-    protected void extraProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap)
-        throws ObjectStoreException, SQLException {
-        // override in subclasses as necessary
-    }
-
-    /**
-     * Perform any actions needed after all processing is finished.
-     * @param connection the Connection
-     * @param featureDataMap a map from chado feature_id to data for that feature
-     * @throws SQLException if there is a problem
-     */
-    protected void finishedProcessing(Connection connection, Map<Integer, FeatureData> featureDataMap) throws SQLException {
-        // override in subclasses as necessary
-    }
-
 }

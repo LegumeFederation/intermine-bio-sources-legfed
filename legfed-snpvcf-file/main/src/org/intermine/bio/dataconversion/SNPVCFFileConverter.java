@@ -26,12 +26,14 @@ import org.intermine.xml.full.Item;
 /**
  * Store SNP marker genomic positions from a VCF file.
  *
- * <pre>
- * CHROM  POS	ID	REF	ALT	QUAL	FILTER	INFO
+ * TaxonID  3917
+ * Variety  IT97K-499-35
+ * #CHROM  POS	ID	REF	ALT	QUAL	FILTER	INFO
  * Vu01	  74363	2_37329	A	G	999	.	DP=378
- * </pre>
  *
- * Markers do not get secondary identifiers here. They are merged strictly on primaryIdentifier.
+ * Markers do not get secondary identifiers here. They are merged on primaryIdentifier+organism.
+ *
+ * NOTE: it is assumed that only chromosomes, not supercontigs, are listed in the VCF file.
  *
  * @author Sam Hokin
  */
@@ -39,7 +41,7 @@ public class SNPVCFFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(SNPVCFFileConverter.class);
 
-    Map<String,Item> chromMap;
+    Map<String,Item> chromosomeMap;
 
     /**
      * Create a new SNPVCFFileConverter
@@ -48,12 +50,12 @@ public class SNPVCFFileConverter extends BioFileConverter {
      */
     public SNPVCFFileConverter(ItemWriter writer, Model model) {
         super(writer, model);
-	chromMap = new HashMap<String,Item>();
+	chromosomeMap = new HashMap<String,Item>();
     }
 
     /**
      * {@inheritDoc}
-     * Read in the VCF file and store the SNP markers with chromosome (or supercontig) and position.
+     * Read in the VCF file and store the SNP markers with chromosome and position.
      */
     @Override
     public void process(Reader reader) throws Exception {
@@ -63,64 +65,92 @@ public class SNPVCFFileConverter extends BioFileConverter {
 
         LOG.info("Processing VCF file "+getCurrentFile().getName()+"...");
 
+        // to identify the organism
+        String taxonId = null;
+        String variety = null;
+        Item organism = null;
+
         BufferedReader br = new BufferedReader(reader);
         String line = null;
         while ((line=br.readLine())!=null) {
 
-	    SNPVCFRecord record = new SNPVCFRecord(line);
+            if (!line.startsWith("#") && line.trim().length()>0) {
 
-	    // will return null chrom if a comment
-	    if (record.chrom==null) continue;
+                // create the organism if we have the required stuff
+                if (organism==null && taxonId!=null && variety!=null) {
+                    organism = createItem("Organism");
+                    organism.setAttribute("taxonId", taxonId);
+                    organism.setAttribute("variety", variety);
+                    store(organism);
+                    LOG.info("Created and stored organism with taxonId:variety = "+taxonId+":"+variety);
+                }
+
+                // organism or variety line at top
+                if (line.toLowerCase().startsWith("taxonid")) {
+                    
+                    String[] parts = line.split("\t");
+                    taxonId = parts[1];
+
+                } else if (line.toLowerCase().startsWith("variety")) {
+                    String[] parts = line.split("\t");
+                    variety = parts[1];
+
+                } else {
+
+                    // check that we've got an organism - fatal exit if not
+                    if (organism==null) {
+                        LOG.error("Organism has not been formed for marker/chromosome import in file "+getCurrentFile().getName());
+                        throw new RuntimeException("Organism has not been formed for marker/chromosome import in file "+getCurrentFile().getName());
+                    }
+
+		    // parse the line
+                    SNPVCFRecord rec = new SNPVCFRecord(line);
 	    
-	    // create this marker, length 1
-	    Item marker = createItem("GeneticMarker");
-	    marker.setAttribute("primaryIdentifier", record.id);
-	    marker.setAttribute("type", "SNP");
-	    marker.setAttribute("length", "1");
+                    // create this marker, length 1
+                    Item marker = createItem("GeneticMarker");
+                    marker.setAttribute("primaryIdentifier", rec.id);
+                    marker.setReference("organism", organism);
+                    marker.setAttribute("type", "SNP");
+                    marker.setAttribute("length", "1");
 
-	    // get (or create and store) the chromosome (or supercontig) and references
-	    boolean isSupercontig = (record.chrom.toLowerCase().contains("contig"));
-	    Item chrom;
-	    if (chromMap.containsKey(record.chrom)) {
-		chrom = chromMap.get(record.chrom);
-	    } else {
-		if (isSupercontig) {
-		    chrom = createItem("Supercontig");
-		} else {
-		    chrom = createItem("Chromosome");
-		}
-		chrom.setAttribute("primaryIdentifier", record.chrom);
-		store(chrom);
-		chromMap.put(record.chrom, chrom);
-	    }
-	    if (isSupercontig) {
-		marker.setReference("supercontig", chrom);
-	    } else {
-		marker.setReference("chromosome", chrom);
-	    }
+                    // set the chromosome reference
+                    Item chromosome;
+                    if (chromosomeMap.containsKey(rec.chromosome)) {
+                        chromosome = chromosomeMap.get(rec.chromosome);
+                    } else {
+			chromosome = createItem("Chromosome");
+                        chromosome.setAttribute("primaryIdentifier", rec.chromosome);
+                        chromosome.setReference("organism", organism);
+                        store(chromosome);
+                        chromosomeMap.put(rec.chromosome, chromosome);
+                        LOG.info("Created and stored chromosome: "+rec.chromosome);
+                    }
+		    marker.setReference("chromosome", chromosome);
 
-	    // create the location on this chromosome/supercontig and references
-	    Item location = createItem("Location");
-	    location.setAttribute("start", String.valueOf(record.pos));
-	    location.setAttribute("end", String.valueOf(record.pos));
-	    location.setReference("locatedOn", chrom);
-	    location.setReference("feature", marker);
-	    if (isSupercontig) {
-		marker.setReference("supercontigLocation", location);
-	    } else {
-		marker.setReference("chromosomeLocation", location);
-	    }
+                    // create and store the location on this chromosome
+                    Item location = createItem("Location");
+                    location.setReference("locatedOn", chromosome);
+                    location.setReference("feature", marker);
+                    location.setAttribute("start", String.valueOf(rec.pos));
+                    location.setAttribute("end", String.valueOf(rec.pos));
+                    store(location);
 
-	    // store the marker and location
-	    store(marker);
-	    store(location);
+                    // set the chromosomeLocation reference and store the marker
+		    marker.setReference("chromosomeLocation", location);
 
-	}
+                    // store the marker
+                    store(marker);
+
+                }
+
+            }
+
+        }
         
         br.close();
         
     }
-
+    
 
     /**
      * Store the items held in maps (there are none)
@@ -128,5 +158,5 @@ public class SNPVCFFileConverter extends BioFileConverter {
     @Override
     public void close() throws Exception {
     }
-
+    
 }

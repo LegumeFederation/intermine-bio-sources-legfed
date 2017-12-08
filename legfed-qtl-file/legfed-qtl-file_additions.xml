@@ -12,7 +12,13 @@
   <class name="MappingPopulation" is-interface="true">
 	<attribute name="primaryIdentifier" type="java.lang.String"/>
 	<collection name="QTLs" referenced-type="QTL" reverse-reference="mappingPopulations"/>
+        <collection name="publications" referenced-type="Publication"/>
   </class>
+
+  <class name="Publication" is-interface="true">
+    <attribute name="lastAuthor" type="java.lang.String"/>
+  </class>
+
 
 
 </classes>

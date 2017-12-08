@@ -14,10 +14,8 @@ import java.io.BufferedReader;
 import java.io.Reader;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -26,13 +24,19 @@ import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
+import org.intermine.model.bio.Organism;
+
 /**
  * Store the genetic marker and genomic data from a GFF file.
  *
  * The GFF file may contain duplicates - the last one read is the one that is loaded.
  *
- * The GFF filename gives the taxon ID of the organism. This allows you to have several GFF files in a single src.data.dir 
- * that are run in a single invocation of this converter. The format is: anything-other-than-underscore_3845.gff3.
+ * Above the GFF data is a couple comment lines specifying the organism:
+ *
+ * #TaxonID     3920
+ * #Variety     IT97K-499-35
+ *
+ * NOTE: the GFF file is presumed to NOT contain supercontigs.
  *
  * @author Sam Hokin
  */
@@ -41,11 +45,11 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
     private static final Logger LOG = Logger.getLogger(GeneticMarkerGFFConverter.class);
 
     // the items will all be stored in the close() method, to avoid dupes
-    Set<Item> organismSet = new HashSet<Item>();
+    Map<String,Item> organismMap = new HashMap<String,Item>();
     Map<String,Item> chromosomeMap = new HashMap<String,Item>();
-    Map<String,Item> supercontigMap = new HashMap<String,Item>();
-    Map<String,Item> markerMap = new HashMap<String,Item>();
-    Map<String,Item> locationMap = new HashMap<String,Item>();
+
+    // to check for dups
+    Map<String,String> markerMap = new HashMap<String,String>();
     
     /**
      * Create a new GeneticMarkerGFFConverter
@@ -57,124 +61,117 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
     }
 
     /**
-     * Get the taxon ID from the current file name, e.g. soybean_3847.gff3
-     */
-    public String getTaxonId() {
-        try {
-            String fileName = getCurrentFile().getName();
-            String[] chunks = fileName.split("_");
-            String[] parts = chunks[1].split("\\.");
-            return parts[0];
-        } catch (Exception ex) {
-            throw new RuntimeException("Could not parse GFF filename; format should be: no-underscores_12345.gff3 where taxonID=12345. "+ex.getMessage());
-        }
-    }
-    
-    /**
      * {@inheritDoc}
      * Process the supplied GFF file to create GeneticMarker Items, along with Chromosome and Supercontig Items from the seqid column.
      */
     @Override
     public void process(Reader reader) throws Exception {
 
+	if (getCurrentFile().getName().equals("README")) return;
+	
         LOG.info("Processing GFF file "+getCurrentFile().getName()+"...");
 
-        // create the organism Item and add it to its map
-        Item organism = createItem("Organism");
-        BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
-        organism.setAttribute("taxonId", getTaxonId());
-        organismSet.add(organism);
-
-        // -------------------------------------------------------------------------------------------------------------------
-        // Load the chromosomes, supercontigs and genetic markers from the GFF file
-        // -------------------------------------------------------------------------------------------------------------------
+        // persistent items per file
+	int taxonId = 0;
+	String variety = null;
+	Item organism = null;
         
         String line;
         BufferedReader gffReader = new BufferedReader(reader);
         while ((line=gffReader.readLine()) != null) {
-            if (!line.startsWith("#")) {
+
+	    // create and store organism if we're ready
+	    if (organism==null && taxonId>0 && variety!=null) {
+		String key = taxonId+"_"+variety;
+		if (organismMap.containsKey(key)) {
+		    organism = organismMap.get(key);
+		} else {
+		    organism = createItem("Organism");
+		    organism.setAttribute("taxonId", String.valueOf(taxonId));
+		    organism.setAttribute("variety", variety);
+		    store(organism);
+		    organismMap.put(key, organism);
+		    LOG.info("Created organism: "+taxonId+" ("+variety+")");
+		}
+	    }
+
+	    if (line.startsWith("#TaxonID")) {
+
+		String[] parts = line.split("\t");
+		taxonId = Integer.parseInt(parts[1]);
+
+	    } else if (line.startsWith("#Variety")) {
+
+		String[] parts = line.split("\t");
+		variety = parts[1];
+
+	    } else if (line.startsWith("#") || line.trim().length()==0) {
+
+		// do nothing, comment or blank line
+
+	    } else {
+
+		// bail if organism is not set
+		if (organism==null) {
+		    LOG.error("Organism not set: taxonId="+taxonId+", variety="+variety);
+		    throw new RuntimeException("Organism not set: taxonId="+taxonId+", variety="+variety);
+		}
+
                 GFF3Record gff = new GFF3Record(line);
-                Item marker = createItem("GeneticMarker");
+
+		// set marker name to be first of those listed in GFF record
+		List<String> names = gff.getNames();
+		String name = names.get(0);
+		
+		// check for dupe marke
+		String key = taxonId+"_"+variety;
+		if (markerMap.containsKey(name)) {
+		    String otherKey = markerMap.get(name);
+		    if (key.equals(otherKey)) {
+			LOG.info("Ignoring duplicate marker: "+name+" for organism "+key);
+			continue;
+		    } else {
+			markerMap.put(name, key);
+		    }
+		} else {
+		    markerMap.put(name, key);
+		}
+		
+		String chrName = gff.getSequenceID();
+		Item chromosome;
+		if (chromosomeMap.containsKey(chrName)) {
+		    chromosome = chromosomeMap.get(chrName);
+		} else {
+		    chromosome = createItem("Chromosome");
+		    chromosome.setAttribute("primaryIdentifier", chrName);
+		    chromosome.setReference("organism", organism);
+		    store(chromosome);
+		    chromosomeMap.put(chrName, chromosome);
+		    LOG.info("Created chromosome: "+chrName);
+		}
+		
                 Item location = createItem("Location");
-                // standard chromosome naming convention, e.g. "glyma.Chr01"
-                if (gff.getSequenceID().contains("Chr")) {
-                    // create and store this chromosome if not already in map; else get it from the map
-                    String chrName = gff.getSequenceID();
-                    Item chromosome = null;
-                    if (chromosomeMap.containsKey(chrName)) {
-                        chromosome = chromosomeMap.get(chrName);
-                    } else {
-                        chromosome = createItem("Chromosome");
-                        BioStoreHook.setSOTerm(this, chromosome, "chromosome", getSequenceOntologyRefId());
-                        chromosome.setAttribute("primaryIdentifier", chrName);
-                        chromosomeMap.put(chrName, chromosome);
-                    }
-                    // populate the chromosome location
-                    location.setAttribute("start", String.valueOf(gff.getStart()));
-                    location.setAttribute("end", String.valueOf(gff.getEnd()));
-                    location.setReference("feature", marker);
-                    location.setReference("locatedOn", chromosome);
-                    // associate the genetic marker with this chromosome/location
-                    marker.setReference("chromosome", chromosome);
-                    marker.setReference("chromosomeLocation", location);
-                } else {
-                    // create and store this supercontig if not already in map; else get it from the map
-                    String supercontigName = gff.getSequenceID();
-                    Item supercontig = null;
-                    if (supercontigMap.containsKey(supercontigName)) {
-                        supercontig = supercontigMap.get(supercontigName);
-                    } else {
-                        supercontig = createItem("Supercontig");
-                        BioStoreHook.setSOTerm(this, supercontig, "supercontig", getSequenceOntologyRefId());
-                        supercontig.setAttribute("primaryIdentifier", supercontigName);
-                        supercontigMap.put(supercontigName, supercontig);
-                    }
-                    // populate the supercontig location
-                    location.setAttribute("start", String.valueOf(gff.getStart()));
-                    location.setAttribute("end", String.valueOf(gff.getEnd()));
-                    location.setReference("feature", marker);
-                    location.setReference("locatedOn", supercontig);
-                    // associate the genetic marker with this supercontig/location
-                    marker.setReference("supercontig", supercontig);
-                    marker.setReference("supercontigLocation", location);
-                }
-                // set other marker attributes
-                BioStoreHook.setSOTerm(this, marker, "genetic_marker", getSequenceOntologyRefId());
-                marker.setReference("organism", organism);
-                List<String> names = gff.getNames();
-                String name = names.get(0);
+		Item marker = createItem("GeneticMarker");
+
+		// populate and store the chromosome location
+		location.setAttribute("start", String.valueOf(gff.getStart()));
+		location.setAttribute("end", String.valueOf(gff.getEnd()));
+		location.setReference("locatedOn", chromosome);
+		location.setReference("feature", marker);
+		store(location);
+
+		// populate and store the genetic marker
                 marker.setAttribute("primaryIdentifier", name);
+                marker.setReference("organism", organism);
                 marker.setAttribute("type", gff.getType());
                 marker.setAttribute("length", String.valueOf(gff.getEnd()-gff.getStart()+1));
-                // add this marker and location to the maps; overwrites previous if same name
-                markerMap.put(name, marker);
-                locationMap.put(name, location);
+		marker.setReference("chromosome", chromosome);
+		marker.setReference("chromosomeLocation", location);
+		store(marker);
+
             }
         }
-
-        LOG.info("Created "+markerMap.size()+" distinct GeneticMarker items.");
-
+	
     }
 
-    /**
-     * Store the items we've collected from the GFF files
-     */
-    @Override
-    public void close() throws Exception {
-
-        LOG.info("Storing "+organismSet.size()+" organism items...");
-        store(organismSet);
-        
-	LOG.info("Storing "+chromosomeMap.size()+" chromosome items...");
-        store(chromosomeMap.values());
-
-        LOG.info("Storing "+supercontigMap.size()+" supercontig items...");
-        store(supercontigMap.values());
-
-        LOG.info("Storing "+markerMap.size()+" marker and location items...");
-        store(markerMap.values());
-        store(locationMap.values());
-
-    }
-    
 }

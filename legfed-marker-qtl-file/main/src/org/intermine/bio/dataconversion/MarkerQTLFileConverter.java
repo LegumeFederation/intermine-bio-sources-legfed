@@ -39,7 +39,8 @@ public class MarkerQTLFileConverter extends BioFileConverter {
     // store markers and linkage groups in maps for repeated use
     Map<String,Item> markerMap = new HashMap<String,Item>();
     Map<String,Item> qtlMap = new HashMap<String,Item>();
-
+    Map<String,Item> organismMap = new HashMap<String,Item>();
+    
     /**
      * Create a new MarkerQTLFileConverter
      * @param writer the ItemWriter to write out new items
@@ -61,16 +62,56 @@ public class MarkerQTLFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
+        // header constants
+        int taxonId = 0;
+        String variety = null;
+        Item organism = null;
+
         BufferedReader markerReader = new BufferedReader(reader);
 	String line;
         while ((line=markerReader.readLine())!=null) {
-            if (!line.startsWith("#")) {
 
-                // parsing
+            // initialize organism if not set and can be
+            if (organism==null && taxonId>0 && variety!=null) {
+                String organismKey = taxonId+"_"+variety;
+                if (organismMap.containsKey(organismKey)) {
+                    organism = organismMap.get(organismKey);
+                } else {
+                    organism = createItem("Organism");
+                    organism.setAttribute("taxonId", String.valueOf(taxonId));
+                    organism.setAttribute("variety", variety);
+                    store(organism);
+                    organismMap.put(organismKey, organism);
+                    LOG.info("Storing organism: "+taxonId+" ("+variety+")");
+                }
+            }
+
+            if (line.startsWith("#") || line.trim().length()==0) {
+
+                // do nothing, comment
+                
+            } else if (line.startsWith("TaxonID")) {
+                
+                String[] parts = line.split("\t");
+                taxonId = Integer.parseInt(parts[1]);
+                
+            } else if (line.startsWith("Variety")) {
+                
+                String[] parts = line.split("\t");
+                variety = parts[1];
+                
+            } else {
+
+                // bail if organism not set, otherwise merging is nightmare
+                if (organism==null) {
+                    LOG.error("Organism not set: taxonId="+taxonId+", variety="+variety);
+                    throw new RuntimeException("Organism not set: taxonId="+taxonId+", variety="+variety);
+                }
+                        
                 String[] parts = line.split("\t");
                 String markerID = parts[0];
                 String qtlID = parts[1];
-
+                
                 // retrieve or create the marker item
                 Item marker = null;
                 if (markerMap.containsKey(markerID)) {
@@ -78,9 +119,10 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                 } else {
                     marker = createItem("GeneticMarker");
                     marker.setAttribute("primaryIdentifier", markerID);
+                    marker.setReference("organism", organism);
                     markerMap.put(markerID, marker);
                 }
-
+                
                 // retrieve or create the QTL item
                 Item qtl = null;
                 if (qtlMap.containsKey(qtlID)) {
@@ -88,14 +130,15 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                 } else {
                     qtl = createItem("QTL");
                     qtl.setAttribute("primaryIdentifier", qtlID);
+                    qtl.setReference("organism", organism);
                     qtlMap.put(qtlID, qtl);
                 }
-
+                
                 // relate the two
                 marker.addToCollection("QTLs", qtl);
                 qtl.addToCollection("associatedGeneticMarkers", marker);
-
             }
+            
         }
         
         markerReader.close();

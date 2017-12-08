@@ -23,14 +23,14 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store the QTL-ontology term annotations from tab-delimited files.
- * The files simply contain the QTL name and ontology term.
+ * Store the QTL-ontology term annotations from tab-delimited files, max one organism/variety per file.
+ * The files have a header indicating the organism taxonId and variety, and then rows contain the QTL name and ontology term.
  *
- * <pre>
+ * TaxonID     3257
+ * Variety     FunkySkunky
  * #QTL        TOTerm
  * Qpl.zaas-3  TO:0002626
  * Qpl.zaas-3  PO:1234566
- * </pre>
  *
  * @author Sam Hokin, NCGR
  */
@@ -40,6 +40,7 @@ public class QTLOntologyFileConverter extends BioFileConverter {
 
     Map<String,Item> qtlMap = new HashMap<String,Item>();
     Map<String,Item> termMap = new HashMap<String,Item>();
+    Map<String,Item> organismMap = new HashMap<String,Item>();
     
     /**
      * Create a new QTLOntologyFileConverter
@@ -66,53 +67,86 @@ public class QTLOntologyFileConverter extends BioFileConverter {
         // Run through the file and add the associated ontology terms to the QTLs.
         // -------------------------------------------------------------------------------------------------
 
+        // header constants
+        int taxonId = 0;
+        String variety = null;
+        Item organism = null;
+
         BufferedReader buffReader = new BufferedReader(reader);
 	String line;
         while ((line=buffReader.readLine())!=null) {
 
-	    if (!line.startsWith("#")) {
+            if (!line.startsWith("#") && line.trim().length()>0) {
 
                 String[] parts = line.split("\t");
                 if (parts.length==2) {
-
-                    String qtlName = parts[0];
-                    String termID = parts[1];
-                    String termType = termID.substring(0,2); // GO, PO, TO, etc.
-
-                    // find the QTL in the map, or add it with qtlName=primaryIdentifier
-                    Item qtl = null;
-                    if (qtlMap.containsKey(qtlName)) {
-                        qtl = qtlMap.get(qtlName);
+		
+                    if (parts[0].equals("TaxonID")) {
+                        taxonId = Integer.parseInt(parts[1]);
+                    } else if (parts[0].equals("Variety")) {
+                        variety = parts[1];
                     } else {
-                        qtl = createItem("QTL");
-                        qtl.setAttribute("primaryIdentifier", qtlName);
-                        qtlMap.put(qtlName, qtl);
-                    }
+		    
+                        // initialize header items if not already set
+                        if (organism==null && taxonId>0 && variety!=null) {
+                            String organismKey = taxonId+"_"+variety;
+                            if (organismMap.containsKey(organismKey)) {
+                                organism = organismMap.get(organismKey);
+                            } else {
+                                organism = createItem("Organism");
+                                organism.setAttribute("taxonId", String.valueOf(taxonId));
+                                organism.setAttribute("variety", variety);
+                                organismMap.put(organismKey, organism);
+                            }
+                        }
 
-                    // find the term in the map, or add it with termID=identifier
-                    Item term = null;
-                    if (termMap.containsKey(termID)) {
-                        term = termMap.get(termID);
-                    } else {
-                        // determine the type from the prefix, hopefully supported in the data model!
-                        term = createItem(termType+"Term");
-                        term.setAttribute("identifier", termID);
-                        termMap.put(termID, term);
-                    }
+                        // error out permanently if we haven't created an organism for these QTLs
+                        if (organism==null) {
+                            LOG.error("Error loading organism from "+getCurrentFile().getName());
+                            throw new RuntimeException("Error loading organism from "+getCurrentFile().getName());
+                        }
+                        
+                        String qtlName = parts[0];
+                        String termID = parts[1];
+                        String termType = termID.substring(0,2); // GO, PO, TO, etc.
+                        
+                        // find the QTL in the map, or add it with qtlName=primaryIdentifier
+                        Item qtl = null;
+                        if (qtlMap.containsKey(qtlName)) {
+                            qtl = qtlMap.get(qtlName);
+                        } else {
+                            qtl = createItem("QTL");
+                            qtl.setAttribute("primaryIdentifier", qtlName);
+                            qtl.setReference("organism", organism);
+                            qtlMap.put(qtlName, qtl);
+                        }
 
-                    // create this annotation, associate it with the term and QTL, and store it
-                    Item annotation = createItem(termType+"Annotation");
-                    annotation.setReference("ontologyTerm", term);
-                    annotation.setReference("subject", qtl);
-                    store(annotation);
-                    qtl.addToCollection("ontologyAnnotations", annotation);
+                        // find the term in the map, or add it with termID=identifier
+                        Item term = null;
+                        if (termMap.containsKey(termID)) {
+                            term = termMap.get(termID);
+                        } else {
+                            // determine the type from the prefix, hopefully supported in the data model!
+                            term = createItem(termType+"Term");
+                            term.setAttribute("identifier", termID);
+                            termMap.put(termID, term);
+                        }
+                        
+                        // create this annotation, associate it with the term and QTL, and store it
+                        Item annotation = createItem(termType+"Annotation");
+                        annotation.setReference("ontologyTerm", term);
+                        annotation.setReference("subject", qtl);
+                        store(annotation);
+                        qtl.addToCollection("ontologyAnnotations", annotation);
+
+                    }
 
                 }
-
+		    
             }
-
+	    
         }
-            
+	
         buffReader.close();
 
     }
@@ -122,13 +156,16 @@ public class QTLOntologyFileConverter extends BioFileConverter {
      */
     @Override
     public void close() throws Exception {
-
+        
+        LOG.info("Storing "+organismMap.size()+" Organism items...");
+        store(organismMap.values());
+        
         LOG.info("Storing "+qtlMap.size()+" QTL items...");
         store(qtlMap.values());
-
-	LOG.info("Storing "+termMap.size()+" OntologyTerm items...");
-	store(termMap.values());
-
+	
+        LOG.info("Storing "+termMap.size()+" OntologyTerm items...");
+        store(termMap.values());
+        
     }
     
 }

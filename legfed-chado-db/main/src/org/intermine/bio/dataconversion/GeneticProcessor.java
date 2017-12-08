@@ -23,7 +23,7 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 
-import org.ncgr.pubmed.PubMedSearch;
+import org.ncgr.pubmed.PubMedSummary;
 
 import org.intermine.bio.util.OrganismData;
 import org.intermine.objectstore.ObjectStoreException;
@@ -69,7 +69,6 @@ public class GeneticProcessor extends ChadoProcessor {
         // ---------------------------------------------------------
         
         // set the cv terms for our items of interest
-        String geneCVTerm = "gene";
         String linkageGroupCVTerm = "linkage_group";
         String geneticMarkerCVTerm = "genetic_marker";
         String qtlCVTerm = "QTL";
@@ -370,13 +369,12 @@ public class GeneticProcessor extends ChadoProcessor {
         if (parts.length==1) parts = parts[0].split(",");
         String firstAuthor = parts[0];
         int pubMedId = 0;
+        // search for the PubMedId, hopefully find it with title; otherwise pubMedId==0 and is ignored below.
         try {
-            // search for the PubMedId, hopefully find it with just first author
-            String[] authors = new String[1];
-            authors[0] = firstAuthor;
-            pubMedId = PubMedSearch.getPubMedId(journal, Integer.parseInt(year), authors);
-        } catch (Exception ex) {
-            // do nothing
+            PubMedSummary summary = new PubMedSummary(title);
+            pubMedId = summary.id;
+        } catch (Exception e) {
+            LOG.error(e);
         }
         // build the Publication item
         if (title!=null && title.length()>0 && !title.equals("NULL")) publication.setAttribute("title", title);
@@ -426,7 +424,6 @@ public class GeneticProcessor extends ChadoProcessor {
             ChadoFeature cf = new ChadoFeature(rs);
             Item item = getChadoDBConverter().createItem(className);
             cf.populateBioEntity(item, organism);
-            BioStoreHook.setSOTerm(getChadoDBConverter(), item, cvTerm, getChadoDBConverter().getSequenceOntologyRefId());
             map.put(new Integer(cf.feature_id), item);
         }
         rs.close();

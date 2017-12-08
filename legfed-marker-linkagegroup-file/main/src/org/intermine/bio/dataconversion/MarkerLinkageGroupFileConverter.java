@@ -26,9 +26,12 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store genetic marker linkage group positions
+ * Store genetic marker linkage group positions. Prepend the taxon ID and variety to define the organism of the markers for merging.
  *
- * Marker LinkageGroup Position
+ * TaxonID    3920
+ * Variety    IT97K-499-35
+ *
+ * #Marker    LinkageGroup    Position
  *
  * @author Sam Hokin, NCGR
  */
@@ -39,6 +42,7 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
     // store markers and linkage groups in maps for repeated use
     Map<String,Item> markerMap = new HashMap<String,Item>();
     Map<String,Item> linkageGroupMap = new HashMap<String,Item>();
+    Map<String,Item> organismMap = new HashMap<String,Item>();
 
     /**
      * Create a new MarkerLinkageGroupFileConverter
@@ -61,11 +65,51 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
+        int taxonId = 0;
+        String variety = null;
+        Item organism = null;
+
         BufferedReader markerReader = new BufferedReader(reader);
 	String line;
         while ((line=markerReader.readLine())!=null) {
-            if (!line.startsWith("#")) {
 
+            // create and store the organism if needed
+            if (organism==null && taxonId>0 && variety!=null) {
+                String key = taxonId+"_"+variety;
+                if (organismMap.containsKey(key)) {
+                    organism = organismMap.get(key);
+                } else {
+                    organism = createItem("Organism");
+                    organism.setAttribute("taxonId", String.valueOf(taxonId));
+                    organism.setAttribute("variety", variety);
+                    store(organism);
+                    organismMap.put(key, organism);
+                    LOG.info("Stored organism: "+taxonId+", "+variety);
+                }
+            }
+
+            if (line.startsWith("#")) {
+
+                // do nothing, comment
+
+            } else if (line.startsWith("TaxonID")) {
+
+                String[] parts = line.split("\t");
+                taxonId = Integer.parseInt(parts[1]);
+
+            } else if (line.startsWith("Variety")) {
+
+                String[] parts = line.split("\t");
+                variety = parts[1];
+
+            } else {
+
+                // bail if we don't have an organism
+                if (organism==null) {
+                    LOG.error("Organism not defined: taxonId="+taxonId+" variety="+variety);
+                    throw new RuntimeException("Organism not defined: taxonId="+taxonId+" variety="+variety);
+                }
+                
                 // parsing
                 String[] parts = line.split("\t");
                 String markerID = parts[0];
@@ -79,6 +123,7 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
                 } else {
                     marker = createItem("GeneticMarker");
                     marker.setAttribute("primaryIdentifier", markerID);
+                    marker.setReference("organism", organism);
                     markerMap.put(markerID, marker);
                 }
 

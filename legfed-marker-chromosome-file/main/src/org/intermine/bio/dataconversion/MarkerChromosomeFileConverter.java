@@ -70,7 +70,8 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
         BufferedReader markerReader = new BufferedReader(reader);
 	String line;
         while ((line=markerReader.readLine())!=null) {
-            if (!line.startsWith("#")) {
+
+            if (!line.startsWith("#") && line.trim().length()>0) {
 
                 // create the organism if we have the required stuff
                 if (organism==null && taxonId!=null && variety!=null) {
@@ -78,6 +79,7 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
                     organism.setAttribute("taxonId", taxonId);
                     organism.setAttribute("variety", variety);
                     store(organism);
+                    LOG.info("Created and stored organism with taxonId:variety = "+taxonId+":"+variety);
                 }
 
                 // organism or variety line at top
@@ -88,6 +90,12 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
                     String[] parts = line.split("\t");
                     variety = parts[1];
                 } else {
+
+                    // check that we've got an organism - fatal exit if not
+                    if (organism==null) {
+                        LOG.error("Organism has not been formed for marker/chromosome import in file "+getCurrentFile().getName());
+                        throw new RuntimeException("Organism has not been formed for marker/chromosome import in file "+getCurrentFile().getName());
+                    }
 
                     MarkerChromosomeRecord rec = new MarkerChromosomeRecord(line);
                     
@@ -112,8 +120,10 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
                             chromosome = createItem("Chromosome");
                         }
                         chromosome.setAttribute("primaryIdentifier", rec.chromosome);
+                        chromosome.setReference("organism", organism);
                         store(chromosome);
                         chromosomeMap.put(rec.chromosome, chromosome);
+                        LOG.info("Created and stored chromosome/supercontig: "+rec.chromosome);
                     }
                     if (isSupercontig) {
                         marker.setReference("supercontig", chromosome);
@@ -139,7 +149,6 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
                     store(marker);
 
                 }
-
             }
         }
         

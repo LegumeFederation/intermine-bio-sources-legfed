@@ -18,6 +18,7 @@
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <collection name="parents" referenced-type="Organism"/>
     <collection name="geneticMaps" referenced-type="GeneticMap" reverse-reference="mappingPopulations"/>
+    <collection name="publications" referenced-type="Publication"/>
   </class>
 
   <class name="LinkageGroup" is-interface="true">
