@@ -18,9 +18,6 @@ import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
-import org.ncgr.intermine.PublicationTools;
-import org.ncgr.pubmed.PubMedSummary;
-
 import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;

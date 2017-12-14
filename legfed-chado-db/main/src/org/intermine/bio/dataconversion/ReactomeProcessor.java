@@ -129,8 +129,6 @@ public class ReactomeProcessor extends ChadoProcessor {
                 if (parts.length>3) proteinName = parts[0]+"."+parts[1]+"."+parts[2]; // drop what comes after species.loc.n (e.g. Phvul.007G094900.1)
                 // query for the chado polypeptides of the desired organisms
                 String query = "SELECT * FROM feature WHERE type_id="+polypeptideCVTermId+" AND uniquename LIKE '"+proteinName+"%' AND organism_id IN "+inList;
-                // DEBUG
-                LOG.info(query);
                 rs = stmt.executeQuery(query);
                 while (rs.next()) {
                     String primaryIdentifier = rs.getString("uniquename");

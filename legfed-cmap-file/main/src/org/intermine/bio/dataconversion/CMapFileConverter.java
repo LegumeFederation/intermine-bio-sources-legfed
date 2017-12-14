@@ -24,19 +24,18 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 
-import org.ncgr.intermine.PublicationTools;
-import org.ncgr.pubmed.PubMedSummary;
-
 import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
 import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
 /**
+ * DEPRECATED - DOES NOT LOAD ORG and OTHER DATA FROM HEADER LINES; DOES NOT SUPPORT Organism.variety.
+ *
  * Store the genetic marker and QTL data from a CMap tab-delimited file. Fields are:
- * <pre>
+ *
  * map_acc map_name map_start map_stop feature_acc feature_name feature_aliases feature_start feature_stop feature_type_acc is_landmark
- * </pre>
+ *
  * The file name gives the taxon ID of the organism. This allows you to have several files in a single src.data.dir 
  * that are run in a single invocation of this converter. The format is: anything-other-than-underscore_3847.txt.
  *
@@ -79,20 +78,13 @@ public class CMapFileConverter extends BioFileConverter {
         
         // create and add the organism Item to its map
         Item organism = createItem("Organism");
-        BioStoreHook.setSOTerm(this, organism, "organism", getSequenceOntologyRefId());
         organism.setAttribute("taxonId", getTaxonId());
         organismSet.add(organism);
 
         // create and store the genetic map
         Item geneticMap = createItem("GeneticMap");
-        BioStoreHook.setSOTerm(this, geneticMap, "organism", getSequenceOntologyRefId());
         geneticMap.setAttribute("primaryIdentifier", getGeneticMapName());
         geneticMap.setReference("organism", organism);
-        String pubMedId = getPubMedId();
-        if (pubMedId!=null) {
-            Item publication = PublicationTools.storePublicationFromPMID(this, Integer.parseInt(pubMedId));
-            if (publication!=null) geneticMap.setReference("publication", publication);
-        }
         store(geneticMap);
 
         // ---------------------------------------------------------------------------------------------------------------------------
@@ -116,7 +108,6 @@ public class CMapFileConverter extends BioFileConverter {
                     if (currentLength<cmap.map_stop) linkageGroup.setAttribute("length", String.valueOf(cmap.map_stop));
                 } else {
                     linkageGroup = createItem("LinkageGroup");
-                    BioStoreHook.setSOTerm(this, linkageGroup, "linkage_group", getSequenceOntologyRefId());
                     linkageGroup.setAttribute("primaryIdentifier", cmap.map_acc);
                     linkageGroup.setAttribute("secondaryIdentifier", cmap.map_name);
                     linkageGroup.setAttribute("length", String.valueOf(cmap.map_stop));
@@ -130,7 +121,6 @@ public class CMapFileConverter extends BioFileConverter {
                 if (cmap.isQTL()) {
                     if (!qtlMap.containsKey(cmap.feature_acc)) {
                         Item qtl = createItem("QTL");
-                        BioStoreHook.setSOTerm(this, qtl, "QTL", getSequenceOntologyRefId());
                         qtl.setReference("organism", organism);
                         if (cmap.feature_name.contains(":")) {
                             // use the part before colon for primary identifier
@@ -170,7 +160,6 @@ public class CMapFileConverter extends BioFileConverter {
                 if (cmap.isMarker()) {
                     if (!markerMap.containsKey(cmap.feature_acc)) {
                         Item marker = createItem("GeneticMarker");
-                        BioStoreHook.setSOTerm(this, marker, "genetic_marker", getSequenceOntologyRefId());
                         marker.setReference("organism", organism);
                         marker.setAttribute("primaryIdentifier", cmap.feature_name);
                         marker.setAttribute("secondaryIdentifier", cmap.feature_acc);
@@ -252,21 +241,5 @@ public class CMapFileConverter extends BioFileConverter {
         String[] chunks = fileName.split("_");
         return chunks[1];
     }
-
-    /**
-     * Get the PubMed ID from the current file name, e.g. GeneticMapFoo_3917_24659904.gt
-     */
-    public String getPubMedId() {
-        String fileName = getCurrentFile().getName();
-        String[] chunks = fileName.split("_");
-        if (chunks.length<3) return null;
-        String[] parts = chunks[2].split("\\.");
-        if (parts[0].equals("0")) {
-            return null;
-        } else {
-            return parts[0];
-        }
-    }
-
 
 }
