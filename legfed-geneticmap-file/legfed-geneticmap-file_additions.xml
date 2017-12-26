@@ -5,13 +5,10 @@
     <attribute name="lastAuthor" type="java.lang.String"/>
   </class>
 
-  <class name="GeneticMap" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <attribute name="secondaryIdentifier" type="java.lang.String"/>
+  <class name="GeneticMap" extends="BioEntity" is-interface="true">
     <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="geneticMaps"/>
     <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="geneticMaps"/>
-    <collection name="publications" referenced-type="Publication"/>
   </class>
 
   <class name="MappingPopulation" is-interface="true">

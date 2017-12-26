@@ -136,7 +136,6 @@ public class GeneticProcessor extends ChadoProcessor {
                 geneticMap.setAttribute("description", description);
                 geneticMap.setAttribute("unit", "cM");
                 geneticMap.setReference("organism", organism);
-                store(geneticMap);
                 geneticMapMap.put(new Integer(featuremap_id), geneticMap);
             }
             rs.close();
@@ -165,8 +164,8 @@ public class GeneticProcessor extends ChadoProcessor {
                     store(publication);
                     publicationMap.put(pubId, publication);
                 }
-                // add the GeneticMap reference to the Publication (reverse-referenced)
-                publication.addToCollection("bioEntities", geneticMap);
+                // add this publication reference to our genetic map
+                geneticMap.addToCollection("publications", publication);
             }
             rs1.close();
         }
@@ -191,8 +190,8 @@ public class GeneticProcessor extends ChadoProcessor {
                     store(publication);
                     publicationMap.put(pubId, publication);
                 }
-                // add the QTL reference to the Publication (reverse-referenced)
-                publication.addToCollection("bioEntities", qtl);
+                // add this publication to our QTL.publications collection
+                qtl.addToCollection("publications", publication);
             }
             rs.close();
         }
@@ -299,6 +298,9 @@ public class GeneticProcessor extends ChadoProcessor {
  
         LOG.info("Storing "+qtlMap.size()+" QTLs...");
         for (Item item : qtlMap.values()) store(item);
+
+        LOG.info("Storing "+geneticMapMap.size()+" genetic maps...");
+        for (Item item : geneticMapMap.values()) store(item);
 
     }
 

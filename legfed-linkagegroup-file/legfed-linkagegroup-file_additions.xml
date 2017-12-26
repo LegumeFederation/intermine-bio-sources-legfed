@@ -8,8 +8,7 @@
 	<reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
   </class>
 
-  <class name="GeneticMap" is-interface="true">
-	<attribute name="primaryIdentifier" type="java.lang.String"/>
+  <class name="GeneticMap" extends="BioEntity" is-interface="true">
 	<collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
   </class>
 

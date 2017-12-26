@@ -147,43 +147,37 @@ public class QTLFileConverter extends BioFileConverter {
 			}
 			
 			// publication, if present, either a PMID or info columns
-			if (publication==null && (pmid!=0 || (title!=null && title.trim().length()>0))) {
-			    LOG.info("Creating new publication: PMID="+pmid+", Title="+title);
-			    // search for PubMed summary, on either PMID or title
-			    PubMedSummary pms;
-			    if (pmid!=0) {
-				pms = new PubMedSummary(pmid);
-			    } else {
-				pms = new PubMedSummary(title);
-			    }
+			if (publication==null && pmid>0) {
+			    // search for PubMed summary on PMID
+			    PubMedSummary pms = new PubMedSummary(pmid);
 			    if (pms.id>0) {
 				// it's in PubMed, so use that information
 				PubMedPublication pubMedPub = new PubMedPublication(this, pms);
 				publication = pubMedPub.getPublication();
-				if (publication!=null) {
-				    List<Item> authors = pubMedPub.getAuthors();
-				    for (Item author : authors) {
-					String name = author.getAttribute("name").getValue();
-					if (authorMap.containsKey(name)) {
-					    Item authorToStore = authorMap.get(name);
-					    publication.addToCollection("authors", authorToStore);
-					} else {
-					    authorMap.put(name, author);
-					    publication.addToCollection("authors", author);
-					}
+				List<Item> authors = pubMedPub.getAuthors();
+				for (Item author : authors) {
+				    String name = author.getAttribute("name").getValue();
+				    if (authorMap.containsKey(name)) {
+					Item authorToStore = authorMap.get(name);
+					publication.addToCollection("authors", authorToStore);
+				    } else {
+					authorMap.put(name, author);
+					publication.addToCollection("authors", author);
 				    }
 				}
-			    } else if (title!=null && title.trim().length()>0) {
-				// store at least the publication title, no authors
-				publication = createItem("Publication");
-				publication.setAttribute("title", title.trim());
-				if (journal!=null && journal.trim().length()>0) publication.setAttribute("journal", journal.trim());
-				if (year!=0) publication.setAttribute("year", String.valueOf(year));
-				if (volume!=null && volume.trim().length()>0) publication.setAttribute("volume", volume.trim());
-				if (pages!=null && pages.trim().length()>0) publication.setAttribute("pages", pages.trim());
+				store(publication);
+				LOG.info("Stored publication PMID="+pms.id);
 			    }
+			} else if (publication==null && title!=null && title.length()>0) {
+			    // store at least the publication title, no authors
+			    publication = createItem("Publication");
+			    publication.setAttribute("title", title);
+			    if (journal!=null && journal.length()>0) publication.setAttribute("journal", journal);
+			    if (year!=0) publication.setAttribute("year", String.valueOf(year));
+			    if (volume!=null && volume.length()>0) publication.setAttribute("volume", volume);
+			    if (pages!=null && pages.length()>0) publication.setAttribute("pages", pages);
 			    store(publication);
-			    LOG.info("Stored publication: "+pmid+" "+title);
+			    LOG.info("Stored publication: "+title);
 			}
 
                         // create and store mapping population (or pull it from map)
@@ -208,8 +202,8 @@ public class QTLFileConverter extends BioFileConverter {
 			}
 			
 			// a QTL and trait
-			String qtlName = parts[0];
-			String traitName = parts[1];
+			String qtlName = parts[0].trim();
+			String traitName = parts[1].trim();
 			
 			// find the QTL in the map, or add it with qtlName=primaryIdentifier
 			Item qtl;
@@ -219,7 +213,7 @@ public class QTLFileConverter extends BioFileConverter {
 			    qtl = createItem("QTL");
 			    qtl.setAttribute("primaryIdentifier", qtlName);
 			    qtl.setReference("organism", organism);
-			    if (traitName.trim().length()>0) qtl.setAttribute("traitName", traitName);
+			    if (traitName.length()>0) qtl.setAttribute("traitName", traitName);
 			    qtlMap.put(qtlName, qtl);
 			}
 			

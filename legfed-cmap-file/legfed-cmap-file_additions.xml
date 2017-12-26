@@ -12,11 +12,8 @@
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
   </class>
 
-  <class name="GeneticMap" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
+  <class name="GeneticMap" extends="BioEntity" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
-    <reference name="publication" referenced-type="Publication"/>
     <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="geneticMaps"/>
   </class>

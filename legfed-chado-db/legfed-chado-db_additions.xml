@@ -47,11 +47,10 @@
     <reference name="linkageGroup" referenced-type="LinkageGroup"/>
   </class>
 
-  <class name="GeneticMap" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
+  <!-- extends BioEntity so we can associate publications in bioentitiespublications -->
+  <class name="GeneticMap" extends="BioEntity" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
     <attribute name="unit" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
     <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
     <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
   </class>
