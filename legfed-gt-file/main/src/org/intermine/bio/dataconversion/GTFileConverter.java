@@ -36,12 +36,19 @@ import org.intermine.xml.full.Item;
  *   ...
  * </pre>
  *
- * A few tab-separated metadata fields precede the data, and should be in this order:
+ * A few tab-separated metadata fields precede the data, and should be IN THIS ORDER:
  * <pre>
  * TaxonID      3920
- * Parents	BigTall123	SmallShort456
+ * MappingPopulation	3WayCross-2018
+ * Description  Blah di blah blah blah blah blah.
+ * MatrixNotes  A = Parent A, B = Parent B. Lower case: genotype calls reversed based on parental alleles.
+ * Parent	BigTall123
+ * Parent	SmallShort456
+ * Parent	MediumTall789
  * PMID	12345678
  * PMID	23456789
+ * MarkerType   SNP
+ * GeneticMap   3WayCross-2018
  * Lines	Line1	Line2	Line3	...
  * </pre>
  *
@@ -54,10 +61,8 @@ public class GTFileConverter extends BioFileConverter {
     private static final Logger LOG = Logger.getLogger(GTFileConverter.class);
 
     // store items at end in close() method, they may be duplicated across files
-    Map<String,Item> organismMap = new HashMap<String,Item>();   // keyed by variety
+    Map<String,Item> organismMap = new HashMap<String,Item>();   // keyed by taxonId, variety (parent)
     Map<String,Item> publicationMap = new HashMap<String,Item>();
-    Map<String,Item> authorMap = new HashMap<String,Item>();
-    Map<String,Item> lineMap = new HashMap<String,Item>();
     Map<String,Item> markerMap = new HashMap<String,Item>();
 
     /**
@@ -81,6 +86,7 @@ public class GTFileConverter extends BioFileConverter {
 
         // these objects are created per file
         String taxonId = null;
+        String markerType = null;
         Item mappingPopulation = null;
         Item[] lines = null;
 
@@ -97,78 +103,78 @@ public class GTFileConverter extends BioFileConverter {
         while ((line=br.readLine())!=null) {
 
             if (MAX_MARKERS>0 && count>MAX_MARKERS) break;  // IF TESTING: limit the number of markers
-            count++; 
+            count++;
 
-            if (line.startsWith("TaxonID")) {
+            String[] parts = line.split("\t");
+            if (!line.startsWith("#") && parts.length>1) {
 
-                String[] parts = line.split("\t");
-                taxonId = parts[1];
+                String key = parts[0].trim();
+                String value = parts[1].trim();
 
-            } else if (line.startsWith("Parents")) {
+                if (key.toLowerCase().equals("taxonid")) {
 
-                // get parent organisms
-                String[] parts = line.split("\t");
-                String[] parents = new String[2];
-                parents[0] = parts[1];
-                parents[1] = parts[2];
-                // create MappingPopulation and name for parents
-                mappingPopulation = createItem("MappingPopulation");
-                mappingPopulation.setAttribute("primaryIdentifier", parents[0]+"_x_"+parents[1]); // this is how we know parent A and parent B
-                // add parents to collection
-                for (int i=0; i<2; i++) {
+                    taxonId = value;
+
+                } else if (key.toLowerCase().equals("mappingpopulation")) {
+
+                    mappingPopulation = createItem("MappingPopulation");
+                    mappingPopulation.setAttribute("primaryIdentifier", value);
+
+                } else if (key.toLowerCase().equals("description")) {
+
+                    mappingPopulation.setAttribute("description", value);
+
+                } else if (key.toLowerCase().equals("matrixnotes")) {
+
+                    mappingPopulation.setAttribute("matrixNotes", value);
+                
+                } else if (key.toLowerCase().equals("geneticmap")) {
+
+                    Item geneticMap = createItem("GeneticMap");
+                    geneticMap.setAttribute("primaryIdentifier", value);
+                    store(geneticMap);
+                    LOG.info("Stored GeneticMap "+value);
+                    mappingPopulation.setReference("geneticMap", geneticMap);
+
+                } else if (key.toLowerCase().equals("markertype")) {
+
+                    markerType = value;
+
+                } else if (key.toLowerCase().equals("parent")) {
+
+                    // add parent to mapping population's collection
                     Item organism;
-                    if (organismMap.containsKey(parents[i])) {
-                        organism = organismMap.get(parents[i]);
+                    if (organismMap.containsKey(value)) {
+                        organism = organismMap.get(value);
                     } else {
                         organism = createItem("Organism");
                         organism.setAttribute("taxonId", taxonId);
-                        organism.setAttribute("variety", parents[i]);
-                        organismMap.put(parents[i], organism);
+                        organism.setAttribute("variety", value);
+                        organismMap.put(value, organism);
                     }
                     mappingPopulation.addToCollection("parents", organism);
-                }
-                
-            } else if (line.startsWith("PMID")) {
+                    
+                } else if (key.toLowerCase().equals("pmid")) {
 
-                // get the Publication if PMID present
-                String[] parts = line.split("\t");
-                String pubMedId = parts[1];
-                if (publicationMap.containsKey(pubMedId)) {
-                    Item publication = publicationMap.get(pubMedId);
-                    mappingPopulation.addToCollection("publications", publication);
-                } else {
-                    PubMedPublication pubMedPub = new PubMedPublication(this, Integer.parseInt(pubMedId));
-                    // DEBUG
-                    LOG.info(pubMedPub.getSummary().toString());
-                    Item publication = pubMedPub.getPublication();
-                    if (publication!=null) {
-                        List<Item> authors = pubMedPub.getAuthors();
-                        for (Item author : authors) {
-                            String name = author.getAttribute("name").getValue();
-                            if (authorMap.containsKey(name)) {
-                                Item authorToStore = authorMap.get(name);
-                                publication.addToCollection("authors", authorToStore);
-                            } else {
-                                authorMap.put(name, author);
-                                publication.addToCollection("authors", author);
-                            }
-                        }
+                    // add a related publication to this mapping population
+                    String pubMedId = value;
+                    if (publicationMap.containsKey(pubMedId)) {
+                        Item publication = publicationMap.get(pubMedId);
+                        mappingPopulation.addToCollection("publications", publication);
+                    } else {
+                        // create a new publication
+                        Item publication = createItem("Publication");
+                        publication.setAttribute("pubMedId", pubMedId);
                         publicationMap.put(pubMedId, publication);
                         mappingPopulation.addToCollection("publications", publication);
                     }
-                }
 
-            } else if (line.startsWith("Lines")) {
+                } else if (key.toLowerCase().equals("lines")) {
 
-                // get the lines
-                String[] parts = line.split("\t");
-                int num = parts.length - 1;    // number of genotyping lines
-                lines = new Item[num];         // CB27/BB-007, etc.
-                for (int i=0; i<num; i++) {
-                    String lineName = parts[i+1];
-                    if (lineMap.containsKey(lineName)) {
-                        lines[i] = lineMap.get(lineName);
-                    } else {
+                    int num = parts.length - 1;    // number of genotyping lines
+                    lines = new Item[num];         // CB27/BB-007, etc.
+                    for (int i=0; i<num; i++) {
+                        String lineName = parts[i+1];
                         lines[i] = createItem("GenotypingLine");
                         lines[i].setAttribute("primaryIdentifier", lineName);
                         // try to parse out a number, e.g. 17 from CB27-17, for ordering purposes
@@ -182,43 +188,45 @@ public class GTFileConverter extends BioFileConverter {
                                 // do nothing, it's not an integer
                             }
                         }
-                        lineMap.put(lineName, lines[i]);
+                        // this line should only appear with this mapping population
+                        lines[i].setReference("mappingPopulation", mappingPopulation);
+                        store(lines[i]);
                     }
-                    lines[i].setReference("mappingPopulation", mappingPopulation);
-                }
 
-            } else {
-
-                // add a genotyping record for a marker
-                GTRecord gt = new GTRecord(line);
-                Item marker;
-                if (markerMap.containsKey(gt.marker)) {
-                    marker = markerMap.get(gt.marker);
                 } else {
-                    marker = createItem("GeneticMarker");
-                    marker.setAttribute("primaryIdentifier", gt.marker);
-                    marker.setAttribute("type", "SNP"); // TODO: put the marker type in the file header, they don't have to be SNPs
-                    markerMap.put(gt.marker, marker);
-                }
-                marker.addToCollection("mappingPopulations", mappingPopulation);
+
+                    // add a genotyping record for a marker
+                    GTRecord gtr = new GTRecord(line);
+                    Item marker;
+                    if (markerMap.containsKey(gtr.marker)) {
+                        marker = markerMap.get(gtr.marker);
+                    } else {
+                        marker = createItem("GeneticMarker");
+                        marker.setAttribute("primaryIdentifier", gtr.marker);
+                        marker.setAttribute("type", markerType);
+                        markerMap.put(gtr.marker, marker);
+                    }
+                    marker.addToCollection("mappingPopulations", mappingPopulation);
                 
-                // create and store this marker's genotypeValues; they should be same order/number as lines.
-                for (int i=0; i<lines.length; i++) {
-                    Item genotypeValue = createItem("GenotypeValue");
-                    genotypeValue.setAttribute("value", gt.values[i]);
-                    genotypeValue.setReference("line", lines[i]);
-                    genotypeValue.setReference("marker", marker);
-                    store(genotypeValue);
+                    // create and store this marker's genotypeValues; they should be same order/number as lines.
+                    for (int i=0; i<lines.length; i++) {
+                        Item genotypeValue = createItem("GenotypeValue");
+                        genotypeValue.setAttribute("value", gtr.values[i]);
+                        genotypeValue.setReference("line", lines[i]);
+                        genotypeValue.setReference("marker", marker);
+                        store(genotypeValue);
+                    }
+                    
                 }
 
             }
 
-        } // end while reading a file
+        } // end while reading lines
 
         // each file has a unique mapping population so store it here
         store(mappingPopulation);
         
-        // wrap up
+        // wrap up this file
         br.close();
  
     }
@@ -230,9 +238,7 @@ public class GTFileConverter extends BioFileConverter {
     @Override
     public void close() throws Exception {
         store(organismMap.values());
-        store(lineMap.values());
         store(markerMap.values());
-        store(authorMap.values());
         store(publicationMap.values());
     }
 

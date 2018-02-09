@@ -7,6 +7,9 @@
 
   <class name="MappingPopulation" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
+    <attribute name="matrixNotes" type="java.lang.String"/>
+    <reference name="geneticMap" referenced-type="GeneticMap"/>
     <collection name="parents" referenced-type="Organism"/>
     <collection name="publications" referenced-type="Publication"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="mappingPopulations"/>

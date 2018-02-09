@@ -101,12 +101,12 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
 
             } else {
 
-                // bail if we don't have an organism
-                if (organism==null) {
+                // bail if we don't have an organism or variety
+                if (organism==null || variety==null) {
                     LOG.error("Organism not defined: taxonId="+taxonId+" variety="+variety);
                     throw new RuntimeException("Organism not defined: taxonId="+taxonId+" variety="+variety);
                 }
-                
+
                 // parsing
                 String[] parts = line.split("\t");
                 String markerID = parts[0];

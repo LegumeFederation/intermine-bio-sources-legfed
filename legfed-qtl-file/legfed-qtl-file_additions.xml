@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <classes>
 
-  <!-- this loader loads QTLs and parents, creating mapping population and publication references -->
+  <!-- this loader loads QTLs per publication/mapping populations -->
   <!-- BioEntity.publications is assumed; when QTL ceases to be BioEntity, then add publications back in -->
 
   <class name="QTL" extends="BioEntity" is-interface="true">
@@ -18,7 +18,5 @@
   <class name="Publication" is-interface="true">
     <attribute name="lastAuthor" type="java.lang.String"/>
   </class>
-
-
 
 </classes>

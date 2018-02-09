@@ -13,13 +13,14 @@ package org.intermine.bio.dataconversion;
 import java.io.BufferedReader;
 import java.io.Reader;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
-import java.util.Set;
+import java.util.HashMap;
 
 import org.apache.log4j.Logger;
+
+import org.ncgr.intermine.PubMedPublication;
 
 import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
@@ -30,13 +31,15 @@ import org.intermine.xml.full.Item;
  * Import organisms from tab-delimited germplasm files.
  *
  * <pre>
- * taxonId	3917
- * variety	CB27
- * alternateVarietyName	California Blackeye 27
- * description	California Blackeye 27 (or CB27) is ideally suited to the Central Valley of California....
- * patentNumber	200000183
- * url	https://techtransfer.universityofcalifornia.edu/NCD/10164.html
- * country	United States
+ * TaxonID	3917
+ * Variety	CB27
+ * AlternateVarietyName	California Blackeye 27
+ * Description	California Blackeye 27 (or CB27) is ideally suited to the Central Valley of California....
+ * PatentNumber	200000183
+ * URL          https://techtransfer.universityofcalifornia.edu/NCD/10164.html
+ * Country	United States
+ * PMID         123456
+ * PMID         234567
  * </pre>
  *
  * @author Sam Hokin
@@ -45,6 +48,10 @@ public class GermplasmFileConverter extends BioFileConverter {
 
     private static final Logger LOG = Logger.getLogger(GermplasmFileConverter.class);
 
+    // store all the pubs and authors in maps so we don't duplicate
+    Map<String,Item> publicationMap = new HashMap<String,Item>();
+    Map<String,Item> authorMap = new HashMap<String,Item>();
+    
     /**
      * Create a new GermplasmFileConverter
      * @param writer the ItemWriter to write out new items
@@ -65,6 +72,9 @@ public class GermplasmFileConverter extends BioFileConverter {
         if (getCurrentFile().getName().equals("README")) return;
 
         LOG.info("Processing Germplasm file "+getCurrentFile().getName()+"...");
+
+        // store the pubs for THIS organism in a list
+        List<Item> publicationList = new ArrayList<Item>();
         
         // the fields
         String taxonId = null; // not null
@@ -74,7 +84,7 @@ public class GermplasmFileConverter extends BioFileConverter {
         String patentNumber = null;
         String url = null;
         String country = null;
-        
+
         BufferedReader br = new BufferedReader(reader);
         String line = null;
         while ((line=br.readLine())!=null) {
@@ -89,6 +99,20 @@ public class GermplasmFileConverter extends BioFileConverter {
                 if (field.equals("patentnumber")) patentNumber = value;
                 if (field.equals("url")) url = value;
                 if (field.equals("country")) country = value;
+                if (field.equals("pmid")) {
+                    // create or grab this publication and add it to the publicationList
+                    String pubMedId = value;
+                    if (publicationMap.containsKey(pubMedId)) {
+                        Item publication = publicationMap.get(pubMedId);
+                        publicationList.add(publication);
+                    } else {
+                        Item publication = createItem("Publication");
+                        publication.setAttribute("pubMedId", pubMedId);
+                        store(publication);
+                        publicationMap.put(pubMedId, publication);
+                        publicationList.add(publication);
+                    }
+                }
             }
         }
 
@@ -102,6 +126,9 @@ public class GermplasmFileConverter extends BioFileConverter {
             if (patentNumber!=null) organism.setAttribute("patentNumber", patentNumber);
             if (url!=null) organism.setAttribute("url", url);
             if (country!=null) organism.setAttribute("country", country);
+            for (Item publication : publicationList) {
+                organism.addToCollection("publications", publication);
+            }
             store(organism);
         }
 

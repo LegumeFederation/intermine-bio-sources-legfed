@@ -97,7 +97,9 @@ public class ExpressionFileConverter extends BioFileConverter {
         
         BufferedReader br = new BufferedReader(reader);
         String line = null;
+	int lineCount = 0;
         while ((line=br.readLine())!=null) {
+	    lineCount++;
             if  (line.startsWith("#")) continue; // comment
             String[] parts = line.split("\t");
             if (parts[0].equals("ID")) {
@@ -150,11 +152,15 @@ public class ExpressionFileConverter extends BioFileConverter {
                 String transcriptId = parts[0];
                 // get the gene ID from the transcript/gene identifier
                 String thisGeneId = "";
-                if (transcriptId.charAt(transcriptId.length()-2)=='.') {
-                    thisGeneId = transcriptId.substring(0,transcriptId.length()-2);
-                } else {
-                    thisGeneId = transcriptId;
-                }
+		try {
+		    if (transcriptId.charAt(transcriptId.length()-2)=='.') {
+			thisGeneId = transcriptId.substring(0,transcriptId.length()-2);
+		    } else {
+			thisGeneId = transcriptId;
+		    }
+		} catch (Exception e) {
+		    throw new RuntimeException("Error at line "+lineCount+": transcriptId="+transcriptId);
+		}
                 // clear the exprs and values arrays if this is a new gene
                 boolean newGene = !thisGeneId.equals(geneId);
                 if (newGene) {

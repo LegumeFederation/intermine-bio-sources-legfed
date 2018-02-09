@@ -29,7 +29,7 @@ public class GTRecord implements Comparable {
         // parse record
         String[] parts = record.split("\t");
         marker = parts[0];
-        int num = parts.length - 1; // number of markers
+        int num = parts.length - 1; // number of lines
         values = new String[num];
         for (int i=0; i<num; i++) {
             values[i] = parts[i+1];
