@@ -153,9 +153,11 @@ public class ExpressionFileConverter extends BioFileConverter {
                 // get the gene ID from the transcript/gene identifier
                 String thisGeneId = "";
 		try {
-		    if (transcriptId.charAt(transcriptId.length()-2)=='.') {
+		    if (transcriptId.charAt(transcriptId.length()-3)=='.') {            // Foobar12345.11
+			thisGeneId = transcriptId.substring(0,transcriptId.length()-3);
+                    } else if (transcriptId.charAt(transcriptId.length()-2)=='.') {     // Foobar12345.3
 			thisGeneId = transcriptId.substring(0,transcriptId.length()-2);
-		    } else {
+		    } else {                                                            // Foobar12345
 			thisGeneId = transcriptId;
 		    }
 		} catch (Exception e) {
