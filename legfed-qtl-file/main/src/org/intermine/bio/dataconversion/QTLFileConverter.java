@@ -37,8 +37,11 @@ import org.intermine.xml.full.Item;
  * Volume      23 [optional]
  * Pages       345-357 [optional]
  * Title       A cowpea genetic map for the ages [optional]
+ * DOI         10.1101/202044 [optional]
  * MappingPopulation Sanzi_x_Vita7 [optional]
- * 
+ * Parent      Sanzi [optional]
+ * Parent      Vita7 [optional]
+ * Description A description of the purpose of this mapping population and why the parents were chosen. [optional]
  * #QTLName          TraitName
  * Seed weight 3-2   Seed weight
  *
@@ -81,12 +84,13 @@ public class QTLFileConverter extends BioFileConverter {
         // header values
         int taxonId = 0;
         String variety = null;
-        int pmid = 0;
+
+        // these are loaded to populate a publication by title, etc.
+        String title = null;
         String journal = null;
         int year = 0;
         String volume = null;
         String pages = null;
-        String title = null;
 
         // the Items resulting from the header values
         Item organism = null;
@@ -127,11 +131,21 @@ public class QTLFileConverter extends BioFileConverter {
 			variety = value;
                         
 		    } else if (key.toLowerCase().equals("pmid")) {
-			pmid = Integer.parseInt(value);
+			int pmid = Integer.parseInt(value);
                         publication = createItem("Publication");
                         publication.setAttribute("pubMedId", String.valueOf(pmid));
                         store(publication);
-                        LOG.info("Storing publication PMID="+pmid);
+                        LOG.info("Stored publication PMID="+pmid);
+
+                    } else if (key.toLowerCase().equals("doi")) {
+                        String doi = value;
+                        publication = createItem("Publication");
+                        publication.setAttribute("doi", doi);
+                        store(publication);
+                        LOG.info("Stored publication DOI="+doi);
+                        
+		    } else if (key.toLowerCase().equals("title")) {
+			title = value;
                         
 		    } else if (key.toLowerCase().equals("journal")) {
 			journal = value;
@@ -144,9 +158,6 @@ public class QTLFileConverter extends BioFileConverter {
                         
 		    } else if (key.toLowerCase().equals("pages")) {
 			pages = value;
-                        
-		    } else if (key.toLowerCase().equals("title")) {
-			title = value;
                         
 		    } else if (key.toLowerCase().equals("mappingpopulation")) {
 
@@ -161,12 +172,40 @@ public class QTLFileConverter extends BioFileConverter {
                             mappingPopulations.add(mappingPopulation);
                             LOG.info("Storing mapping population:"+mappingPopulationID);
                         }
+
+		    } else if (key.toLowerCase().equals("parent")) {
+
+                        // be sure to put parents AFTER mapping population line!
+			// if parent is present, then we assume that we only have one mapping population
+			String parentVariety = value;
+			String parentKey = taxonId+"_"+parentVariety;
+			Item parent;
+			if (organismMap.containsKey(parentKey)) {
+			    parent = organismMap.get(parentKey);
+			} else {
+			    parent = createItem("Organism");
+			    parent.setAttribute("taxonId", String.valueOf(taxonId));
+			    parent.setAttribute("variety", parentVariety);
+			    organismMap.put(parentKey, parent);
+			    LOG.info("Storing parent: "+parentVariety);
+			}
+			for (Item mappingPopulation : mappingPopulations) {
+			    mappingPopulation.addToCollection("parents", parent);
+			}
+                        LOG.info("Added parent "+parentVariety+" to mapping populations.");
+
+                    } else if (key.toLowerCase().equals("description")) {
+
+                        String description = value;
+			for (Item mappingPopulation : mappingPopulations) {
+			    mappingPopulation.setAttribute("description", description);
+			}
+                        LOG.info("Set description on mapping populations:"+description);
                         
 		    } else {
 
-                        // create and store the publication if we have a title and stuff 
-                        if (publication==null && pmid>0) {
-                        } else if (publication==null && title!=null && title.length()>0) {
+                        // create and store the publication if we've collected at least a title
+                        if (publication==null && title!=null && title.length()>0) {
                             publication = createItem("Publication");
                             publication.setAttribute("title", title);
                             if (journal!=null && journal.length()>0) publication.setAttribute("journal", journal);

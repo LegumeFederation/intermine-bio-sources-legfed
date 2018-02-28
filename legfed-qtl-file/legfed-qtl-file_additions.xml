@@ -11,6 +11,8 @@
 
   <class name="MappingPopulation" is-interface="true">
 	<attribute name="primaryIdentifier" type="java.lang.String"/>
+        <attribute name="description" type="java.lang.String"/>
+	<collection name="parents" referenced-type="Organism"/>
 	<collection name="QTLs" referenced-type="QTL" reverse-reference="mappingPopulations"/>
         <collection name="publications" referenced-type="Publication"/>
   </class>
