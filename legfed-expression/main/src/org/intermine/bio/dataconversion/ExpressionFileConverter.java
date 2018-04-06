@@ -82,7 +82,7 @@ public class ExpressionFileConverter extends BioFileConverter {
      */
     public void process(Reader reader) throws Exception {
 
-        if (getCurrentFile().getName().equals("README")) return;
+        if (getCurrentFile().getName().contains("README")) return;
         LOG.info("Processing expression file:"+getCurrentFile().getName()+"...");
         
         Item source = createItem("ExpressionSource");

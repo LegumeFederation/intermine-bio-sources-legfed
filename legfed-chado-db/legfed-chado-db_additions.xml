@@ -5,15 +5,16 @@
 
   <class name="QTL" extends="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
-    <attribute name="comment" type="java.lang.String"/>
-    <attribute name="experimentTraitDescription" type="java.lang.String"/>
-    <attribute name="experimentTraitName" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
+    <attribute name="traitDescription" type="java.lang.String"/>
+    <attribute name="traitName" type="java.lang.String"/>
     <attribute name="publicationLinkageGroup" type="java.lang.String"/>
     <attribute name="traitUnit" type="java.lang.String"/>
     <attribute name="analysisMethod" type="java.lang.String"/>
     <attribute name="identifier" type="java.lang.String"/>
     <attribute name="peak" type="java.lang.Double"/>
     <attribute name="studyTreatment" type="java.lang.String"/>
+    <attribute name="favorableAlleleSource" type="java.lang.String"/>
     <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
@@ -66,7 +67,7 @@
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <attribute name="type" type="java.lang.String"/>
-    <attribute name="comment" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
     <attribute name="sourceDescription" type="java.lang.String"/>
     <attribute name="canonicalMarker" type="java.lang.String"/>
     <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
@@ -142,7 +143,7 @@
 
   <class name="Organism" is-interface="true">
     <attribute name="chadoId" type="java.lang.Integer"/>
-    <attribute name="comment" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
     <attribute name="variety" type="java.lang.String"/>
   </class>
 

@@ -6,7 +6,7 @@
   </class>
 
   <class name="QTL" extends="BioEntity" is-interface="true">
-    <attribute name="comment" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
     <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>

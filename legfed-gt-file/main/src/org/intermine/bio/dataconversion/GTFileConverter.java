@@ -82,7 +82,7 @@ public class GTFileConverter extends BioFileConverter {
     public void process(Reader reader) throws Exception {
 
         // don't process README files
-        if (getCurrentFile().getName().equals("README")) return;
+        if (getCurrentFile().getName().contains("README")) return;
 
         // these objects are created per file
         String taxonId = null;

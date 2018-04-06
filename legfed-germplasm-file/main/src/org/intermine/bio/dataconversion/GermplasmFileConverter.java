@@ -69,7 +69,7 @@ public class GermplasmFileConverter extends BioFileConverter {
     public void process(Reader reader) throws Exception {
 
         // don't process README files
-        if (getCurrentFile().getName().equals("README")) return;
+        if (getCurrentFile().getName().contains("README")) return;
 
         LOG.info("Processing Germplasm file "+getCurrentFile().getName()+"...");
 
@@ -122,7 +122,7 @@ public class GermplasmFileConverter extends BioFileConverter {
             organism.setAttribute("taxonId", taxonId);
             organism.setAttribute("variety", variety);
             if (alternateVarietyName!=null) organism.setAttribute("alternateVarietyName", alternateVarietyName);
-            if (description!=null) organism.setAttribute("comment", description); // use existing comment field from chado importer
+            if (description!=null) organism.setAttribute("description", description);
             if (patentNumber!=null) organism.setAttribute("patentNumber", patentNumber);
             if (url!=null) organism.setAttribute("url", url);
             if (country!=null) organism.setAttribute("country", country);

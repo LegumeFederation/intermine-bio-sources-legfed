@@ -73,12 +73,12 @@ public class FeaturePropProcessor extends ChadoProcessor {
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
             organism.setAttribute("variety", variety); // non-null variety is required
-            // add organism.comment if it exists
+            // add organism.description if it exists
             ResultSet rs = stmt.executeQuery("SELECT * FROM organism WHERE organism_id="+organism_id);
             if (rs.next()) {
-                String comment = rs.getString("comment");
-                if (comment!=null && comment.trim().length()>0) {
-                    organism.setAttribute("comment", comment.trim());
+                String description = rs.getString("comment");
+                if (description!=null && description.trim().length()>0) {
+                    organism.setAttribute("description", description.trim());
                 }
             }
             rs.close();
@@ -100,9 +100,9 @@ public class FeaturePropProcessor extends ChadoProcessor {
 
             // load QTL attributes
             Map<Integer,Item> qtlMap = generateMap(stmt, organism_id, organism, "QTL", "QTL");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "comment", "QTL", "comment");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "experimentTraitDescription", "QTL", "Experiment Trait Description");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "experimentTraitName", "QTL", "Experiment Trait Name");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "description", "QTL", "comment");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "traitDescription", "QTL", "Experiment Trait Description");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "traitName", "QTL", "Experiment Trait Name");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "publicationLinkageGroup", "QTL", "Publication Linkage Group");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "analysisMethod", "QTL", "QTL Analysis Method");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "traitUnit", "QTL", "Trait Unit");
@@ -114,7 +114,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
 
             // load genetic marker attributes
             Map<Integer,Item> geneticMarkerMap = generateMap(stmt, organism_id, organism, "GeneticMarker", "genetic_marker");
-            geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "GeneticMarker", "comment", "genetic_marker", "comment");
+            geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "GeneticMarker", "description", "genetic_marker", "description");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "GeneticMarker", "sourceDescription", "genetic_marker", "Source Description");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "GeneticMarker", "canonicalMarker", "genetic_marker", "Canonical Marker");
             store(geneticMarkerMap.values());
@@ -169,7 +169,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
 
     /**
      * Return the cvterm.cvterm_id for the requested cvterm.name, 0 if not found.
-     * Require that a non-empty definition exist - this narrows some dupes (like "comment") to a single record.
+     * Require that a non-empty definition exist - this narrows some dupes (like "description") to a single record.
      */
     int getCVTermId(Statement stmt, String name) throws SQLException {
         ResultSet rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='"+name+"' AND length(definition)>0");

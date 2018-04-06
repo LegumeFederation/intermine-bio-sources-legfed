@@ -31,7 +31,7 @@ import org.intermine.xml.full.Reference;
 
 /**
  * Store the various genetic data from the LegFed/LIS chado database.
- * These come from featuremap, featurepos, featureloc, feature_relationship and, of course, feature.
+ * These come from feature, featuremap, featurepos, featureloc, feature_relationship, feature_stock and stock.
  *
  * Since this processer deals only with chado data, Items are stored in maps with Integer keys equal to
  * the chado feature.feature_id.
@@ -71,6 +71,7 @@ public class GeneticProcessor extends ChadoProcessor {
         String geneticMarkerCVTerm = "genetic_marker";
         String qtlCVTerm = "QTL";
         String consensusRegionCVTerm = "consensus_region";
+        String favorableAlleleSourceCVTerm = "Favorable Allele Source";
 
         // store stuff in maps to avoid duplication
         Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
@@ -196,6 +197,23 @@ public class GeneticProcessor extends ChadoProcessor {
             rs.close();
         }
         LOG.info("***** Done creating Publication items associated with QTLs.");
+
+        // query the feature_stock and stock tables to retrieve the favorable allele source per QTL
+        rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='"+favorableAlleleSourceCVTerm+"'");
+        rs.next();
+        int favorableAlleleSourceTypeId = rs.getInt("cvterm_id");
+        rs.close();
+        for (Integer featureId : qtlMap.keySet()) {
+            int feature_id = (int) featureId;
+            Item qtl = qtlMap.get(featureId);
+            rs = stmt.executeQuery("SELECT * FROM stock WHERE stock_id=(SELECT stock_id FROM feature_stock WHERE type_id="+favorableAlleleSourceTypeId+" AND feature_id="+feature_id+")");
+            if (rs.next()) {
+                String favorableAlleleSource = rs.getString("uniquename");
+                qtl.setAttribute("favorableAlleleSource", favorableAlleleSource);
+            }
+            rs.close();
+        }
+        LOG.info("***** Done setting QTL.favorableAlleleSource attributes. *****");
         
         // query the featurepos table for linkage groups and genetic markers associated with our genetic maps
         // Note: for linkage groups, ignore the mappos=0 start entry; use mappos>0 entry to get the length of the linkage group
@@ -282,8 +300,7 @@ public class GeneticProcessor extends ChadoProcessor {
                 }
             }
             rs1.close(); // done collecting genetic markers
-            
-        } // QTL loop
+        }
         LOG.info("***** Done populating QTLs with genetic markers from feature_relationship.");
             
         // ----------------------------------------------------------------
