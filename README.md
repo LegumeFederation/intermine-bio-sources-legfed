@@ -1,4 +1,4 @@
-# intermine_legfed
+# legfed-bio-sources
 Legume Federation data sources for building LIS/LegFed mines. Install as intermine/bio/sources/legfed for v1, or use a jar file for v2.
 
 #### legfed-chado-db
