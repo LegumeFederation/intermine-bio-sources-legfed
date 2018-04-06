@@ -1,33 +1,59 @@
 # intermine_legfed
-Legume Federation data sources; install as intermine/bio/sources/legfed.
-
-This data source directory contains several data sources:
+Legume Federation data sources for building LIS/LegFed mines. Install as intermine/bio/sources/legfed for v1, or use a jar file for v2.
 
 #### legfed-chado-db
-A custom version of FlyMine's chado-db source written by Kim Rutherford.
-
-**SequenceProcessor.java** - a modification to support the fields present in the LIS chado database. It still handles strictly genomic, not genetic items, and works primarily with the feature, featureloc and feature_relationship tables.
-
-**GeneticProcessor.java** - stores genetic data and relationships from the LIS chado database. These come from featuremap, featurepos, featureloc, feature_relationship and, of course, feature. Populates GeneFamily, GeneticMap, LinkageGroup, GeneticMarker and QTL objects.
-
-**FeaturePropProcessor.java** - loads various properties of features from chado.featureprop. Doesn't create any new objects, but fills in many attributes.
+A custom version of FlyMine's chado-db source written by Kim Rutherford. Contains a number of extra classes for LIS chado genetic data loading, etc.
 
 #### legfed-cmap-file
+Loads linkage groups and markers from a CMap format file.
 
-**CMapFileConverter.java** - reads and stores genetic markers, linkage groups and QTLs from a CMap tab-delimited file export. Extends BioFileConverter. Creates GeneticMarker, LinkageGroup and QTL objects if they don't already exist.
-
-#### legfed-geneticmarker-gff
-
-**GeneticMarkerGFFConverter.java** - reads and stores genetic marker genomic data from a GFF3 file. Extends BioFileConverter. Creates GeneticMarker objects if they don't already exist.
-
-#### legfed-qtlmarker-file
-
-**QTLMarkerFileConverter.java** - reads and stores QTL-genetic marker relations from a tab-delimited file. Columns are QTLid, QTL name, marker name. Extends BioFileConverter. Creates GeneticMarker and QTL objects if they don't already exist.
-
-#### legfed-synteny-gff
-
-**SyntenyGFFConverter.java** - reads and stores synteny blocks and synteny regions from a GFF dump with records formatted by DAGchainer. Creates SyntenyBlock, SyntenicRegion objects.
+#### legfed-crop-ontology
+Loads the crop ontology (CO_NNN) terms from an OBO file.
 
 #### legfed-expression
+Loads gene expression from custom tab-delimited files (fairly similar to NCBI series matrix).
 
-**ExpressionFileConverter.java** - reads a tab-delimited expression file of custom format into ExpressionSource, ExpressionSample and ExpressionValue objects.
+#### legfed-geneticmap-file
+Loads a genetic map from a tab-delimited file.
+
+#### legfed-geneticmarker-gff
+Loads genetic markers from a tab-delimited file.
+
+#### legfed-germplasm-file
+Loads organism (germplasm) metadata from a tab-delimited file.
+
+#### legfed-gt-file
+Loads genotyping matrix data from a gt-format file.
+
+#### legfed-linkagegroup-file
+Loads linkage groups from a tab-delimited file.
+
+#### legfed-marker-chromosome-file
+Loads marker genomic positions from a tab-delimited file.
+
+#### legfed-marker-linkagegroup-file
+Loads marker linkage group positions from a tab-delimited file.
+
+#### legfed-marker-qtl-file
+Loads marker-QTL associations from a tab-delimited file.
+
+#### legfed-plant-ontology
+Loads the Plant Ontology (PO) terms from an OBO file.
+
+#### legfed-qtl-file
+Loads QTLs from a tab-delimited file.
+
+#### legfed-qtl-ontology-file
+Loads QTL-ontology associations from a tab-delimited file. The ontologies can be any terms that have been loaded elsewhere (TO, CO_NNN, etc.)
+
+#### legfed-snpmarker-file
+Loads SNP markers from a tab-delimited file.
+
+#### legfed-snpvcf-file
+Loads SNP genomic positions from a VCF file.
+
+#### legfed-synteny-gff
+Loads synteny blocks from a (typically DAGchainer) GFF file.
+
+#### legfed-trait-ontology
+Loads the Plant Trait Ontology (TO) terms from an OBO file.

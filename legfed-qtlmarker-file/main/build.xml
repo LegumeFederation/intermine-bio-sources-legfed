@@ -1,4 +1,0 @@
-<project name="legfed-qtlmarker-file-main" default="default" basedir=".">
-  <description>build QTLMarkerFileConverter</description>
-  <import file="../../../../../imbuild/library.xml"/> 
-</project>
