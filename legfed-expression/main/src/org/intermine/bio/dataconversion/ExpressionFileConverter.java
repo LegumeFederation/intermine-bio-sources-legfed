@@ -26,8 +26,6 @@ import org.intermine.metadata.Model;
 import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
-import org.ncgr.intermine.PubMedPublication;
-
 /**
  * DataConverter to create ExpressionSource, ExpressionSample and ExpressionValue items from tab-delimited expression files.
  *
@@ -118,20 +116,12 @@ public class ExpressionFileConverter extends BioFileConverter {
             } else if (parts[0].equals("Unit")) {
                 source.setAttribute("unit", parts[1]);
             } else if (parts[0].equals("PMID")) {
-                // create and store the publication if it exists; this requires Internet access
-                int id = Integer.parseInt(parts[1]);
-                PubMedPublication pubMedPub = new PubMedPublication(this, id);
-                Item publication = pubMedPub.getPublication();
-                if (publication!=null) {
-                    // store the authors and add them to the publication collection
-                    for (Item author : pubMedPub.getAuthors()) {
-                        store(author);
-                        publication.addToCollection("authors", author);
-                    }
-                    // store the publication and add reference to ExpressionSource
-                    store(publication);
-                    source.setReference("publication", publication);
-                }
+                // create and store the publication shell, just PMID
+                int pmid = Integer.parseInt(parts[1]);
+                Item publication = createItem("Publication");
+                publication.setAttribute("pubMedId", String.valueOf(pmid));
+                store(publication);
+                source.setReference("publication", publication);
             } else if (parts[0].equals("Samples")) {
                 // load the samples into an array
                 numSamples = Integer.parseInt(parts[1]); // if this doesn't parse, we should crash out
