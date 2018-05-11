@@ -11,8 +11,14 @@ cd legfed-marker-chromosome-file; ant clean; cd main; ant clean; cd ../..
 cd legfed-marker-linkagegroup-file; ant clean; cd main; ant clean; cd ../..
 cd legfed-marker-qtl-file; ant clean; cd main; ant clean; cd ../..
 cd legfed-qtl-file; ant clean; cd main; ant clean; cd ../..
-cd legfed-qtlmarker-file; ant clean; cd main; ant clean; cd ../..
 cd legfed-qtl-ontology-file; ant clean; cd main; ant clean; cd ../..
 cd legfed-snpmarker-file; ant clean; cd main; ant clean; cd ../..
 cd legfed-snpvcf-file; ant clean; cd main; ant clean; cd ../..
 cd legfed-synteny-gff; ant clean; cd main; ant clean; cd ../..
+cd legfed-crop-ontology; ant clean; cd main; ant clean; cd ../..
+cd legfed-plant-ontology; ant clean; cd main; ant clean; cd ../..
+cd legfed-qtl-ontology-file; ant clean; cd main; ant clean; cd ../..
+cd legfed-snpmarker-file; ant clean; cd main; ant clean; cd ../..
+cd legfed-snpvcf-file; ant clean; cd main; ant clean; cd ../..
+cd legfed-synteny-gff; ant clean; cd main; ant clean; cd ../..
+cd legfed-trait-ontology; ant clean; cd main; ant clean; cd ../..
