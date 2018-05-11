@@ -1,5 +1,5 @@
 # legfed-bio-sources
-Legume Federation data sources for building LIS/LegFed mines. Install as intermine/bio/sources/legfed for v1, or use a jar file for v2.
+Legume Federation data sources for building LIS/LegFed mines. This is a standalone directory built for the gradle layout in InterMine v2.
 
 #### legfed-chado-db
 A custom version of FlyMine's chado-db source written by Kim Rutherford. Contains a number of extra classes for LIS chado genetic data loading, etc.
