@@ -40,6 +40,9 @@ Loads marker-QTL associations from a tab-delimited file.
 #### legfed-plant-ontology
 Loads the Plant Ontology (PO) terms from an OBO file.
 
+#### legfed-gwas-file
+Loads QTLs, markers per GWAS experiment file, formed from Soybase dumps but can be used more generally.
+
 #### legfed-qtl-file
 Loads QTLs from a tab-delimited file.
 
