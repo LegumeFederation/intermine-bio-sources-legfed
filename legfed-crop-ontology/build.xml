@@ -1,5 +1,0 @@
-<project name="legfed-crop-ontology" default="default" basedir=".">
-  <description>build, test, package legfed-crop-ontology</description>
-  <import file="../../../../imbuild/source.xml"/>
-</project>
-

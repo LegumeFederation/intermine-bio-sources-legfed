@@ -1,8 +1,0 @@
-<project name="legfed-chado-db" default="default" basedir=".">
-
-  <description>build, package Legfed database source</description>
-
-  <import file="../../../../imbuild/source.xml"/>
-
-</project>
-

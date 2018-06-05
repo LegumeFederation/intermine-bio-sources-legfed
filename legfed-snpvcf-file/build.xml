@@ -1,8 +1,0 @@
-<project name="legfed-snpvcf-file" default="default" basedir=".">
-
-  <description>SNPVCFFileConverter</description>
-
-  <import file="../../../../imbuild/source.xml"/>
-
-</project>
-

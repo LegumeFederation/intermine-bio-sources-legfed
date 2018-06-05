@@ -1,8 +1,0 @@
-<project name="legfed-expression" default="default" basedir=".">
-
-  <description>ExpressionFileConverter</description>
-
-  <import file="../../../../imbuild/source.xml"/>
-
-</project>
-

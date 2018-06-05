@@ -1,8 +1,0 @@
-<project name="legfed-qtl-file" default="default" basedir=".">
-
-  <description>legfed-qtl-file</description>
-
-  <import file="../../../../imbuild/source.xml"/>
-
-</project>
-

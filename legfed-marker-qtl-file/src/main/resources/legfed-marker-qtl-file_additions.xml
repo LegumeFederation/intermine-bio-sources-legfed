@@ -7,7 +7,7 @@
     <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
   </class>
 
-  <class name="QTL" is-interface="true">
+  <class name="QTL" extends="BioEntity" is-interface="true">
     <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
   </class>
 

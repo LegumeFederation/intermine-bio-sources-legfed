@@ -8,6 +8,7 @@ include ':bio-source-legfed-chado-db',
 	':bio-source-legfed-geneticmarker-gff',
 	':bio-source-legfed-germplasm-file',
 	':bio-source-legfed-gt-file',
+	':bio-source-legfed-gwas-file',
 	':bio-source-legfed-linkagegroup-file',
 	':bio-source-legfed-marker-chromosome-file',
 	':bio-source-legfed-marker-linkagegroup-file',
@@ -28,6 +29,7 @@ project(':bio-source-legfed-geneticmap-file').projectDir = new File(settingsDir,
 project(':bio-source-legfed-geneticmarker-gff').projectDir = new File(settingsDir, 'legfed-geneticmarker-gff')
 project(':bio-source-legfed-germplasm-file').projectDir = new File(settingsDir, 'legfed-germplasm-file')
 project(':bio-source-legfed-gt-file').projectDir = new File(settingsDir, 'legfed-gt-file')
+project(':bio-source-legfed-gwas-file').projectDir = new File(settingsDir, 'legfed-gwas-file')
 project(':bio-source-legfed-linkagegroup-file').projectDir = new File(settingsDir, 'legfed-linkagegroup-file')
 project(':bio-source-legfed-marker-chromosome-file').projectDir = new File(settingsDir, 'legfed-marker-chromosome-file')
 project(':bio-source-legfed-marker-linkagegroup-file').projectDir = new File(settingsDir, 'legfed-marker-linkagegroup-file')

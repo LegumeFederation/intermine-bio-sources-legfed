@@ -1,10 +1,18 @@
 sourceSets {
     main {
         java {
-            srcDirs = ['build/gen']
+            srcDirs = ['src/main/java', 'build/gen']
         }
         resources {
-            srcDirs = ['resources']
+            srcDirs = ['src/main/resources']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+        resources {
+            srcDirs = ['src/test/resources']
         }
     }
 }

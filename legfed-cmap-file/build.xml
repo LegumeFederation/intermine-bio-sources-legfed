@@ -1,8 +1,0 @@
-<project name="legfed-cmap-file" default="default" basedir=".">
-
-  <description>CMapFileConverter</description>
-
-  <import file="../../../../imbuild/source.xml"/>
-
-</project>
-

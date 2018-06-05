@@ -1,8 +1,0 @@
-<project name="legfed-synteny-gff" default="default" basedir=".">
-
-  <description>SyntenyGFFConverter</description>
-
-  <import file="../../../../imbuild/source.xml"/>
-
-</project>
-
