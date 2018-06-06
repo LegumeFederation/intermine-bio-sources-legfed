@@ -41,9 +41,12 @@ public class GWASFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(GWASFileConverter.class);
 
-    // store chromosomes and supercontigs in map
+    // store items in maps that may be duplicates
+    Map<String,Item> organismMap = new HashMap<String,Item>();
     Map<String,Item> chromosomeMap = new HashMap<String,Item>();
-
+    Map<String,Item> markerMap = new HashMap<String,Item>();
+    Map<String,Item> qtlMap = new HashMap<String,Item>();
+    
     /**
      * Create a new GWASFileConverter
      * @param writer the ItemWriter to write out new items
@@ -87,13 +90,19 @@ public class GWASFileConverter extends BioFileConverter {
                 String[] parts = line.split("\t");
                 String lcLine = line.toLowerCase();
                 
-                // create the organism if we have the required stuff
+                // create the organism if we have the required stuff (and it's not already stored)
                 if (organism==null && taxonId!=null && variety!=null) {
-                    organism = createItem("Organism");
-                    organism.setAttribute("taxonId", taxonId);
-                    organism.setAttribute("variety", variety);
-                    store(organism);
-                    LOG.info("Created and stored Organism with taxonId:variety = "+taxonId+":"+variety);
+                    String organismKey = taxonId+"_"+variety;
+                    if (organismMap.containsKey(organismKey)) {
+                        organism = organismMap.get(organismKey);
+                    } else {
+                        organism = createItem("Organism");
+                        organism.setAttribute("taxonId", taxonId);
+                        organism.setAttribute("variety", variety);
+                        store(organism);
+                        LOG.info("Created and stored Organism with taxonId:variety = "+taxonId+":"+variety);
+                        organismMap.put(organismKey, organism);
+                    }
                 }
 
                 // create the GWAS experiment if we have the required stuff
@@ -158,59 +167,74 @@ public class GWASFileConverter extends BioFileConverter {
                     //
                     // Genetic Marker, Chromosome
                     //
-                    Item marker = createItem("GeneticMarker");
-                    marker.setReference("organism", organism);
-                    marker.setAttribute("primaryIdentifier", rec.locusName);
-                    marker.setAttribute("type", rec.type);
-                    // set the chromosome or supercontig reference
-                    // HACK: assume supercontig has "scaffold" or "contig" in the name
-                    boolean isSupercontig = (rec.chromosome.toLowerCase().contains("scaffold") || rec.chromosome.toLowerCase().contains("contig"));
-                    Item chromosome = null;
-                    if (chromosomeMap.containsKey(rec.chromosome)) {
-                        chromosome = chromosomeMap.get(rec.chromosome);
+                    Item marker = null;
+                    String markerKey = rec.locusName;
+                    if (markerMap.containsKey(markerKey)) {
+                        marker = markerMap.get(markerKey);
                     } else {
-                        // create and store this chromosome/supercontig
-                        if (isSupercontig) {
-                            chromosome = createItem("Supercontig");
+                        marker = createItem("GeneticMarker");
+                        marker.setReference("organism", organism);
+                        marker.setAttribute("primaryIdentifier", rec.locusName);
+                        marker.setAttribute("type", rec.type);
+                        // set the chromosome or supercontig reference
+                        // HACK: assume supercontig has "scaffold" or "contig" in the name
+                        boolean isSupercontig = (rec.chromosome.toLowerCase().contains("scaffold") || rec.chromosome.toLowerCase().contains("contig"));
+                        Item chromosome = null;
+                        if (chromosomeMap.containsKey(rec.chromosome)) {
+                            chromosome = chromosomeMap.get(rec.chromosome);
                         } else {
-                            chromosome = createItem("Chromosome");
+                            // create and store this chromosome/supercontig
+                            if (isSupercontig) {
+                                chromosome = createItem("Supercontig");
+                            } else {
+                                chromosome = createItem("Chromosome");
+                            }
+                            chromosome.setReference("organism", organism);
+                            chromosome.setAttribute("primaryIdentifier", rec.chromosome);
+                            store(chromosome);
+                            chromosomeMap.put(rec.chromosome, chromosome);
+                            LOG.info("Created and stored chromosome/supercontig: "+rec.chromosome);
                         }
-                        chromosome.setReference("organism", organism);
-                        chromosome.setAttribute("primaryIdentifier", rec.chromosome);
-                        store(chromosome);
-                        chromosomeMap.put(rec.chromosome, chromosome);
-                        LOG.info("Created and stored chromosome/supercontig: "+rec.chromosome);
+                        if (isSupercontig) {
+                            marker.setReference("supercontig", chromosome);
+                        } else {
+                            marker.setReference("chromosome", chromosome);
+                        }
+                        // create and store the Location object, use + strand since it's not defined
+                        Item location = createItem("Location");
+                        location.setReference("locatedOn", chromosome);
+                        location.setReference("feature", marker);
+                        location.setAttribute("start", String.valueOf(rec.start));
+                        location.setAttribute("end", String.valueOf(rec.end));
+                        location.setAttribute("strand", String.valueOf(+1));
+                        store(location);
+                        // set the chromosomeLocation/supercontigLocation reference and store the marker
+                        if (isSupercontig) {
+                            marker.setReference("supercontigLocation", location);
+                        } else {
+                            marker.setReference("chromosomeLocation", location);
+                        }                    
+                        store(marker);
+                        markerMap.put(markerKey, marker);
                     }
-                    if (isSupercontig) {
-                        marker.setReference("supercontig", chromosome);
-                    } else {
-                        marker.setReference("chromosome", chromosome);
-                    }
-                    // create and store the Location object, use + strand since it's not defined
-                    Item location = createItem("Location");
-                    location.setReference("locatedOn", chromosome);
-                    location.setReference("feature", marker);
-                    location.setAttribute("start", String.valueOf(rec.start));
-                    location.setAttribute("end", String.valueOf(rec.end));
-                    location.setAttribute("strand", String.valueOf(+1));
-                    store(location);
-                    // set the chromosomeLocation/supercontigLocation reference and store the marker
-                    if (isSupercontig) {
-                        marker.setReference("supercontigLocation", location);
-                    } else {
-                        marker.setReference("chromosomeLocation", location);
-                    }                    
-                    store(marker);
 
                     //
-                    // QTL (assume unique in entire set of files)
+                    // QTL
                     //
-                    Item qtl = createItem("QTL");
-                    qtl.setReference("organism", organism);
-                    qtl.setAttribute("primaryIdentifier", rec.gwasName);
-                    qtl.setAttribute("traitName", rec.gwasClass);
-                    qtl.setAttribute("pValue", String.valueOf(rec.pValue));
-                    store(qtl);
+                    Item qtl = null;
+                    String qtlKey = rec.gwasName;
+                    if (qtlMap.containsKey(qtlKey)) {
+                        qtl = qtlMap.get(qtlKey);
+                        LOG.info("Duplicate QTL:"+qtlKey+" with marker:"+markerKey);
+                    } else {
+                        qtl = createItem("QTL");
+                        qtl.setReference("organism", organism);
+                        qtl.setAttribute("primaryIdentifier", rec.gwasName);
+                        qtl.setAttribute("traitName", rec.gwasClass);
+                        qtl.setAttribute("pValue", String.valueOf(rec.pValue));
+                        store(qtl);
+                        qtlMap.put(qtlKey, qtl);
+                    }
                     
                     // relate the QTL and marker
                     marker.addToCollection("QTLs", qtl);
