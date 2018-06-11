@@ -1,4 +1,0 @@
-<project name="legfed-marker-chromosome-file-main" default="default" basedir=".">
-  <description>build MarkerChromosomeFileConverter</description>
-  <import file="../../../../../imbuild/library.xml"/> 
-</project>

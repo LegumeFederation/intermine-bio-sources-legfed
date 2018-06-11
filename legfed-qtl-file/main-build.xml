@@ -1,4 +1,0 @@
-<project name="legfed-qtl-file-main" default="default" basedir=".">
-  <description>build QTLFileConverter</description>
-  <import file="../../../../../imbuild/library.xml"/> 
-</project>

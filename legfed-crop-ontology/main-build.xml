@@ -1,4 +1,0 @@
-<project name="legfed-crop-ontology-tasks" default="default" basedir=".">
-  <description>build legfed-crop-ontology tasks</description>
-  <import file="../../../../../imbuild/library.xml"/> 
-</project>

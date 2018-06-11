@@ -1,4 +1,0 @@
-<project name="legfed-expression-main" default="default" basedir=".">
-  <description>build legfed-expression code</description>
-  <import file="../../../../../imbuild/library.xml"/> 
-</project>

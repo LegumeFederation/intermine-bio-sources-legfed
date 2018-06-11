@@ -1,4 +1,0 @@
-<project name="legfed-qtl-ontology-file-main" default="default" basedir=".">
-  <description>build QTLOntologyFileConverter</description>
-  <import file="../../../../../imbuild/library.xml"/> 
-</project>

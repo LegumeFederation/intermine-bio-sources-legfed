@@ -1,4 +1,0 @@
-<project name="legfed-germplasm-file-main" default="default" basedir=".">
-  <description>build legfed-germplasm-file code</description>
-  <import file="../../../../../imbuild/library.xml"/> 
-</project>
