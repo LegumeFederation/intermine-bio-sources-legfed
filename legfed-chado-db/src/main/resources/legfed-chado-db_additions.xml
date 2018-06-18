@@ -15,7 +15,7 @@
     <attribute name="peak" type="java.lang.Double"/>
     <attribute name="studyTreatment" type="java.lang.String"/>
     <attribute name="favorableAlleleSource" type="java.lang.String"/>
-    <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
   </class>
@@ -30,7 +30,7 @@
     <reference name="organism" referenced-type="Organism"/>
     <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
-    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
+    <collection name="markers" referenced-type="GeneticMarker"/>
     <collection name="QTLs" referenced-type="QTL"/>
   </class>
 
@@ -53,7 +53,7 @@
     <attribute name="description" type="java.lang.String"/>
     <attribute name="unit" type="java.lang.String"/>
     <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
-    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
+    <collection name="markers" referenced-type="GeneticMarker"/>
   </class>
 
   <class name="GeneFamily" is-interface="true">
@@ -70,7 +70,7 @@
     <attribute name="description" type="java.lang.String"/>
     <attribute name="sourceDescription" type="java.lang.String"/>
     <attribute name="canonicalMarker" type="java.lang.String"/>
-    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="markers"/>
     <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
   </class>
 
@@ -86,7 +86,6 @@
     <reference name="consensusRegionLocation" referenced-type="Location"/>
     <collection name="proteinMatches" referenced-type="ProteinMatch" reverse-reference="protein"/>
     <collection name="proteinDomains" referenced-type="ProteinDomain" reverse-reference="proteins"/>
-    <collection name="pathways" referenced-type="Pathway" reverse-reference="proteins"/>
   </class>
 
   <class name="ProteinMatch" extends="BioEntity" is-interface="true">
@@ -166,65 +165,28 @@
     <reference name="supercontigLocation" referenced-type="Location" />
   </class>
 
+  <!-- defined here for post-processor -->
   <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
 
-  <!-- definitions inherited from go-annotation for GOProcessor, so we don't break the enrichment widget -->
-  <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true">
-    <attribute name="annotationExtension" type="java.lang.String"/>
-    <collection name="evidence" referenced-type="GOEvidence"/>
-  </class>
+  <!-- defined here for post-processor -->
+  <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true" />
 
-  <class name="GOEvidence" is-interface="true">
-    <attribute name="withText" type="java.lang.String"/>
-    <reference name="code" referenced-type="GOEvidenceCode"/>
-    <collection name="publications" referenced-type="Publication"/>
-    <collection name="with" referenced-type="BioEntity"/>
-  </class>
-  
-  <class name="GOEvidenceCode" is-interface="true">
-    <attribute name="code" type="java.lang.String" />
-  </class>
-
-  <class name="DatabaseReference" is-interface="true">
-    <attribute name="identifier" type="java.lang.String"/>
-    <reference name="source" referenced-type="DataSource"/>
-    <reference name="subject" referenced-type="Publication" reverse-reference="crossReferences" />
-  </class>
-  
-  <class name="Publication" is-interface="true">
-    <collection name="crossReferences" referenced-type="DatabaseReference" reverse-reference="subject"/>
-  </class>
-
-  <!-- based on Julie's reactome data source -->
+  <!-- loaded from Plant Reactome file -->
   <class name="Pathway" is-interface="true" >
      <attribute name="identifier" type="java.lang.String"/>
      <attribute name="name" type="java.lang.String"/>
-     <attribute name="shortName" type="java.lang.String"/>
-     <attribute name="curated" type="java.lang.Boolean"/>
+     <attribute name="species" type="java.lang.String"/>
      <collection name="genes" referenced-type="Gene" reverse-reference="pathways"/>
-     <collection name="proteins" referenced-type="Protein" reverse-reference="pathways"/>
      <collection name="dataSets" referenced-type="DataSet"/>
   </class>
 
-  <!-- based on homologene data source -->
+  <!-- to be updated with new IM core Homologue model! -->
   <class name="Homologue" is-interface="true">
     <attribute name="type" type="java.lang.String"/>
     <reference name="geneFamily" referenced-type="GeneFamily"/>
     <reference name="gene" referenced-type="Gene" reverse-reference="homologues"/>
     <reference name="homologue" referenced-type="Gene"/>
     <collection name="dataSets" referenced-type="DataSet"/>
-    <collection name="evidence" referenced-type="OrthologueEvidence"/>
-    <collection name="crossReferences" referenced-type="CrossReference"/>
-  </class>
-  
-  <class name="OrthologueEvidence" is-interface="true">
-    <reference name="evidenceCode" referenced-type="OrthologueEvidenceCode"/>
-    <collection name="publications" referenced-type="Publication"/>
-  </class>
-  
-  <class name="OrthologueEvidenceCode" is-interface="true">
-    <attribute name="abbreviation" type="java.lang.String"/>
-    <attribute name="name" type="java.lang.String"/>
   </class>
   
 </classes>

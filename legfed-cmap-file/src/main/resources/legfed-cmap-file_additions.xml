@@ -7,7 +7,6 @@
 
   <class name="QTL" extends="BioEntity" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
-    <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
   </class>
@@ -50,7 +49,6 @@
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <attribute name="type" type="java.lang.String"/>
-    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
     <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
     <collection name="geneticMaps" referenced-type="GeneticMap" reverse-reference="markers"/>
   </class>

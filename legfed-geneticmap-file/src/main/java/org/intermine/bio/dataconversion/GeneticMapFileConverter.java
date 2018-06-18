@@ -237,9 +237,7 @@ public class GeneticMapFileConverter extends BioFileConverter {
                         // create new QTL 
                         qtl = createItem("QTL");
                         qtl.setAttribute("primaryIdentifier", record.qtl);
-                        if (record.traits!=null) {
-                            qtl.setAttribute("secondaryIdentifier", record.traits);
-                        }
+                        if (record.traits!=null) qtl.setAttribute("secondaryIdentifier", record.traits);
                         // create this QTL's LinkageGroupRange, initialized at zero length
                         linkageGroupRange = createItem("LinkageGroupRange");
                         linkageGroupRange.setAttribute("begin", String.valueOf(record.position)); // start=end with first marker
@@ -257,7 +255,7 @@ public class GeneticMapFileConverter extends BioFileConverter {
                     }
                     
                     // add this marker to this QTL's collection
-                    qtl.addToCollection("associatedGeneticMarkers", marker);
+                    qtl.addToCollection("markers", marker);
                     
                     // update this QTL's linkage group range from the current marker position
                     double begin = Double.parseDouble(linkageGroupRange.getAttribute("begin").getValue());

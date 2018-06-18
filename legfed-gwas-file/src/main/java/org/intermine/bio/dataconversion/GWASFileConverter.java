@@ -41,7 +41,7 @@ public class GWASFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(GWASFileConverter.class);
 
-    // store items in maps that may be duplicates
+    // store items in maps to avoid duplicates
     Map<String,Item> organismMap = new HashMap<String,Item>();
     Map<String,Item> chromosomeMap = new HashMap<String,Item>();
     Map<String,Item> markerMap = new HashMap<String,Item>();
@@ -160,10 +160,6 @@ public class GWASFileConverter extends BioFileConverter {
                     // process a record
                     GWASFileRecord rec = new GWASFileRecord(line);
 
-                    // DEBUG
-                    LOG.info(line);
-                    LOG.info(rec.toString());
-
                     //
                     // Genetic Marker, Chromosome
                     //
@@ -191,8 +187,8 @@ public class GWASFileConverter extends BioFileConverter {
                             }
                             chromosome.setReference("organism", organism);
                             chromosome.setAttribute("primaryIdentifier", rec.chromosome);
-                            store(chromosome);
                             chromosomeMap.put(rec.chromosome, chromosome);
+                            store(chromosome);
                             LOG.info("Created and stored chromosome/supercontig: "+rec.chromosome);
                         }
                         if (isSupercontig) {
@@ -214,7 +210,6 @@ public class GWASFileConverter extends BioFileConverter {
                         } else {
                             marker.setReference("chromosomeLocation", location);
                         }                    
-                        store(marker);
                         markerMap.put(markerKey, marker);
                     }
 
@@ -232,8 +227,9 @@ public class GWASFileConverter extends BioFileConverter {
                         qtl.setAttribute("primaryIdentifier", rec.gwasName);
                         qtl.setAttribute("traitName", rec.gwasClass);
                         qtl.setAttribute("pValue", String.valueOf(rec.pValue));
-                        store(qtl);
+                        qtl.setReference("gwasExperiment", gwasExperiment);
                         qtlMap.put(qtlKey, qtl);
+                        LOG.info("Added QTL:"+qtlKey+" with marker:"+markerKey);
                     }
                     
                     // relate the QTL and marker
@@ -248,10 +244,12 @@ public class GWASFileConverter extends BioFileConverter {
     }
 
     /**
-     * Do nothing, all storage is above.
+     * Store markers and QTLs.
      */
     @Override
     public void close() throws Exception {
+        for (Item qtl : qtlMap.values()) store(qtl);
+        for (Item marker : markerMap.values()) store(marker);
     }
     
 }

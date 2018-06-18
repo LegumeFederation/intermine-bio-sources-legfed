@@ -18,12 +18,13 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
+import java.util.HashSet;
 
 import org.apache.log4j.Logger;
+import org.apache.log4j.LogManager;
 
 import org.intermine.bio.util.OrganismData;
 import org.intermine.objectstore.ObjectStoreException;
@@ -32,20 +33,22 @@ import org.intermine.xml.full.Item;
 import org.intermine.xml.full.Reference;
 
 /**
- * Read plant reactome data in from a tab-delimited file, load pathways and associate them with proteins. The file fields are:
+ * Read plant reactome data in from a tab-delimited file, load pathways and associate them with genes.
+ * We do NOT store pathways that are not associated with any of our genes.
+ * The file fields are:
  * <pre>
- * pathwayId pathwayName proteinName
+ * identifier      name                    species           gene
+ * R-CCN-1119506.1 tyrosine degradation I  Coffea canephora  Cc05_g11510
  * </pre>
- * The file is given by the parameter reactome.file in project.xml.
+ * The file is given by the parameter reactome.file in project.xml. It is likely gene_ids_by_pathway_and_species.tab from Gramene.
  *
- * It is assumed that the proteinName in the file will match the corresponding parts of uniquename from chado.
- * For example, a protein name like Phvul.009G083500.1 will match the chado uniquename Phvul.009G083500.1.v1.0 since the first two dot-separated parts match.
+ * NOTE: special species-specific treatment is required, as the Plant Reactome gene names do NOT match the LIS gene names by a long stretch.
  *
  * @author Sam Hokin, NCGR
  */
 public class ReactomeProcessor extends ChadoProcessor {
 	
-    private static final Logger LOG = Logger.getLogger(ReactomeProcessor.class);
+    private static final Logger LOG = LogManager.getLogger(ReactomeProcessor.class);
 
     /**
      * Create a new ReactomeProcessor
@@ -57,51 +60,49 @@ public class ReactomeProcessor extends ChadoProcessor {
 
     /**
      * {@inheritDoc}
-     * We process the chado database by reading the feature, featureloc, featurepos, featuremap, feature_relationship and featureprop tables.
+     * Process by spinning through the reactome file and associating pathways for our organisms with genes from chado.
      */
     @Override
     public void process(Connection connection) throws Exception {
         
-        // all Items are stored in maps and saved at the end
-	Set<Integer> organismIDs = new HashSet<Integer>();           // store the desired chado organism_id values
-        Map<String,Item> pathwayMap = new HashMap<String,Item>();    // keyed by name, which is all there is
-        Map<Integer,Item> proteinMap = new HashMap<Integer,Item>();  // keyed by feature_id since stored from a chado query
-
+        // Items stored in maps to avoid dupe stores
+	Map<Integer,Item> organismMap = new HashMap<Integer,Item>();  // restrict to desired organisms
+        Map<Integer,Item> geneMap = new HashMap<Integer,Item>();  // keyed by feature_id
+        Map<String,Item> pathwayMap = new HashMap<String,Item>();    // keyed by identifier
+        
+        // store desired species strings in a Set, hopefully spelled same way!
+        Set<String> speciesSet = new HashSet<String>();              // "Phaseolus vulgaris"
+        
         // initialize our DB statement
         Statement stmt = connection.createStatement();
         ResultSet rs;
         
-        // build the organismIDs set from the supplied taxon IDs
+        // build the organism map from the supplied taxon_variety IDs
         Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        for (Map.Entry<Integer,OrganismData> entry : chadoToOrgData.entrySet()) {
-            Integer organismID = entry.getKey();
-            organismIDs.add(organismID);
+        for (Integer organismId : chadoToOrgData.keySet()) {
+            OrganismData organismData = chadoToOrgData.get(organismId);
+            int taxonId = organismData.getTaxonId();
+            String genus = organismData.getGenus();
+            String species = organismData.getSpecies();
+            String variety = organismData.getVariety();
+            speciesSet.add(genus+" "+species);
+            Item organism = getChadoDBConverter().createItem("Organism");
+            organism.setAttribute("taxonId", String.valueOf(taxonId));
+            organism.setAttribute("genus", genus);
+            organism.setAttribute("species", species);
+            organism.setAttribute("variety", variety);
+            store(organism);
+	    organismMap.put(organismId, organism);
         }
-        LOG.info("Will match against "+organismIDs.size()+" organisms in chado.");
-        if (organismIDs.size()==0) {
-            throw new RuntimeException("Property organisms must contain at least one taxon ID in project.xml.");
-        }
+        LOG.info("Species:"+speciesSet);
 
-        // form the SQL "IN" list for our organisms
-        String inList = "(";
-        boolean first = true;
-        for (int organism_id : organismIDs) {
-            if (first) {
-                first = false;
-            } else {
-                inList += ",";
-            }
-            inList += organism_id;
-        }
-        inList += ")";
-
-        // get the cv terms for our items of interest
-        rs = stmt.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='polypeptide'");
+        // get the cv term ID for gene
+        rs = stmt.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='gene'");
         rs.next();
-        int polypeptideCVTermId = rs.getInt("cvterm_id");
+        int geneCVTermId = rs.getInt("cvterm_id");
         rs.close();
 
-        // read the reactome file
+        // load the reactome file into a map
         String reactomeFilename = getChadoDBConverter().getReactomeFilename();
         LOG.info("Reading "+reactomeFilename);
         BufferedReader reader = new BufferedReader(new FileReader(reactomeFilename));
@@ -109,50 +110,63 @@ public class ReactomeProcessor extends ChadoProcessor {
         while ((line=reader.readLine())!=null) {
             if (!line.startsWith("#")) {
                 String[] fields = line.split("\t");
-                String pathwayId = fields[0];
+                String identifier = fields[0];
                 String pathwayName = fields[1];
-                String reactomeName = fields[2];
-                // pathway
-                Item pathway = null;
-                if (pathwayMap.containsKey(pathwayName)) {
-                    // get from pathwayMap
-                    pathway = pathwayMap.get(pathwayName);
-                } else {
-                    // put into pathwayMap
-                    pathway = getChadoDBConverter().createItem("Pathway");
-                    pathway.setAttribute("name", pathwayName);
-                    pathwayMap.put(pathwayName, pathway);
-                }
-                // form the string to match to the protein name
-                String proteinName = reactomeName;
-                String[] parts = reactomeName.split("\\.");
-                if (parts.length>3) proteinName = parts[0]+"."+parts[1]+"."+parts[2]; // drop what comes after species.loc.n (e.g. Phvul.007G094900.1)
-                // query for the chado polypeptides of the desired organisms
-                String query = "SELECT * FROM feature WHERE type_id="+polypeptideCVTermId+" AND uniquename LIKE '"+proteinName+"%' AND organism_id IN "+inList;
-                rs = stmt.executeQuery(query);
-                while (rs.next()) {
-                    String primaryIdentifier = rs.getString("uniquename");
-                    int feature_id = rs.getInt("feature_id");
-                    Item protein = null;
-                    if (proteinMap.containsKey(feature_id)) {
-                        protein = proteinMap.get(feature_id);
-                    } else {
-                        protein = getChadoDBConverter().createItem("Protein");
-                        protein.setAttribute("primaryIdentifier", primaryIdentifier);
-                        proteinMap.put(feature_id, protein);
+                String species = fields[2];
+                String geneName = fields[3];
+                if (speciesSet.contains(species)) {
+                    String featureName = null;
+                    // HACK: concoct the correct chado feature.name
+                    if (geneName.contains("_")) {
+                        String[] parts = geneName.split("_");
+                        if (parts[0].equals("GLYMA")) {
+                            featureName = "glyma.Glyma."+parts[1];
+                        }
                     }
-                    protein.setAttribute("reactomeName", reactomeName);
-                    protein.addToCollection("pathways", pathway);
+                    if (featureName!=null) {
+                        String query = "SELECT * FROM feature WHERE type_id="+geneCVTermId+" AND name='"+featureName+"'";
+                        rs = stmt.executeQuery(query);
+                        if (rs.next()) {
+                            // get or store the gene
+                            Item gene = null;
+                            int feature_id = rs.getInt("feature_id");
+                            if (geneMap.containsKey(feature_id)) {
+                                gene = geneMap.get(feature_id);
+                            } else {
+                                int organism_id = rs.getInt("organism_id");
+                                Item organism = organismMap.get(organism_id);
+                                gene = getChadoDBConverter().createItem("Gene");
+                                gene.setAttribute("primaryIdentifier", rs.getString("uniquename"));
+                                gene.setAttribute("secondaryIdentifier", rs.getString("name"));
+                                gene.setReference("organism", organism);
+                                geneMap.put(feature_id, gene);
+                            }
+                            // get or store the pathway, and store species, not organism (multiple varieties have same pathways)
+                            Item pathway = null;
+                            if (pathwayMap.containsKey(identifier)) {
+                                pathway = pathwayMap.get(identifier);
+                            } else {
+                                pathway = getChadoDBConverter().createItem("Pathway");
+                                pathway.setAttribute("identifier", identifier);
+                                pathway.setAttribute("name", pathwayName);
+                                pathway.setAttribute("species", species);
+                                pathwayMap.put(identifier, pathway);
+                            }
+                            // associate gene with pathway
+                            gene.addToCollection("pathways", pathway);
+                        } else {
+                            LOG.error(featureName+" not found in chado database.");
+                        }
+                        rs.close();
+                    }
                 }
-                rs.close();
             }
         }
+
+        // store the maps here so that the collection get stored
+        for (Item gene : geneMap.values()) store(gene);
+        for (Item pathway : pathwayMap.values()) store(pathway);
         
-        // store all the stuff
-        LOG.info("Storing "+proteinMap.size()+" proteins...");
-        for (Item item : proteinMap.values()) store(item);
-        LOG.info("Storing "+pathwayMap.size()+" pathways...");
-        for (Item item : pathwayMap.values()) store(item);
     }
 
     /**

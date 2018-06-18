@@ -133,7 +133,7 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
                     linkageGroup.setAttribute("primaryIdentifier", lgID);
                     linkageGroupMap.put(lgID, linkageGroup);
                 }
-                linkageGroup.addToCollection("geneticMarkers", marker);
+                linkageGroup.addToCollection("markers", marker);
 
                 // create and store the LinkageGroupPosition item
                 Item lgp = createItem("LinkageGroupPosition");

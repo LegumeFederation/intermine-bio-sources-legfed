@@ -13,7 +13,7 @@
   </class>
 
   <class name="LinkageGroup" is-interface="true">
-    <collection name="geneticMarkers" referenced-type="GeneticMarker"/>
+    <collection name="markers" referenced-type="GeneticMarker"/>
   </class>
 
 </classes>

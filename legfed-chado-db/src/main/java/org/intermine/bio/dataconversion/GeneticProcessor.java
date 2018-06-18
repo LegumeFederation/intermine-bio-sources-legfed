@@ -229,9 +229,9 @@ public class GeneticProcessor extends ChadoProcessor {
                 Item geneticMarker = geneticMarkerMap.get(new Integer(feature_id));
                 Item linkageGroup = linkageGroupMap.get(new Integer(map_feature_id));
                 if (geneticMarker!=null) {
-                    geneticMap.addToCollection("geneticMarkers", geneticMarker);
+                    geneticMap.addToCollection("markers", geneticMarker);
                     if (linkageGroup!=null) {
-                        linkageGroup.addToCollection("geneticMarkers", geneticMarker);
+                        linkageGroup.addToCollection("markers", geneticMarker);
                         Item linkageGroupPosition = getChadoDBConverter().createItem("LinkageGroupPosition");
                         linkageGroupPosition.setAttribute("position", String.valueOf(position));
                         linkageGroupPosition.setReference("linkageGroup", linkageGroup);
@@ -294,10 +294,7 @@ public class GeneticProcessor extends ChadoProcessor {
                 int object_id = rs1.getInt("object_id"); // genetic marker
                 int type_id = rs1.getInt("type_id"); // Nearest, Flanking Low, Flanking High; we don't store this at present
                 Item geneticMarker = geneticMarkerMap.get(new Integer(object_id));
-                if (geneticMarker!=null) {
-                    // add to QTL's associatedGeneticMarkers collection; reverse-reference will automatically associate qtl in genetic marker's QTLs collection
-                    qtl.addToCollection("associatedGeneticMarkers", geneticMarker);
-                }
+                if (geneticMarker!=null) qtl.addToCollection("markers", geneticMarker);
             }
             rs1.close(); // done collecting genetic markers
         }

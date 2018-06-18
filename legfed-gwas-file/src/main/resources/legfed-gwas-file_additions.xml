@@ -17,12 +17,12 @@
     <attribute name="traitName" type="java.lang.String"/>
     <attribute name="pValue" type="java.lang.Double"/>
     <reference name="gwasExperiment" referenced-type="GWASExperiment" reverse-reference="QTLs"/>
-    <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
   </class>
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <attribute name="type" type="java.lang.String"/>
-    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="markers"/>
   </class>
 
 </classes>

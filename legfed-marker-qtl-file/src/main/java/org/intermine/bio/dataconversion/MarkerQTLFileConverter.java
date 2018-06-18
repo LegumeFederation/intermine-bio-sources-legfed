@@ -135,7 +135,7 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                 
                 // relate the two
                 marker.addToCollection("QTLs", qtl);
-                qtl.addToCollection("associatedGeneticMarkers", marker);
+                qtl.addToCollection("markers", marker);
             }
             
         }

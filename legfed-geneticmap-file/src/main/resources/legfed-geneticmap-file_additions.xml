@@ -27,10 +27,16 @@
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
+  <class name="QTL" extends="BioEntity" is-interface="true">
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
+  </class>
+
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <attribute name="type" type="java.lang.String"/>
     <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
     <collection name="geneticMaps" referenced-type="GeneticMap" reverse-reference="markers"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="markers"/>
   </class>
 
   <!-- encapsulates a position (cM) on a linkage group -->

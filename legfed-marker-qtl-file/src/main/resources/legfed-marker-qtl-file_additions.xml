@@ -4,11 +4,11 @@
   <!-- this loader loads genetic markers and associated QTLs -->
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
-    <collection name="QTLs" referenced-type="QTL" reverse-reference="associatedGeneticMarkers"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="markers"/>
   </class>
 
   <class name="QTL" extends="BioEntity" is-interface="true">
-    <collection name="associatedGeneticMarkers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
   </class>
 
 </classes>
