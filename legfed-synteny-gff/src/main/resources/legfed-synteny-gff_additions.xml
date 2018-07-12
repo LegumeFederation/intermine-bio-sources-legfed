@@ -1,15 +1,8 @@
 <?xml version="1.0"?>
 <classes>
 
-  <class name="SyntenicRegion" extends="SequenceFeature" is-interface="true">
-    <reference name="syntenyBlock" referenced-type="SyntenyBlock"/>
-  </class>
-  
   <class name="SyntenyBlock" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="medianKs" type="java.lang.Double"/>
-    <reference name="sourceRegion" referenced-type="SyntenicRegion"/>
-    <reference name="targetRegion" referenced-type="SyntenicRegion"/>
   </class>
 
 </classes>

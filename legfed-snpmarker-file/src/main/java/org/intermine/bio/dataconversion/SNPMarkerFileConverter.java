@@ -83,7 +83,7 @@ public class SNPMarkerFileConverter extends BioFileConverter {
 
         // this file's organism
         Item organism = null;
-        int taxonId = 0;
+        String taxonId = null;
         String variety = null;
 
         // -----------------------------------------------------------------------------------------------------------------------------------
@@ -95,14 +95,14 @@ public class SNPMarkerFileConverter extends BioFileConverter {
         while ((line=br.readLine())!=null) {
 
             // create these markers' organism if taxon ID and variety have been supplied
-            if (organism==null && taxonId>0 && variety!=null) {
+            if (organism==null && taxonId!=null && variety!=null) {
                 String key = taxonId+"_"+variety;
                 if (organismMap.containsKey(key)) {
                     organism = organismMap.get(key);
                 } else {
                     // create and store this organism
                     organism = createItem("Organism");
-                    organism.setAttribute("taxonId", String.valueOf(taxonId));
+                    organism.setAttribute("taxonId", taxonId);
                     organism.setAttribute("variety", variety);
                     store(organism);
                     organismMap.put(key, organism);
@@ -118,7 +118,7 @@ public class SNPMarkerFileConverter extends BioFileConverter {
 
                 // this file's organism.taxonId
                 String[] parts = line.split("\t");
-                taxonId = Integer.parseInt(parts[1]);
+                taxonId = parts[1];
 
             } else if (line.startsWith("Variety")) {
 
@@ -160,14 +160,14 @@ public class SNPMarkerFileConverter extends BioFileConverter {
                 int num = Integer.parseInt(numBits[1]);
                 String key = parts[1];
                 String[] orgBits = key.split("_");
-		int assTaxonId = Integer.parseInt(orgBits[0]);
+		String assTaxonId = orgBits[0];
 		String assVariety = orgBits[1];
                 Item associatedOrganism;
                 if (organismMap.containsKey(key)) {
                     associatedOrganism = organismMap.get(key);
                 } else {
                     associatedOrganism = createItem("Organism");
-                    associatedOrganism.setAttribute("taxonId", String.valueOf(assTaxonId));
+                    associatedOrganism.setAttribute("taxonId", assTaxonId);
                     associatedOrganism.setAttribute("variety", assVariety);
                     store(associatedOrganism);
                     organismMap.put(key, associatedOrganism);

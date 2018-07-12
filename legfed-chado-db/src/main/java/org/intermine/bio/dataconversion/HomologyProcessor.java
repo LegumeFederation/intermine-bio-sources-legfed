@@ -102,7 +102,7 @@ public class HomologyProcessor extends ChadoProcessor {
         for (Map.Entry<Integer,OrganismData> entry : chadoToOrgData.entrySet()) {
             Integer organismId = entry.getKey();
             OrganismData organismData = entry.getValue();
-            int taxonId = organismData.getTaxonId();
+            String taxonId = organismData.getTaxonId();
             String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));
@@ -122,7 +122,7 @@ public class HomologyProcessor extends ChadoProcessor {
         for (Map.Entry<Integer,OrganismData> entry : chadoToHomologueOrgData.entrySet()) {
             Integer organismId = entry.getKey();
             OrganismData organismData = entry.getValue();
-            int taxonId = organismData.getTaxonId();
+            String taxonId = organismData.getTaxonId();
             String variety = organismData.getVariety();
             Item organism = getChadoDBConverter().createItem("Organism");
             organism.setAttribute("taxonId", String.valueOf(taxonId));

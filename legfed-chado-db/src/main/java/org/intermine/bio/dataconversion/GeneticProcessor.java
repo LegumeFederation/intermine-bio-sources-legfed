@@ -85,7 +85,7 @@ public class GeneticProcessor extends ChadoProcessor {
         Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
         for (Integer organismId : chadoToOrgData.keySet()) {
             OrganismData organismData = chadoToOrgData.get(organismId);
-            int taxonId = organismData.getTaxonId();
+            String taxonId = organismData.getTaxonId();
             String variety = organismData.getVariety();
             if (variety==null) variety = OrganismData.DEFAULT_VARIETY; // need to provide a non-null default for merging
             Item organism = getChadoDBConverter().createItem("Organism");

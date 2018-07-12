@@ -27,23 +27,19 @@ import org.intermine.xml.full.Item;
 
 /**
  * Read synteny blocks for two organisms from a DAGchainer synteny GFF file and store them as SyntenyBlock items,
- * each related to a source and target SyntenicRegion. This is designed to use the GFF annotation produced by DAGchainer.
- *
- * The source and target organism taxIDs are taken from the DAGchainer GFF file name.
- * For example, if source=Phaseolus vulgaris and target=Glycine max, then the file will be, e.g. synteny.3885_with_3847.gff3, or
- * any other file name which contains ".3885_chars_3847.gff" and no other dots or underscores.
+ * each related to two SyntenicRegions. This is designed to use the GFF annotation produced by DAGchainer.
  *
  * The DAGchainer GFF file lines must look like this:
  *
  * phavu.Chr01 DAGchainer syntenic_region 125452 912158 2665.5 - . Name=Pv01.Gm14.2.+;Parent=19;ID=20;Target=glyma.Chr14:48062215..48932270;median_Ks=0.3559
  *
  * That is:
- * o The target sequence must be given by a Target attribute.
- * o The Name attribute must be a unique identifier.
- * o The median_Ks attribute must be spelled that way.
- * o The source ID and target ID must match the primaryIdentifier of chromosomes in the production database.
- * o The record type must be "syntenic_region."
- * o The target strand, + or -, may optionally be given in the last character of the Name attribute, as in this example. Otherwise, strand isn't recorded for the target.
+ * - the target sequence must be given by a Target attribute.
+ * - the Name attribute must be a unique identifier.
+ * - the median_Ks attribute must be spelled that way.
+ * - the source ID and target ID must match the primaryIdentifier of chromosomes in the production database.
+ * - the record type must be "syntenic_region."
+ * - the target strand, + or -, may optionally be given in the last character of the Name attribute, as in this example. Otherwise, strand isn't recorded for the target.
  * The Parent and ID attributes are not used.
  *
  * In addition, the source and target organisms are identified by comments at the TOP of the file, such as:
@@ -85,10 +81,10 @@ public class SyntenyGFFConverter extends BioFileConverter {
         LOG.info("Processing Synteny file "+getCurrentFile().getName()+"...");
 
         // constants for each file
-        int sourceTaxonId = 0;
+        String sourceTaxonId = null;
         String sourceVariety = null;
         Item sourceOrganism = null;
-        int targetTaxonId = 0;
+        String targetTaxonId = null;
         String targetVariety = null;
         Item targetOrganism = null;
         
@@ -101,13 +97,13 @@ public class SyntenyGFFConverter extends BioFileConverter {
         while ((line=gffReader.readLine()) != null) {
 
             // create and store organism Items if info has been loaded
-            if (sourceOrganism==null && sourceTaxonId>0 && sourceVariety!=null && targetOrganism==null && targetTaxonId>0 && targetVariety!=null) {
+            if (sourceOrganism==null && sourceTaxonId!=null && sourceVariety!=null && targetOrganism==null && targetTaxonId!=null && targetVariety!=null) {
                 String sourceKey = sourceTaxonId+"_"+sourceVariety;
                 if (organismMap.containsKey(sourceKey)) {
                     sourceOrganism = organismMap.get(sourceKey);
                 } else {
                     sourceOrganism = createItem("Organism");
-                    sourceOrganism.setAttribute("taxonId", String.valueOf(sourceTaxonId));
+                    sourceOrganism.setAttribute("taxonId", sourceTaxonId);
                     sourceOrganism.setAttribute("variety", sourceVariety);
                     store(sourceOrganism);
                     organismMap.put(sourceKey, sourceOrganism);
@@ -118,7 +114,7 @@ public class SyntenyGFFConverter extends BioFileConverter {
                     targetOrganism = organismMap.get(targetKey);
                 } else {
                     targetOrganism = createItem("Organism");
-                    targetOrganism.setAttribute("taxonId", String.valueOf(targetTaxonId));
+                    targetOrganism.setAttribute("taxonId", targetTaxonId);
                     targetOrganism.setAttribute("variety", targetVariety);
                     store(targetOrganism);
                     organismMap.put(targetKey, targetOrganism);
@@ -129,7 +125,7 @@ public class SyntenyGFFConverter extends BioFileConverter {
             if (line.startsWith("#SourceTaxonID")) {
 
                 String[] parts = line.split("\t");
-                sourceTaxonId = Integer.parseInt(parts[1]);
+                sourceTaxonId = parts[1];
                 LOG.info("sourceTaxonId="+sourceTaxonId);
 
             } else if (line.startsWith("#SourceVariety")) {
@@ -141,7 +137,7 @@ public class SyntenyGFFConverter extends BioFileConverter {
             } else if (line.startsWith("#TargetTaxonID")) {
 
                 String[] parts = line.split("\t");
-                targetTaxonId = Integer.parseInt(parts[1]);
+                targetTaxonId = parts[1];
                 LOG.info("targetTaxonId="+targetTaxonId);
 
             } else if (line.startsWith("#TargetVariety")) {
@@ -211,12 +207,10 @@ public class SyntenyGFFConverter extends BioFileConverter {
                     String medianKs = attributes.get("median_Ks").get(0);
 
                     // associate the two regions with this synteny block
-                    String syntenyBlockID = getSyntenyBlockName(gff);
                     Item syntenyBlock = createItem("SyntenyBlock");
-                    syntenyBlock.setAttribute("primaryIdentifier", syntenyBlockID);
                     syntenyBlock.setAttribute("medianKs", medianKs);
-                    syntenyBlock.setReference("sourceRegion", sourceRegion);
-                    syntenyBlock.setReference("targetRegion", targetRegion);
+                    syntenyBlock.addToCollection("syntenicRegions", sourceRegion);
+                    syntenyBlock.addToCollection("syntenicRegions", targetRegion);
                     store(syntenyBlock);
 
                     // associate the block with the regions and store them

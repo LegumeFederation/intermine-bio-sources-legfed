@@ -60,7 +60,7 @@ public class MarkerQTLFileConverter extends BioFileConverter {
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
         // header constants
-        int taxonId = 0;
+        String taxonId = null;
         String variety = null;
         Item organism = null;
 
@@ -69,13 +69,13 @@ public class MarkerQTLFileConverter extends BioFileConverter {
         while ((line=markerReader.readLine())!=null) {
 
             // initialize organism if not set and can be
-            if (organism==null && taxonId>0 && variety!=null) {
+            if (organism==null && taxonId!=null && variety!=null) {
                 String organismKey = taxonId+"_"+variety;
                 if (organismMap.containsKey(organismKey)) {
                     organism = organismMap.get(organismKey);
                 } else {
                     organism = createItem("Organism");
-                    organism.setAttribute("taxonId", String.valueOf(taxonId));
+                    organism.setAttribute("taxonId", taxonId);
                     organism.setAttribute("variety", variety);
                     store(organism);
                     organismMap.put(organismKey, organism);
@@ -90,7 +90,7 @@ public class MarkerQTLFileConverter extends BioFileConverter {
             } else if (line.startsWith("TaxonID")) {
                 
                 String[] parts = line.split("\t");
-                taxonId = Integer.parseInt(parts[1]);
+                taxonId = parts[1];
                 
             } else if (line.startsWith("Variety")) {
                 

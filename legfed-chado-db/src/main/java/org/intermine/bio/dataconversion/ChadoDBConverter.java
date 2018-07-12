@@ -98,7 +98,7 @@ public class ChadoDBConverter extends BioDBConverter {
                 if (organismIdString.contains("_")) {
                     // we've got a species variety
                     String[] parts = organismIdString.split("_");
-                    int taxonId = Integer.valueOf(parts[0]);
+                    String taxonId = parts[0];
                     String variety = parts[1];
                     // DEBUG
                     LOG.info("Creating "+taxonId+" ("+variety+") for organismsToProcess.");
@@ -106,7 +106,7 @@ public class ChadoDBConverter extends BioDBConverter {
                     od = organismRepository.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, od1.getGenus(), od1.getSpecies(), variety);
                 } else {
                     // just a plain species
-                    Integer taxonId = Integer.valueOf(organismIdString);
+                    String taxonId = organismIdString;
                     od = organismRepository.getOrganismDataByTaxon(taxonId);
                 }
             } catch (NumberFormatException e) {
@@ -175,7 +175,7 @@ public class ChadoDBConverter extends BioDBConverter {
                 if (organismIdString.contains("_")) {
                     // we've got a species variety
                     String[] parts = organismIdString.split("_");
-                    int taxonId = Integer.valueOf(parts[0]);
+                    String taxonId = parts[0];
                     String variety = parts[1];
                     // DEBUG
                     LOG.info("Creating "+taxonId+" ("+variety+") for organismsToProcess.");
@@ -183,7 +183,7 @@ public class ChadoDBConverter extends BioDBConverter {
                     od = organismRepository.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, od1.getGenus(), od1.getSpecies(), variety);
                 } else {
                     // just a plain species
-                    Integer taxonId = Integer.valueOf(organismIdString);
+                    String taxonId = organismIdString;
                     od = organismRepository.getOrganismDataByTaxon(taxonId);
                 }
             } catch (NumberFormatException e) {
@@ -337,7 +337,7 @@ public class ChadoDBConverter extends BioDBConverter {
             if (od1==null) {
                 throw new RuntimeException("Could not get OrganismData from genus,species:"+genus+","+species);
             }
-            int taxonId = od1.getTaxonId();
+            String taxonId = od1.getTaxonId();
             
             // get full OrganismData with variety
             OrganismData od = or.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, genus, species, variety);
@@ -398,8 +398,8 @@ public class ChadoDBConverter extends BioDBConverter {
      * {@inheritDoc}
      */
     @Override
-    public String getDataSetTitle(int taxonId) {
-        OrganismData od = organismRepository.getOrganismDataByTaxon(new Integer(taxonId));
+    public String getDataSetTitle(String taxonId) {
+        OrganismData od = organismRepository.getOrganismDataByTaxon(taxonId);
         if (od != null) {
             return getDataSourceName() + " data set for " + od.getGenus() + " " + od.getSpecies();
         }

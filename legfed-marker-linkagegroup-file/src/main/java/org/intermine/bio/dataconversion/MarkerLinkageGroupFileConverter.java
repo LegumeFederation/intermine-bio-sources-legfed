@@ -62,7 +62,7 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
-        int taxonId = 0;
+        String taxonId = null;
         String variety = null;
         Item organism = null;
 
@@ -71,13 +71,13 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
         while ((line=markerReader.readLine())!=null) {
 
             // create and store the organism if needed
-            if (organism==null && taxonId>0 && variety!=null) {
+            if (organism==null && taxonId!=null && variety!=null) {
                 String key = taxonId+"_"+variety;
                 if (organismMap.containsKey(key)) {
                     organism = organismMap.get(key);
                 } else {
                     organism = createItem("Organism");
-                    organism.setAttribute("taxonId", String.valueOf(taxonId));
+                    organism.setAttribute("taxonId", taxonId);
                     organism.setAttribute("variety", variety);
                     store(organism);
                     organismMap.put(key, organism);
@@ -92,7 +92,7 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
             } else if (line.startsWith("TaxonID")) {
 
                 String[] parts = line.split("\t");
-                taxonId = Integer.parseInt(parts[1]);
+                taxonId = parts[1];
 
             } else if (line.startsWith("Variety")) {
 

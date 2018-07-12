@@ -54,7 +54,7 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
     private static final Logger LOG = Logger.getLogger(GeneticMarkerGFFConverter.class);
 
     // organism parameters
-    int taxonId;
+    String taxonId;
     String variety;
     
     // optional file name for single-file operation
@@ -78,7 +78,7 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
      * Set the taxon ID from a project.xml parameter.
      */
     public void setTaxonId(String input) {
-        taxonId = Integer.parseInt(input);
+        taxonId = input;
         LOG.info("Setting taxonId="+taxonId+" from project.xml.");
     }
 
@@ -121,7 +121,7 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
             if (line.toLowerCase().startsWith("#taxonid")) {
 
                 String[] parts = line.split("\t");
-                taxonId = Integer.parseInt(parts[1]);
+                taxonId = parts[1];
                 LOG.info("Setting taxonId="+taxonId+" from GFF file header.");
 
             } else if (line.toLowerCase().startsWith("#variety")) {
@@ -132,17 +132,17 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
                 
             } else if (!line.startsWith("#")) {
 
-                if (taxonId==0) throw new RuntimeException("Taxon ID not set, not reading GFF data.");
+                if (taxonId==null) throw new RuntimeException("Taxon ID not set, not reading GFF data.");
 
                 if (organism==null) {
                     // create the organism, add to the map
-                    String key = String.valueOf(taxonId);
+                    String key = taxonId;
                     if (variety!=null) key += "_"+variety;
                     if (organismMap.containsKey(key)) {
                         organism = organismMap.get(key);
                     } else {
                         organism = createItem("Organism");
-                        organism.setAttribute("taxonId", String.valueOf(taxonId));
+                        organism.setAttribute("taxonId", taxonId);
                         if (variety!=null) organism.setAttribute("variety", String.valueOf(variety));
                         store(organism);
                         organismMap.put(key, organism);

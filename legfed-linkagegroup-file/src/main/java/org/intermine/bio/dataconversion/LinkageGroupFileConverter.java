@@ -67,7 +67,7 @@ public class LinkageGroupFileConverter extends BioFileConverter {
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
         // header data
-        int taxonId = 0;
+        String taxonId = null;
         String variety = null;
         Item organism = null;
         int pmid = 0;
@@ -82,13 +82,13 @@ public class LinkageGroupFileConverter extends BioFileConverter {
             if (line.startsWith("#")) continue;
 
             // set organism if we're ready
-            if (organism==null && taxonId!=0 && variety!=null) {
+            if (organism==null && taxonId!=null && variety!=null) {
                 String organismKey = taxonId+"_"+variety;
                 if (organismMap.containsKey(organismKey)) {
                     organism = organismMap.get(organismKey);
                 } else {
                     organism = createItem("Organism");
-                    organism.setAttribute("taxonId", String.valueOf(taxonId));
+                    organism.setAttribute("taxonId", taxonId);
                     organism.setAttribute("variety", variety);
                     store(organism);
                     organismMap.put(organismKey, organism);
@@ -127,7 +127,7 @@ public class LinkageGroupFileConverter extends BioFileConverter {
 
             // header stuff
             if (key.toLowerCase().equals("taxonid")) {
-                taxonId = Integer.parseInt(value);
+                taxonId = value;
             } else if (key.toLowerCase().equals("variety")) {
                 variety = value;
             } else if (key.toLowerCase().equals("pmid")) {

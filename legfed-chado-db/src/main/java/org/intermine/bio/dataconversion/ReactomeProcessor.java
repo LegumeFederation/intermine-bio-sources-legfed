@@ -81,7 +81,7 @@ public class ReactomeProcessor extends ChadoProcessor {
         Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
         for (Integer organismId : chadoToOrgData.keySet()) {
             OrganismData organismData = chadoToOrgData.get(organismId);
-            int taxonId = organismData.getTaxonId();
+            String taxonId = organismData.getTaxonId();
             String genus = organismData.getGenus();
             String species = organismData.getSpecies();
             String variety = organismData.getVariety();

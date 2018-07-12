@@ -163,7 +163,7 @@ public class SequenceProcessor extends ChadoProcessor {
      * @return the Map from configuration key to a list of actions
      */
     @SuppressWarnings("unchecked")
-    protected Map<MultiKey, List<ConfigAction>> getConfig(int taxonId) {
+    protected Map<MultiKey, List<ConfigAction>> getConfig(String taxonId) {
         return DEFAULT_CONFIG;
     }
 
@@ -418,7 +418,7 @@ public class SequenceProcessor extends ChadoProcessor {
         if (feature == null) {
             return null;
         }
-        int taxonId = organismData.getTaxonId();
+        String taxonId = organismData.getTaxonId();
 	String variety = organismData.getVariety();
         FeatureData fdat = new FeatureData();
         Item organismItem = getChadoDBConverter().getOrganismItem(taxonId, variety);
@@ -569,8 +569,8 @@ public class SequenceProcessor extends ChadoProcessor {
                 FeatureData srcFeatureData = featureMap.get(srcFeatureId);
                 if (featureMap.containsKey(featureId)) {
                     FeatureData featureData = featureMap.get(featureId);
-		    // NOTE: removed taxonId, not used!
-                    Item location = makeLocation(start, end, strand, srcFeatureData, featureData, featureId);
+                    String taxonId = featureData.organismData.getTaxonId();
+                    Item location = makeLocation(start, end, strand, srcFeatureData, featureData, featureId, taxonId);
 		    if (location!=null) {
 			getChadoDBConverter().store(location); // location should never be null
 		    } else {
@@ -626,7 +626,6 @@ public class SequenceProcessor extends ChadoProcessor {
 
     /**
      * Make a Location of a feature on a SequenceFeature.
-     * NOTE: removed taxonId, not used.
      * @param start the start position
      * @param end the end position
      * @param strand the strand
@@ -636,8 +635,8 @@ public class SequenceProcessor extends ChadoProcessor {
      * @return the new Location object
      * @throws ObjectStoreException if there is a problem while storing
      */
-    protected Item makeLocation(int start, int end, int strand, FeatureData srcFeatureData, FeatureData featureData, int featureId) throws ObjectStoreException {
-        Item location = getChadoDBConverter().makeLocation(srcFeatureData.getItemIdentifier(), featureData.getItemIdentifier(), start, end, strand);
+    protected Item makeLocation(int start, int end, int strand, FeatureData srcFeatureData, FeatureData featureData, int featureId, String taxonId) throws ObjectStoreException {
+        Item location = getChadoDBConverter().makeLocation(srcFeatureData.getItemIdentifier(), featureData.getItemIdentifier(), start, end, strand, taxonId);
         return location;
     }
 
@@ -946,7 +945,7 @@ public class SequenceProcessor extends ChadoProcessor {
                 }
                 accession  = fixIdentifier(fdat, accession);
 
-                int taxonId = fdat.organismData.getTaxonId();
+                String taxonId = fdat.organismData.getTaxonId();
                 Map<MultiKey, List<ConfigAction>> orgConfig = getConfig(taxonId);
                 List<ConfigAction> actionList = orgConfig.get(key);
 
@@ -1022,7 +1021,7 @@ public class SequenceProcessor extends ChadoProcessor {
 
                 FeatureData fdat = featureMap.get(featureId);
                 MultiKey key = new MultiKey("prop", fdat.getInterMineType(), propTypeName);
-                int taxonId = fdat.organismData.getTaxonId();
+                String taxonId = fdat.organismData.getTaxonId();
                 List<ConfigAction> actionList = getConfig(taxonId).get(key);
                 if (actionList == null) {
                     // no actions configured for this prop
@@ -1115,7 +1114,7 @@ public class SequenceProcessor extends ChadoProcessor {
 
             MultiKey key = new MultiKey("cvterm", fdat.getInterMineType(), cvName);
 
-            int taxonId = fdat.organismData.getTaxonId();
+            String taxonId = fdat.organismData.getTaxonId();
             List<ConfigAction> actionList = getConfig(taxonId).get(key);
             if (actionList == null) {
                 // no actions configured for this prop
@@ -1285,7 +1284,7 @@ public class SequenceProcessor extends ChadoProcessor {
                 MultiKey key =
 		    new MultiKey("synonym", fdat.getInterMineType(),
 				 synonymTypeName, isCurrent);
-                int taxonId = fdat.organismData.getTaxonId();
+                String taxonId = fdat.organismData.getTaxonId();
                 Map<MultiKey, List<ConfigAction>> orgConfig = getConfig(taxonId);
                 List<ConfigAction> actionList = orgConfig.get(key);
 
