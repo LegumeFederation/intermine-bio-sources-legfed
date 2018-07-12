@@ -121,7 +121,22 @@ public class ReactomeProcessor extends ChadoProcessor {
                         String[] parts = geneName.split("_");
                         if (parts[0].equals("GLYMA")) {
                             featureName = "glyma.Glyma."+parts[1];
+                        } else if (parts[0].equals("PHAVU")) {
+                            featureName = "phavu.Phvul."+parts[1];
+                            featureName = featureName.substring(0, featureName.length()-1); // drop the trailing "g"
+                        } else if (parts[0].equals("MTR")) {
+                            featureName = "medtr.Medtr"+parts[1];
+                        } else if (parts[0].equals("C.cajan")) {
+                            featureName = "cajca.C.cajan_"+parts[1];
+                        } else if (parts[0].equals("TanjilG")) {
+                            featureName = "lupan.Lup0"+parts[1];
+                        } else if (parts[0].equals("Tp57577")) {
+                            featureName = "tripr."+parts[3];
                         }
+                    } else if (geneName.startsWith("Aradu")) {
+                        featureName = "aradu."+geneName;
+                    } else if (geneName.startsWith("Araip")) {
+                        featureName = "araip."+geneName;
                     }
                     if (featureName!=null) {
                         String query = "SELECT * FROM feature WHERE type_id="+geneCVTermId+" AND name='"+featureName+"'";
