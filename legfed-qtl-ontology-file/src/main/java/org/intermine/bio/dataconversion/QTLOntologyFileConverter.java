@@ -144,7 +144,6 @@ public class QTLOntologyFileConverter extends BioFileConverter {
                         annotation.setReference("subject", qtl);
                         store(annotation);
                         LOG.info("Storing annotation for QTL "+qtlName+" and term "+termID);
-                        qtl.addToCollection("ontologyAnnotations", annotation);
 
                     }
 

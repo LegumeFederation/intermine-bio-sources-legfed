@@ -259,8 +259,6 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                         homologue.setReference("gene", sourceGene);
                         homologue.setReference("homologue", targetGene);
                         store(homologue); // store now, not going to touch it later
-                        // add homologue to source gene's collection
-                        sourceGene.addToCollection("homologues", homologue);
                     }
                 }
             }

@@ -154,9 +154,11 @@
     <attribute name="variety" type="java.lang.String"/>
   </class>
 
-  <!-- add chadoFeatureId to all BioEntity subclasses -->
+  <!-- add chadoFeatureId, chadoUniqueName and chadoName to all BioEntity subclasses -->
   <class name="BioEntity" is-interface="true">
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="chadoUniqueName" type="java.lang.String"/>
+    <attribute name="chadoName" type="java.lang.String"/>
   </class>
   
   <!-- supercontig and supercontigLocation to all SequenceFeature subclasses -->

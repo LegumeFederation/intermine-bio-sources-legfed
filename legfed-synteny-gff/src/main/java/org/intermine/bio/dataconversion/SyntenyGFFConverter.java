@@ -125,26 +125,46 @@ public class SyntenyGFFConverter extends BioFileConverter {
             if (line.startsWith("#SourceTaxonID")) {
 
                 String[] parts = line.split("\t");
-                sourceTaxonId = parts[1];
-                LOG.info("sourceTaxonId="+sourceTaxonId);
+		try {
+		    sourceTaxonId = parts[1];
+		    LOG.info("sourceTaxonId="+sourceTaxonId);
+		} catch (Exception e) {
+		    System.err.println("INPUT ERROR:"+line);
+		    throw new RuntimeException(e);
+		}
 
             } else if (line.startsWith("#SourceVariety")) {
                 
                 String[] parts = line.split("\t");
-                sourceVariety = parts[1];
-                LOG.info("sourceVariety="+sourceVariety);
+		try {
+		    sourceVariety = parts[1];
+		    LOG.info("sourceVariety="+sourceVariety);
+		} catch (Exception e) {
+		    System.err.println("INPUT ERROR:"+line);
+		    throw new RuntimeException(e);
+		}
 
             } else if (line.startsWith("#TargetTaxonID")) {
 
                 String[] parts = line.split("\t");
-                targetTaxonId = parts[1];
-                LOG.info("targetTaxonId="+targetTaxonId);
+		try {
+		    targetTaxonId = parts[1];
+		    LOG.info("targetTaxonId="+targetTaxonId);
+		} catch (Exception e) {
+		    System.err.println("INPUT ERROR:"+line);
+		    throw new RuntimeException(e);
+		}
 
             } else if (line.startsWith("#TargetVariety")) {
                 
                 String[] parts = line.split("\t");
-                targetVariety = parts[1];
-                LOG.info("targetVariety="+targetVariety);
+		try {
+		    targetVariety = parts[1];
+		    LOG.info("targetVariety="+targetVariety);
+		} catch (Exception e) {
+		    System.err.println("INPUT ERROR:"+line);
+		    throw new RuntimeException(e);
+		}
 
             } else if (line.startsWith("#") || line.trim().length()==0) {
                 

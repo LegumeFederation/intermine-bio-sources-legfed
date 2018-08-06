@@ -75,8 +75,10 @@ public class ChadoFeature {
      */
     public void populateBioEntity(Item bioEntity, Item organism) {
         bioEntity.setAttribute("chadoFeatureId", String.valueOf(feature_id));
+	bioEntity.setAttribute("chadoUniqueName", uniquename);
         bioEntity.setAttribute("primaryIdentifier", uniquename);
         if (name!=null && name.length()>0) {
+	    bioEntity.setAttribute("chadoName", name);
             bioEntity.setAttribute("secondaryIdentifier", name);
         }
         bioEntity.setReference("organism", organism);
