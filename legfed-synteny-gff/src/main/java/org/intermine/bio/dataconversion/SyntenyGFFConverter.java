@@ -61,6 +61,9 @@ public class SyntenyGFFConverter extends BioFileConverter {
     // these maps prevent duplicate stores
     Map<String,Item> organismMap = new HashMap<String,Item>();
     Map<String,Item> chromosomeMap = new HashMap<String,Item>();
+
+    // use this map to prevent storing duplicate synteny blocks with regions swapped
+    Map<String,String> syntenyBlockMap = new HashMap<String,String>();
         
     /**
      * Create a new SyntenyGFFConverter
@@ -216,30 +219,46 @@ public class SyntenyGFFConverter extends BioFileConverter {
                     Item sourceRegion = createItem("SyntenicRegion");
                     Item sourceChromosomeLocation = createItem("Location");
                     populateSourceRegion(sourceRegion, gff, sourceOrganism, sourceChromosome, sourceChromosomeLocation);
+                    String sourceIdentifier = getSourceRegionName(gff);
                     
                     // populate the target region and its location
                     Item targetRegion = createItem("SyntenicRegion");
                     Item targetChromosomeLocation = createItem("Location");
                     populateTargetRegion(targetRegion, gff, targetOrganism, targetChromosome, targetChromosomeLocation);
+                    String targetIdentifier = getTargetRegionName(gff);
+
+                    // only continue if we haven't stored a synteny block with these regions
+                    if (syntenyBlockMap.containsKey(sourceIdentifier) && syntenyBlockMap.get(sourceIdentifier).equals(targetIdentifier) ||
+                        syntenyBlockMap.containsKey(targetIdentifier) && syntenyBlockMap.get(targetIdentifier).equals(sourceIdentifier)) {
+                        
+                        // do nothing
+                        
+                    } else {
+
+                        // store the regions in the map for future non-duplication
+                        syntenyBlockMap.put(sourceIdentifier, targetIdentifier);
                     
-                    // get the medianKs value for this block
-                    Map<String, List<String>> attributes = gff.getAttributes();
-                    String medianKs = attributes.get("median_Ks").get(0);
+                        // get the medianKs value for this block
+                        Map<String, List<String>> attributes = gff.getAttributes();
+                        String medianKs = attributes.get("median_Ks").get(0);
+                        
+                        // associate the two regions with this synteny block
+                        Item syntenyBlock = createItem("SyntenyBlock");
+                        syntenyBlock.setAttribute("primaryIdentifier", getSyntenyBlockName(gff));
+                        syntenyBlock.setAttribute("medianKs", medianKs);
+                        syntenyBlock.addToCollection("syntenicRegions", sourceRegion);
+                        syntenyBlock.addToCollection("syntenicRegions", targetRegion);
+                        store(syntenyBlock);
+                        
+                        // associate the block with the regions and store them
+                        sourceRegion.setReference("syntenyBlock", syntenyBlock);
+                        store(sourceRegion);
+                        store(sourceChromosomeLocation);
+                        targetRegion.setReference("syntenyBlock", syntenyBlock);
+                        store(targetRegion);
+                        store(targetChromosomeLocation);
 
-                    // associate the two regions with this synteny block
-                    Item syntenyBlock = createItem("SyntenyBlock");
-                    syntenyBlock.setAttribute("medianKs", medianKs);
-                    syntenyBlock.addToCollection("syntenicRegions", sourceRegion);
-                    syntenyBlock.addToCollection("syntenicRegions", targetRegion);
-                    store(syntenyBlock);
-
-                    // associate the block with the regions and store them
-                    sourceRegion.setReference("syntenyBlock", syntenyBlock);
-                    store(sourceRegion);
-                    store(sourceChromosomeLocation);
-                    targetRegion.setReference("syntenyBlock", syntenyBlock);
-                    store(targetRegion);
-                    store(targetChromosomeLocation);
+                    }
 
                 }
             }

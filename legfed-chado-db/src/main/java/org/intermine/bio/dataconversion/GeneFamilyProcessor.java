@@ -229,6 +229,8 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                     sourceGene = getChadoDBConverter().createItem("Gene");
                     sourceGene.setAttribute("primaryIdentifier", uniquename);
 		    sourceGene.setAttribute("secondaryIdentifier", name);
+                    sourceGene.setAttribute("chadoUniqueName", uniquename);
+		    sourceGene.setAttribute("chadoName", name);
                     sourceGene.setReference("organism", sourceOrganism);
                     sourceGene.setReference("geneFamily", geneFamily);
                     geneMap.put(sourceKey, sourceGene);
@@ -247,6 +249,8 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                             targetGene = getChadoDBConverter().createItem("Gene");
                             targetGene.setAttribute("primaryIdentifier", uniquename);
 			    targetGene.setAttribute("secondaryIdentifier", name);
+                            targetGene.setAttribute("chadoUniqueName", uniquename);
+			    targetGene.setAttribute("chadoName", name);
                             targetGene.setReference("organism", targetOrganism);
                             targetGene.setReference("geneFamily", geneFamily);
                             geneMap.put(targetKey, targetGene);
