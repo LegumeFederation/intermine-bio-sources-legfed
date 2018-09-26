@@ -3,8 +3,8 @@
 
   <!-- genetics from GeneticProcessor, plus feature properties from FeaturePropProcessor -->
 
-  <class name="QTL" extends="BioEntity" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+  <class name="QTL" extends="Annotatable" is-interface="true">
+    <attribute name="secondaryIdentifier" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
     <attribute name="traitDescription" type="java.lang.String"/>
     <attribute name="traitName" type="java.lang.String"/>
@@ -15,19 +15,22 @@
     <attribute name="peak" type="java.lang.Double"/>
     <attribute name="studyTreatment" type="java.lang.String"/>
     <attribute name="favorableAlleleSource" type="java.lang.String"/>
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="chadoUniqueName" type="java.lang.String"/>
+    <attribute name="chadoName" type="java.lang.String"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
   </class>
 
-  <class name="LinkageGroup" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
+  <class name="LinkageGroup" extends="Annotatable" is-interface="true">
     <attribute name="number" type="java.lang.Integer"/>
     <attribute name="secondaryIdentifier" type="java.lang.String"/>
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="length" type="java.lang.Double"/>
     <attribute name="assignedLinkageGroup" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
+    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="chadoUniqueName" type="java.lang.String"/>
+    <attribute name="chadoName" type="java.lang.String"/>
     <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
     <collection name="markers" referenced-type="GeneticMarker"/>
@@ -48,8 +51,8 @@
     <reference name="linkageGroup" referenced-type="LinkageGroup"/>
   </class>
 
-  <!-- extends BioEntity so we can associate publications in bioentitiespublications -->
-  <class name="GeneticMap" extends="BioEntity" is-interface="true">
+  <!-- extends Annotatable so we can associate publications in bioentitiespublications -->
+  <class name="GeneticMap" extends="Annotatable" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
     <attribute name="unit" type="java.lang.String"/>
     <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
@@ -74,30 +77,22 @@
     <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
   </class>
 
-  <class name="Protein" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+  <class name="Protein" extends="BioEntity" is-interface="true">
     <attribute name="note" type="java.lang.String"/>
-    <attribute name="reactomeName" type="java.lang.String"/>
-    <reference name="chromosome" referenced-type="Chromosome"/>
-    <reference name="chromosomeLocation" referenced-type="Location"/>
-    <reference name="supercontig" referenced-type="Chromosome"/>
-    <reference name="supercontigLocation" referenced-type="Location"/>
-    <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
-    <reference name="consensusRegionLocation" referenced-type="Location"/>
+    <attribute name="length" type="java.lang.Integer"/>
+    <reference name="sequence" referenced-type="Sequence"/>
+    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
+    <collection name="consensusRegions" referenced-type="ConsensusRegion"/>
     <collection name="proteinMatches" referenced-type="ProteinMatch" reverse-reference="protein"/>
     <collection name="proteinDomains" referenced-type="ProteinDomain" reverse-reference="proteins"/>
   </class>
 
   <class name="ProteinMatch" extends="BioEntity" is-interface="true">
-    <attribute name="length" type="java.lang.Integer"/>
     <attribute name="signatureDesc" type="java.lang.String"/>
     <attribute name="status" type="java.lang.String"/>
     <attribute name="date" type="java.lang.String"/>
-    <reference name="sequence" referenced-type="Sequence"/>
     <reference name="protein" referenced-type="Protein" reverse-reference="proteinMatches"/>
     <reference name="proteinLocation" referenced-type="Location"/>
-    <reference name="consensusRegion" referenced-type="ConsensusRegion"/>
-    <reference name="consensusRegionLocation" referenced-type="Location"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
@@ -115,9 +110,8 @@
     <collection name="proteins" referenced-type="Protein" reverse-reference="proteinDomains"/>
   </class>
 
-  <class name="ConsensusRegion" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <attribute name="length" type="java.lang.Integer"/>
+  <class name="ConsensusRegion" extends="BioEntity" is-interface="true">
+    <attribute name="length" type="java.lang.Double"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="consensusRegion"/>
     <reference name="sequence" referenced-type="Sequence"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>

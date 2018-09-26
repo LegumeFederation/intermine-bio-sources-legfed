@@ -4,7 +4,7 @@
   <!-- this loader loads QTLs, markers and their positions from a GWAS file (formed from SoyBase for this design) -->
 
   <class name="GWASExperiment" is-interface="true">
-    <attribute name="soybaseId" type="java.lang.String"/>
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="platformName" type="java.lang.String"/>
     <attribute name="platformDetails" type="java.lang.String"/>
     <attribute name="numberLociTested" type="java.lang.Integer"/>
@@ -12,7 +12,7 @@
     <collection name="QTLs" referenced-type="QTL" reverse-reference="gwasExperiment"/>
   </class>
 
-  <class name="QTL" extends="BioEntity" is-interface="true">
+  <class name="QTL" extends="Annotatable" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="traitName" type="java.lang.String"/>
     <attribute name="pValue" type="java.lang.Double"/>

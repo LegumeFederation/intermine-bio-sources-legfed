@@ -33,7 +33,7 @@ public class GWASFileRecord implements Comparable {
     String otherName;
     String gwasFamily;
     String gwasClass;
-    String traitSOYNumber;
+    String traitIdentifier;
     String qtlType;
     String qtlCategory;
     int    locusId;
@@ -49,24 +49,6 @@ public class GWASFileRecord implements Comparable {
     // set this based on start,end
     String type;
 
-    // gwas_id
-    // gwas_name
-    // other_name
-    // gwas_family
-    // gwas_class
-    // trait_SOY_number
-    // QTL_type
-    // QTL_category
-    // locus_id
-    // locus_name
-    // p_value
-    // LOD
-    // R2
-    // chromosome
-    // linkage_group
-    // qtl_start
-    // qtl_end
-    
     /**
      * Instantiate from a line from a QTL file. Do nothing if it's a comment.
      */
@@ -78,7 +60,7 @@ public class GWASFileRecord implements Comparable {
         otherName = parts[i++];
         gwasFamily = parts[i++];
         gwasClass = parts[i++];
-        traitSOYNumber = parts[i++];
+        traitIdentifier = parts[i++];
         qtlType = parts[i++];
         qtlCategory = parts[i++];
         if (parts[i].length()>0) locusId = Integer.parseInt(parts[i]); i++;
@@ -121,7 +103,7 @@ public class GWASFileRecord implements Comparable {
         str += "otherName="+otherName;
         str += "gwasFamily="+gwasFamily;
         str += "gwasClass="+gwasClass;
-        str += "traitSOYNumber="+traitSOYNumber;
+        str += "traitIdentifier="+traitIdentifier;
         str += "qtlType="+qtlType;
         str += "qtlCategory="+qtlCategory;
         str += "locusId="+locusId;

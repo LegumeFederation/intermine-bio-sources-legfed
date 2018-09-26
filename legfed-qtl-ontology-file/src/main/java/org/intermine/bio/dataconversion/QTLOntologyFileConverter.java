@@ -123,7 +123,7 @@ public class QTLOntologyFileConverter extends BioFileConverter {
                         } else {
                             qtl = createItem("QTL");
                             qtl.setAttribute("primaryIdentifier", qtlName);
-                            qtl.setReference("organism", organism);
+                            // qtl.setReference("organism", organism);
                             qtlMap.put(qtlName, qtl);
                         }
 
@@ -163,8 +163,8 @@ public class QTLOntologyFileConverter extends BioFileConverter {
     @Override
     public void close() throws Exception {
         
-        LOG.info("Storing "+organismMap.size()+" Organism items...");
-        store(organismMap.values());
+        // LOG.info("Storing "+organismMap.size()+" Organism items...");
+        // store(organismMap.values());
         
         LOG.info("Storing "+qtlMap.size()+" QTL items...");
         store(qtlMap.values());

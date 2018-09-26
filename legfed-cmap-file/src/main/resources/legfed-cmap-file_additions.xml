@@ -5,7 +5,7 @@
     <attribute name="lastAuthor" type="java.lang.String"/>
   </class>
 
-  <class name="QTL" extends="BioEntity" is-interface="true">
+  <class name="QTL" extends="Annotatable" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>

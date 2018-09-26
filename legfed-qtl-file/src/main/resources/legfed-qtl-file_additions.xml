@@ -2,9 +2,8 @@
 <classes>
 
   <!-- this loader loads QTLs per publication/mapping populations -->
-  <!-- BioEntity.publications is assumed; when QTL ceases to be BioEntity, then add publications back in -->
 
-  <class name="QTL" extends="BioEntity" is-interface="true">
+  <class name="QTL" extends="Annotatable" is-interface="true">
 	<attribute name="traitName" type="java.lang.String"/>
 	<collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="QTLs"/>
   </class>

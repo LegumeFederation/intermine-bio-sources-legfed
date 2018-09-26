@@ -94,10 +94,11 @@ public class SequenceProcessor extends ChadoProcessor {
     private static final List<String> PARTOF_RELATIONS = Arrays.asList("part_of"); // want to reverse derives_from for mRNA.protein
 
     // desired feature cvterm types to query from the chado.feature table INCLUDING those that appear as sources in chado.featureloc
+    // NOTE: polypeptide and polypeptide_domain REMOVED!
     private static final List<String> DESIRED_FEATURES = Arrays.asList(
         							       "gene", "mRNA", "exon", 
         							       "protein_hmm_match", "protein_match", 
-        							       "chromosome", "polypeptide", "polypeptide_domain",
+        							       "chromosome", 
         							       "supercontig", "genetic_marker"
         							       );
 

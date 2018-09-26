@@ -69,26 +69,38 @@ public class ChadoFeature {
         return this.feature_id==that.feature_id;
     }
    
+    /**
+     * Populate the attributes of a Item with this feature's data.
+     */
+    public void populateItem(Item item) {
+        item.setAttribute("chadoFeatureId", String.valueOf(feature_id));
+	item.setAttribute("chadoUniqueName", uniquename);
+        item.setAttribute("primaryIdentifier", uniquename);
+        if (name!=null && name.length()>0) {
+	    item.setAttribute("chadoName", name);
+            item.setAttribute("secondaryIdentifier", name);
+        }
+    }
 
     /**
-     * Populate the attributes of a BioEntity Item with this feature's data.
+     * Populate the attributes of a Item with this feature's data, as well as set a reference to an organism.
      */
-    public void populateBioEntity(Item bioEntity, Item organism) {
-        bioEntity.setAttribute("chadoFeatureId", String.valueOf(feature_id));
-	bioEntity.setAttribute("chadoUniqueName", uniquename);
-        bioEntity.setAttribute("primaryIdentifier", uniquename);
+    public void populateItem(Item item, Item organism) {
+        item.setAttribute("chadoFeatureId", String.valueOf(feature_id));
+	item.setAttribute("chadoUniqueName", uniquename);
+        item.setAttribute("primaryIdentifier", uniquename);
+        item.setReference("organism", organism);
         if (name!=null && name.length()>0) {
-	    bioEntity.setAttribute("chadoName", name);
-            bioEntity.setAttribute("secondaryIdentifier", name);
+	    item.setAttribute("chadoName", name);
+            item.setAttribute("secondaryIdentifier", name);
         }
-        bioEntity.setReference("organism", organism);
     }
 
     /**
      * Populate the attributes of a SequenceFeature Item with this feature's data; related Sequence Item must be passed in
      */
     public void populateSequenceFeature(Item sequenceFeature, Item sequence, Item organism) {
-        populateBioEntity(sequenceFeature, organism);
+        populateItem(sequenceFeature, organism);
         if (seqlen>0) sequenceFeature.setAttribute("length", String.valueOf(seqlen));
         if (residues!=null) {
             // populate the Sequence

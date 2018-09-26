@@ -128,7 +128,7 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                 } else {
                     qtl = createItem("QTL");
                     qtl.setAttribute("primaryIdentifier", qtlID);
-                    qtl.setReference("organism", organism);
+                    // qtl.setReference("organism", organism);
                     qtlMap.put(qtlID, qtl);
                     LOG.info("Storing QTL "+qtlID);
                 }

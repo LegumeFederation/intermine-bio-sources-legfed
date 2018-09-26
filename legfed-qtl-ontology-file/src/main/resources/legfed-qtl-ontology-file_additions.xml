@@ -3,7 +3,7 @@
 
   <!-- this loader simply loads QTLs and related ontology identifiers, one per line -->
 
-  <class name="QTL" extends="BioEntity" is-interface="true"/>
+  <class name="QTL" extends="Annotatable" is-interface="true"/>
 
   <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true"/>
   <class name="POAnnotation" extends="OntologyAnnotation" is-interface="true"/>

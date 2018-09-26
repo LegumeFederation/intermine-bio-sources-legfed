@@ -91,15 +91,14 @@ public class FeaturePropProcessor extends ChadoProcessor {
             store(geneMap.values());
             LOG.info("Stored "+geneMap.size()+" genes for organism "+taxonId+" ("+variety+")");
 
-
             // load linkage group attributes
-            Map<Integer,Item> linkageGroupMap = generateMap(stmt, organism_id, organism, "LinkageGroup", "linkage_group");
+            Map<Integer,Item> linkageGroupMap = generateMap(stmt, organism_id, "LinkageGroup", "linkage_group");
             linkageGroupMap = loadAttributes(linkageGroupMap, stmt, organism_id, "LinkageGroup", "assignedLinkageGroup", "linkage_group", "Assigned Linkage Group");
             store(linkageGroupMap.values());
             LOG.info("Stored "+linkageGroupMap.size()+" linkage groups for organism "+taxonId+" ("+variety+")");
 
             // load QTL attributes
-            Map<Integer,Item> qtlMap = generateMap(stmt, organism_id, organism, "QTL", "QTL");
+            Map<Integer,Item> qtlMap = generateMap(stmt, organism_id, "QTL", "QTL");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "description", "QTL", "comment");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "traitDescription", "QTL", "Experiment Trait Description");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "traitName", "QTL", "Experiment Trait Name");
@@ -171,7 +170,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
      * Return the cvterm.cvterm_id for the requested cvterm.name, 0 if not found.
      * Require that a non-empty definition exist - this narrows some dupes (like "description") to a single record.
      */
-    int getCVTermId(Statement stmt, String name) throws SQLException {
+    int getTypeId(Statement stmt, String name) throws SQLException {
         ResultSet rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='"+name+"' AND length(definition)>0");
         int cvTermId = 0;
         if (rs.next()) cvTermId = rs.getInt("cvterm_id");
@@ -182,17 +181,38 @@ public class FeaturePropProcessor extends ChadoProcessor {
     /**
      * Create a map, keyed with chado feature_id, with records from the feature table; restrict to feature records which have corresponding records in featureprop.
      */
-    Map<Integer,Item> generateMap(Statement stmt, int organism_id, Item organism, String className, String featureCVTermName) throws SQLException {
-        
-        int featureCVTermId = getCVTermId(stmt, featureCVTermName);
-
-        // first load the map of items keyed by chado.feature_id and loaded with uniquename=primaryIdentifier and organism reference
+    Map<Integer,Item> generateMap(Statement stmt, int organism_id, String className, String featureCVTermName) throws SQLException {
+        int featureTypeId = getTypeId(stmt, featureCVTermName);
         Map<Integer,Item> map = new HashMap<Integer,Item>();
         ResultSet rs = stmt.executeQuery("SELECT DISTINCT feature.feature_id,feature.uniquename " +
                                          "FROM feature,featureprop " +
                                          "WHERE feature.feature_id=featureprop.feature_id " +
                                          "AND organism_id="+organism_id+" " +
-                                         "AND feature.type_id="+featureCVTermId+" " +
+                                         "AND feature.type_id="+featureTypeId+" " +
+                                         "ORDER BY feature_id");
+        while (rs.next()) {
+            Integer featureId = new Integer(rs.getInt("feature_id"));
+            String uniquename = rs.getString("uniquename");
+            Item item = getChadoDBConverter().createItem(className);
+            item.setAttribute("primaryIdentifier", uniquename);
+            map.put(featureId, item);
+        }
+        rs.close();
+        return map;
+    }
+
+    /**
+     * Create a map, keyed with chado feature_id, with records from the feature table; restrict to feature records which have corresponding records in featureprop.
+     * This version also creates an organism reference.
+     */
+    Map<Integer,Item> generateMap(Statement stmt, int organism_id, Item organism, String className, String featureCVTermName) throws SQLException {
+        int featureTypeId = getTypeId(stmt, featureCVTermName);
+        Map<Integer,Item> map = new HashMap<Integer,Item>();
+        ResultSet rs = stmt.executeQuery("SELECT DISTINCT feature.feature_id,feature.uniquename " +
+                                         "FROM feature,featureprop " +
+                                         "WHERE feature.feature_id=featureprop.feature_id " +
+                                         "AND organism_id="+organism_id+" " +
+                                         "AND feature.type_id="+featureTypeId+" " +
                                          "ORDER BY feature_id");
         while (rs.next()) {
             Integer featureId = new Integer(rs.getInt("feature_id"));
@@ -203,10 +223,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
             map.put(featureId, item);
         }
         rs.close();
-        
-        // return the map, ready to be loaded with values
         return map;
-        
     }
 
     /**
@@ -214,15 +231,15 @@ public class FeaturePropProcessor extends ChadoProcessor {
      */
     Map<Integer,Item> loadAttributes(Map<Integer,Item> map, Statement stmt, int organism_id, String className, String attributeName, String featureCVTermName, String propCVTermName) throws SQLException {
     
-        int featureCVTermId = getCVTermId(stmt, featureCVTermName);
-        int propCVTermId = getCVTermId(stmt, propCVTermName);
+        int featureTypeId = getTypeId(stmt, featureCVTermName);
+        int propTypeId = getTypeId(stmt, propCVTermName);
 
         // spin through the featureprop records and load the desired property value as the attribute nam
         ResultSet rs = stmt.executeQuery("SELECT featureprop.* FROM featureprop,feature " +
                                          "WHERE featureprop.feature_id=feature.feature_id " +
-                                         "AND featureprop.type_id="+propCVTermId+" " +
+                                         "AND featureprop.type_id="+propTypeId+" " +
                                          "AND feature.organism_id="+organism_id+" " +
-                                         "AND feature.type_id="+featureCVTermId+" " +
+                                         "AND feature.type_id="+featureTypeId+" " +
                                          "ORDER BY feature_id ASC, rank DESC");
         while (rs.next()) {
             Integer featureId = new Integer(rs.getInt("feature_id"));

@@ -5,30 +5,24 @@
     <attribute name="lastAuthor" type="java.lang.String"/>
   </class>
 
-  <class name="GeneticMap" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-  </class>
-  
-  <class name="MappingPopulation" is-interface="true">
+  <class name="GenotypingStudy" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
     <attribute name="matrixNotes" type="java.lang.String"/>
-    <reference name="geneticMap" referenced-type="GeneticMap"/>
-    <collection name="parents" referenced-type="Organism"/>
     <collection name="publications" referenced-type="Publication"/>
-    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="mappingPopulations"/>
-    <collection name="lines" referenced-type="GenotypingLine" reverse-reference="mappingPopulation"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="genotypingStudies"/>
+    <collection name="lines" referenced-type="GenotypingLine" reverse-reference="genotypingStudy"/>
   </class>
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <attribute name="type" type="java.lang.String"/>
-    <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="markers"/>
+    <collection name="genotypingStudies" referenced-type="GenotypingStudy" reverse-reference="markers"/>
   </class>
 
   <class name="GenotypingLine" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="number" type="java.lang.Integer"/>
-    <reference name="mappingPopulation" referenced-type="MappingPopulation" reverse-reference="lines"/>
+    <reference name="genotypingStudy" referenced-type="GenotypingStudy" reverse-reference="lines"/>
   </class>
 
   <class name="GenotypeValue" is-interface="true">

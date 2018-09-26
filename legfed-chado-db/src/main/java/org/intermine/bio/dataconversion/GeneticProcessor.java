@@ -66,12 +66,12 @@ public class GeneticProcessor extends ChadoProcessor {
         // ---------------- INITIAL DATA LOADING -------------------
         // ---------------------------------------------------------
         
-        // set the cv terms for our items of interest
-        String linkageGroupCVTerm = "linkage_group";
-        String geneticMarkerCVTerm = "genetic_marker";
-        String qtlCVTerm = "QTL";
-        String consensusRegionCVTerm = "consensus_region";
-        String favorableAlleleSourceCVTerm = "Favorable Allele Source";
+        // set the cv term IDs for our items of interest
+        int linkageGroupTypeId = getTypeId(stmt, "linkage_group");
+        int geneticMarkerTypeId = getTypeId(stmt, "genetic_marker");
+        int qtlTypeId = getTypeId(stmt, "QTL");
+        int consensusRegionTypeId = getTypeId(stmt, "consensus_region");
+        int favorableAlleleSourceTypeId = getTypeId(stmt, "Favorable Allele Source");
 
         // store stuff in maps to avoid duplication
         Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
@@ -115,15 +115,15 @@ public class GeneticProcessor extends ChadoProcessor {
             Item organism = organismMap.get(organismId);
 
             // append the maps from the feature table
-            linkageGroupMap.putAll(generateMap(stmt, "LinkageGroup", linkageGroupCVTerm, organism_id, organism));
-            geneticMarkerMap.putAll(generateMap(stmt, "GeneticMarker", geneticMarkerCVTerm, organism_id, organism));
-	    qtlMap.putAll(generateMap(stmt, "QTL", qtlCVTerm, organism_id, organism));
+            linkageGroupMap.putAll(generateMap(stmt, "LinkageGroup", linkageGroupTypeId, organism_id));
+	    qtlMap.putAll(generateMap(stmt, "QTL", qtlTypeId, organism_id));
+            geneticMarkerMap.putAll(generateMap(stmt, "GeneticMarker", geneticMarkerTypeId, organism_id, organism));
 
             // genetic maps are not in the feature table, so we use linkage groups to query them for this organism
             // we'll assume the units are cM, although we can query them if we want to be really pedantic
             query = "SELECT * FROM featuremap WHERE featuremap_id IN (" +
                 "SELECT DISTINCT featuremap_id FROM featurepos WHERE feature_id IN (" +
-                "SELECT feature_id FROM feature,cvterm WHERE organism_id="+organism_id+" AND type_id=cvterm_id AND cvterm.name='"+linkageGroupCVTerm+"'))";
+                "SELECT feature_id FROM feature WHERE organism_id="+organism_id+" AND type_id="+linkageGroupTypeId+"))";
             rs = stmt.executeQuery(query);
             while (rs.next()) {
                 // featuremap fields
@@ -136,7 +136,6 @@ public class GeneticProcessor extends ChadoProcessor {
                 geneticMap.setAttribute("primaryIdentifier", name);
                 geneticMap.setAttribute("description", description);
                 geneticMap.setAttribute("unit", "cM");
-                geneticMap.setReference("organism", organism);
                 geneticMapMap.put(new Integer(featuremap_id), geneticMap);
             }
             rs.close();
@@ -199,10 +198,6 @@ public class GeneticProcessor extends ChadoProcessor {
         LOG.info("***** Done creating Publication items associated with QTLs.");
 
         // query the feature_stock and stock tables to retrieve the favorable allele source per QTL
-        rs = stmt.executeQuery("SELECT * FROM cvterm WHERE name='"+favorableAlleleSourceCVTerm+"'");
-        rs.next();
-        int favorableAlleleSourceTypeId = rs.getInt("cvterm_id");
-        rs.close();
         for (Integer featureId : qtlMap.keySet()) {
             int feature_id = (int) featureId;
             Item qtl = qtlMap.get(featureId);
@@ -402,29 +397,71 @@ public class GeneticProcessor extends ChadoProcessor {
     }
 
     /**
-     * Generate a map, keyed with feature_id, with records from the chado feature table corresponding to the given organism_id and cvTerm.
+     * Generate a map, keyed with feature_id, with records from the chado feature table corresponding to the given organism_id and type_id.
      *
      * @param stmt an SQL Statement object
      * @param className the IM class to be populated
-     * @param cvTerm the cv term of the chado feature
-     * @param organism_id the chado organism_id
-     * @param organism the corresponding IM organism to associate with the feature
+     * @param typeId the CV term type_id of the chado feature
+     * @param organism_id the chado organism_id for the features of interest
      */
-    Map<Integer,Item> generateMap(Statement stmt, String className, String cvTerm, int organism_id, Item organism) throws SQLException {
-	String query = "SELECT feature.* FROM feature,cvterm WHERE organism_id="+organism_id+" AND type_id=cvterm_id AND cvterm.name='"+cvTerm+"'";
+    Map<Integer,Item> generateMap(Statement stmt, String className, int typeId, int organism_id) throws SQLException {
+	String query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+typeId;
         ResultSet rs = stmt.executeQuery(query);
         Map<Integer,Item> map = new HashMap<Integer,Item>();
 	int count = 0;
         while (rs.next()) {
 	    count++;
-            ChadoFeature cf = new ChadoFeature(rs);
             Item item = getChadoDBConverter().createItem(className);
-            cf.populateBioEntity(item, organism);
+            ChadoFeature cf = new ChadoFeature(rs);
+            cf.populateItem(item);
+            map.put(new Integer(cf.feature_id), item);
+        }
+        rs.close();
+        return map;
+    }
+    
+    /**
+     * Generate a map, keyed with feature_id, with records from the chado feature table corresponding to the given organism_id and type_id.
+     * This version also sets a reference to the given organism.
+     *
+     * @param stmt an SQL Statement object
+     * @param className the IM class to be populated
+     * @param typeId the CV term type_id of the chado feature
+     * @param organism_id the chado organism_id
+     * @param organism the corresponding IM organism to associate with the feature
+     */
+    Map<Integer,Item> generateMap(Statement stmt, String className, int typeId, int organism_id, Item organism) throws SQLException {
+	String query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+typeId;
+        ResultSet rs = stmt.executeQuery(query);
+        Map<Integer,Item> map = new HashMap<Integer,Item>();
+	int count = 0;
+        while (rs.next()) {
+	    count++;
+            Item item = getChadoDBConverter().createItem(className);
+            ChadoFeature cf = new ChadoFeature(rs);
+            cf.populateItem(item, organism);
             map.put(new Integer(cf.feature_id), item);
         }
         rs.close();
         return map;
     }
 
+    /**
+     * Get the CV term type_id for a given CV term name.
+     * @param stmt the database connection statement, initialized to the chado database
+     * @param name the desired CV term name
+     * @return the type_id
+     * @throws SQLException
+     */
+     protected int getTypeId(Statement stmt, String name) throws SQLException {
+        ResultSet rs = stmt.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='"+name+"'");
+        if (rs.next()) {
+            int typeId = rs.getInt("cvterm_id");
+            rs.close();
+            return typeId;
+        } else {
+            throw new RuntimeException("Could not determine CV term type_id for '"+name+"'.");
+        }
+     }
 
 }

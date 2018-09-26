@@ -31,12 +31,11 @@ import org.intermine.xml.full.Item;
 import org.intermine.xml.full.Reference;
 
 /**
- * Create and store GeneFamily, Gene.geneFamily, Homologue and Gene.homologues by querying the chado feature, featureprop and phylotree tables.
+ * Create and store GeneFamily, ConsensusRegion, Gene.geneFamily, Homologue and Gene.homologues by querying the chado feature, featureprop and phylotree tables.
  *
  * Homologous genes are defined as genes that share a gene family.
  *
- * Since this processor deals only with chado data, Items are stored in maps with Integer keys equal to
- * the chado feature.feature_id.
+ * Since this processor deals only with chado data, Items are stored in maps with Integer keys equal to the chado feature.feature_id.
  *
  * project.xml parameters:
  *   organisms stored as Homologue.gene e.g. "3920_IT97K-499-35"
@@ -123,21 +122,9 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         }
 
         // CV term IDs
-        int geneFamilyTypeId = 0;
-        rs1 = stmt1.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='gene family'");
-        if (rs1.next()) geneFamilyTypeId = rs1.getInt("cvterm_id");
-        rs1.close();
-        if (geneFamilyTypeId==0) throw new RuntimeException("Could not determine CV term id for 'gene family'.");
-        int geneTypeId = 0;
-        rs1 = stmt1.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='gene'");
-        if (rs1.next()) geneTypeId = rs1.getInt("cvterm_id");
-        rs1.close();
-        if (geneTypeId==0) throw new RuntimeException("Could not determine CV term id for 'gene'.");
-        int consensusRegionId = 0;
-        rs1 = stmt1.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='consensus_region'");
-        if (rs1.next()) consensusRegionId = rs1.getInt("cvterm_id");
-        rs1.close();
-        if (consensusRegionId==0) throw new RuntimeException("Could not determine CV term id for 'consensus_region'.");
+        int geneFamilyTypeId = getCVTermId(stmt1, "gene family");
+        int consensusRegionTypeId = getCVTermId(stmt1, "consensus_region");
+        int geneTypeId = getCVTermId(stmt1, "gene");
 
         // now grab the gene families from featureprop and put them in a map
         rs1 = stmt1.executeQuery("SELECT DISTINCT value FROM featureprop WHERE type_id="+geneFamilyTypeId);
@@ -163,33 +150,27 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         rs1.close();
 	LOG.info("Gene family descriptions added from phylotree.");
 
-        // Get the consensus regions and their sequences and associate them with gene families
-        rs1 = stmt1.executeQuery("SELECT * FROM feature WHERE type_id="+consensusRegionId);
+        // Associate consensus regions with gene families
+        // NOTE: we assume that consensus regions are named by appending "-consensus" to their gene family name!
+        rs1 = stmt1.executeQuery("SELECT uniquename,name FROM feature WHERE type_id="+consensusRegionTypeId);
         while (rs1.next()) {
             String uniquename = rs1.getString("uniquename");
-            String residues = rs1.getString("residues");
-            int seqlen = rs1.getInt("seqlen");
+            String name = rs1.getString("name");
             String[] parts = uniquename.split("-"); // [consensus region] = [gene family]-consensus
             String geneFamilyName = parts[0];
-            // only store consensus regions that match a gene family we've retrieved
+            // only store consensus regions associated with gene families we've retrieved
             if (geneFamilyMap.containsKey(geneFamilyName)) {
                 Item geneFamily = geneFamilyMap.get(geneFamilyName);
                 Item consensusRegion = getChadoDBConverter().createItem("ConsensusRegion");
                 consensusRegion.setAttribute("primaryIdentifier", uniquename);
-                consensusRegion.setAttribute("length", String.valueOf(seqlen));
+                consensusRegion.setAttribute("secondaryIdentifier", name);
+                consensusRegion.setAttribute("chadoUniqueName", uniquename);
+                consensusRegion.setAttribute("chadoName", name);
                 consensusRegion.setReference("geneFamily", geneFamily);
-                if (residues!=null) {
-                    Item sequence = getChadoDBConverter().createItem("Sequence");
-                    sequence.setAttribute("residues", residues);
-                    sequence.setAttribute("length", String.valueOf(seqlen));
-                    store(sequence); // store now, not going to touch it later
-                    consensusRegion.setReference("sequence", sequence);
-                }
-                geneFamily.setReference("consensusRegion", consensusRegion); // reverse-reference
                 store(consensusRegion);
             }
         }
-	LOG.info("Consensus region records created for gene families.");
+	LOG.info("Consensus regions associated with gene families.");
 
         // Spin through the gene families and find source-target homologues within each one
         for (String geneFamilyName : geneFamilyMap.keySet()) {
@@ -285,5 +266,24 @@ public class GeneFamilyProcessor extends ChadoProcessor {
     protected Integer store(Item item) throws ObjectStoreException {
         return getChadoDBConverter().store(item);
     }
+
+    /**
+     * Get the CVTerm ID for a given CVTerm name.
+     * @param stmt the database connection statement, initialized to the chado database
+     * @param name the desired CV term name
+     * @return the CV term id
+     * @throws SQLException
+     */
+     protected int getCVTermId(Statement stmt, String name) throws SQLException {
+        ResultSet rs = stmt.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='"+name+"'");
+        if (rs.next()) {
+            int cvtermId = rs.getInt("cvterm_id");
+            rs.close();
+            return cvtermId;
+        } else {
+            throw new RuntimeException("Could not determine CV term id for '"+name+"'.");
+        }
+     }
+
     
 }

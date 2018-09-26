@@ -237,7 +237,7 @@ public class QTLFileConverter extends BioFileConverter {
 			} else {
 			    qtl = createItem("QTL");
 			    qtl.setAttribute("primaryIdentifier", qtlName);
-			    qtl.setReference("organism", organism);
+			    // qtl.setReference("organism", organism);
 			    if (traitName.length()>0) qtl.setAttribute("traitName", traitName);
 			    qtlMap.put(qtlName, qtl);
 			}

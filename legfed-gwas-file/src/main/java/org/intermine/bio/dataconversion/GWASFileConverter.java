@@ -23,17 +23,15 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store GWAS QTL/marker data from a Soybase (or other) dump. See GWASFileRecord for individual record format.
+ * Store GWAS QTL/marker data from a SoyBase (or other) dump. See GWASFileRecord for individual record format.
  *
- * TaxonID	3847
- * Variety	Williams82
- * experiment_id	1
- * experiment_type	GWAS
- * SoyBase_ID	KGK20170714.1
- * platform_name	SoySNP50k
- * platform_details	Illumina Infinium BeadChip
- * number_loci_tested	52041
- * number_germplasm_tested	12116
+ * TaxonID	         3847
+ * Variety	         Williams82
+ * primaryIdentifier     KGK20170714.1
+ * platformName          SoySNP50k
+ * platformDetails       Illumina Infinium BeadChip
+ * numberLociTested      52041
+ * numberGermplasmTested 12116
  *
  * @author Sam Hokin, NCGR
  */
@@ -74,7 +72,7 @@ public class GWASFileConverter extends BioFileConverter {
         Item organism = null;
 
         // to identify the experiment
-        String soybaseId = null;
+        String primaryIdentifier = null;
         String platformName = null;
         String platformDetails = null;
         int numberLociTested = 0;
@@ -106,15 +104,15 @@ public class GWASFileConverter extends BioFileConverter {
                 }
 
                 // create the GWAS experiment if we have the required stuff
-                if (gwasExperiment==null && soybaseId!=null && numberLociTested>0 && numberGermplasmTested>0) {
+                if (gwasExperiment==null && primaryIdentifier!=null && numberLociTested>0 && numberGermplasmTested>0) {
                     gwasExperiment = createItem("GWASExperiment");
-                    gwasExperiment.setAttribute("soybaseId", soybaseId);
+                    gwasExperiment.setAttribute("primaryIdentifier", primaryIdentifier);
                     gwasExperiment.setAttribute("numberLociTested", String.valueOf(numberLociTested));
                     gwasExperiment.setAttribute("numberGermplasmTested", String.valueOf(numberGermplasmTested));
                     if (platformName!=null) gwasExperiment.setAttribute("platformName", platformName);
                     if (platformDetails!=null) gwasExperiment.setAttribute("platformDetails", platformDetails);
                     store(gwasExperiment);
-                    LOG.info("Created and stored GWASExperiment with soybaseId="+soybaseId);
+                    LOG.info("Created and stored GWASExperiment with primaryIdentifier="+primaryIdentifier);
                 }
 
                 // header items
@@ -122,20 +120,16 @@ public class GWASFileConverter extends BioFileConverter {
                     taxonId = parts[1];
                 } else if (lcLine.startsWith("variety")) {
                     variety = parts[1];
-                } else if (lcLine.startsWith("soybase_id")) {
-                    soybaseId = parts[1];
-                } else if (lcLine.startsWith("platform_name")) {
+                } else if (lcLine.startsWith("primaryidentifier")) {
+                    primaryIdentifier = parts[1];
+                } else if (lcLine.startsWith("platformname")) {
                     platformName = parts[1];
-                } else if (lcLine.startsWith("platform_details")) {
+                } else if (lcLine.startsWith("platformdetails")) {
                     platformDetails = parts[1];
-                } else if (lcLine.startsWith("number_loci_tested")) {
+                } else if (lcLine.startsWith("numberlocitested")) {
                     numberLociTested = Integer.parseInt(parts[1]);
-                } else if (lcLine.startsWith("number_germplasm_tested")) {
+                } else if (lcLine.startsWith("numbergermplasmtested")) {
                     numberGermplasmTested = Integer.parseInt(parts[1]);
-                } else if (lcLine.startsWith("experiment_id")) {
-                    // not used
-                } else if (lcLine.startsWith("experiment_type")) {
-                    // not used
                 } else {
 
                     // check that we've got an organism - fatal exit if not
@@ -148,7 +142,7 @@ public class GWASFileConverter extends BioFileConverter {
                     // check that we've got a GWAS experiment - fatal exit if not
                     if (gwasExperiment==null) {
                         String errorMsg = "GWAS experiment is not fully described:\n" +
-                            "soybaseId="+soybaseId+"\n" +
+                            "primaryIdentifier="+primaryIdentifier+"\n" +
                             "platformName="+platformName+"\n" +
                             "platformDetails="+platformDetails+"\n" +
                             "numberLociTested="+numberLociTested+"\n" +
@@ -223,7 +217,7 @@ public class GWASFileConverter extends BioFileConverter {
                         LOG.info("Duplicate QTL:"+qtlKey+" with marker:"+markerKey);
                     } else {
                         qtl = createItem("QTL");
-                        qtl.setReference("organism", organism);
+                        // qtl.setReference("organism", organism);
                         qtl.setAttribute("primaryIdentifier", rec.gwasName);
                         qtl.setAttribute("traitName", rec.gwasClass);
                         qtl.setAttribute("pValue", String.valueOf(rec.pValue));
