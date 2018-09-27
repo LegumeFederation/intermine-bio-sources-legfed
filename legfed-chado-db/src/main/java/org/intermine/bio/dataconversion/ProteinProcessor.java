@@ -260,7 +260,21 @@ public class ProteinProcessor extends ChadoProcessor {
                 }
                 rs2.close();
 
-                // store the protein
+                // query create and store the mRNAs associated with this protein
+                rs2 = stmt2.executeQuery("SELECT feature.* FROM feature,feature_relationship WHERE feature.type_id="+mRNATypeId+
+                                         " AND feature.feature_id=object_id AND subject_id="+proteinId);
+                while (rs2.next()) {
+                    int mRNAId = rs2.getInt("feature_id");
+                    String mRNAUniqueName = rs2.getString("uniquename");
+                    String mRNAName = rs2.getString("name");
+                    Item mRNA = getChadoDBConverter().createItem("MRNA");
+                    mRNA.setAttribute("primaryIdentifier", mRNAUniqueName);
+                    mRNA.setReference("protein", protein);
+                    store(mRNA);
+                }
+                rs2.close();
+
+                // store this protein
                 store(protein);
             }
             rs1.close();

@@ -87,58 +87,58 @@ public class FeaturePropProcessor extends ChadoProcessor {
 
             // load gene attributes
             Map<Integer,Item> geneMap = generateMap(stmt, organism_id, organism, "Gene", "gene");
-            geneMap = loadAttributes(geneMap, stmt, organism_id, "Gene", "description", "gene", "Note");
+            geneMap = loadAttributes(geneMap, stmt, organism_id, "description", "gene", "Note");
             store(geneMap.values());
             LOG.info("Stored "+geneMap.size()+" genes for organism "+taxonId+" ("+variety+")");
 
             // load linkage group attributes
             Map<Integer,Item> linkageGroupMap = generateMap(stmt, organism_id, "LinkageGroup", "linkage_group");
-            linkageGroupMap = loadAttributes(linkageGroupMap, stmt, organism_id, "LinkageGroup", "assignedLinkageGroup", "linkage_group", "Assigned Linkage Group");
+            linkageGroupMap = loadAttributes(linkageGroupMap, stmt, organism_id, "assignedLinkageGroup", "linkage_group", "Assigned Linkage Group");
             store(linkageGroupMap.values());
             LOG.info("Stored "+linkageGroupMap.size()+" linkage groups for organism "+taxonId+" ("+variety+")");
 
             // load QTL attributes
             Map<Integer,Item> qtlMap = generateMap(stmt, organism_id, "QTL", "QTL");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "description", "QTL", "comment");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "traitDescription", "QTL", "Experiment Trait Description");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "traitName", "QTL", "Experiment Trait Name");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "publicationLinkageGroup", "QTL", "Publication Linkage Group");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "analysisMethod", "QTL", "QTL Analysis Method");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "traitUnit", "QTL", "Trait Unit");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "identifier", "QTL", "QTL Identifier");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "peak", "QTL", "QTL Peak");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "QTL", "studyTreatment", "QTL", "QTL Study Treatment");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "description", "QTL", "comment");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "traitDescription", "QTL", "Experiment Trait Description");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "traitName", "QTL", "Experiment Trait Name");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "publicationLinkageGroup", "QTL", "Publication Linkage Group");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "analysisMethod", "QTL", "QTL Analysis Method");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "traitUnit", "QTL", "Trait Unit");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "identifier", "QTL", "QTL Identifier");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "peak", "QTL", "QTL Peak");
+            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "studyTreatment", "QTL", "QTL Study Treatment");
             store(qtlMap.values());
             LOG.info("Stored "+qtlMap.size()+" QTLs for organism "+taxonId+" ("+variety+")");
 
             // load genetic marker attributes
             Map<Integer,Item> geneticMarkerMap = generateMap(stmt, organism_id, organism, "GeneticMarker", "genetic_marker");
-            geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "GeneticMarker", "description", "genetic_marker", "description");
-            geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "GeneticMarker", "sourceDescription", "genetic_marker", "Source Description");
-            geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "GeneticMarker", "canonicalMarker", "genetic_marker", "Canonical Marker");
+            geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "description", "genetic_marker", "description");
+            geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "sourceDescription", "genetic_marker", "Source Description");
+            geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "canonicalMarker", "genetic_marker", "Canonical Marker");
             store(geneticMarkerMap.values());
             LOG.info("Stored "+geneticMarkerMap.size()+" genetic markers for organism "+taxonId+" ("+variety+")");
 
             // load protein attributes
             // NOTE: proteins are stored in chado as "polypeptide"
             Map<Integer,Item> proteinMap = generateMap(stmt, organism_id, organism, "Protein", "polypeptide");
-            proteinMap = loadAttributes(proteinMap, stmt, organism_id, "Protein", "note", "polypeptide", "Note");
+            proteinMap = loadAttributes(proteinMap, stmt, organism_id, "note", "polypeptide", "Note");
             store(proteinMap.values());
             LOG.info("Stored "+proteinMap.size()+" proteins for organism "+taxonId+" ("+variety+")");
 
             // load protein match attributes
             Map<Integer,Item> proteinMatchMap = generateMap(stmt, organism_id, organism, "ProteinMatch", "protein_match");
-            proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "ProteinMatch", "signatureDesc", "protein_match", "signature_desc");
-            proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "ProteinMatch", "status", "protein_match", "status");
-            proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "ProteinMatch", "date", "protein_match", "date");
+            proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "signatureDesc", "protein_match", "signature_desc");
+            proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "status", "protein_match", "status");
+            proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "date", "protein_match", "date");
             store(proteinMatchMap.values());
             LOG.info("Stored "+proteinMatchMap.size()+" protein matches for organism "+taxonId+" ("+variety+")");
 
             // load protein HMM match attributes
             Map<Integer,Item> proteinHmmMatchMap = generateMap(stmt, organism_id, organism, "ProteinHmmMatch", "protein_hmm_match");
-            proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "ProteinMatch", "signatureDesc", "protein_hmm_match", "signature_desc");
-            proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "ProteinMatch", "status", "protein_hmm_match", "status");
-            proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "ProteinMatch", "date", "protein_hmm_match", "date");
+            proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "signatureDesc", "protein_hmm_match", "signature_desc");
+            proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "status", "protein_hmm_match", "status");
+            proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "date", "protein_hmm_match", "date");
             store(proteinHmmMatchMap.values());
             LOG.info("Stored "+proteinHmmMatchMap.size()+" protein matches for organism "+taxonId+" ("+variety+")");
 
@@ -229,7 +229,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
     /**
      * Load an attribute into the items in the given map.
      */
-    Map<Integer,Item> loadAttributes(Map<Integer,Item> map, Statement stmt, int organism_id, String className, String attributeName, String featureCVTermName, String propCVTermName) throws SQLException {
+    Map<Integer,Item> loadAttributes(Map<Integer,Item> map, Statement stmt, int organism_id, String attributeName, String featureCVTermName, String propCVTermName) throws SQLException {
     
         int featureTypeId = getTypeId(stmt, featureCVTermName);
         int propTypeId = getTypeId(stmt, propCVTermName);

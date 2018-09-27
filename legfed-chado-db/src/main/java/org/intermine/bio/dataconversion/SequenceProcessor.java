@@ -97,18 +97,17 @@ public class SequenceProcessor extends ChadoProcessor {
     // NOTE: polypeptide and polypeptide_domain REMOVED!
     private static final List<String> DESIRED_FEATURES = Arrays.asList(
         							       "gene", "mRNA", "exon", 
-        							       "protein_hmm_match", "protein_match", 
-        							       "chromosome", 
-        							       "supercontig", "genetic_marker"
+        							       "chromosome", "supercontig",
+                                                                       "genetic_marker"
         							       );
 
     // source feature cvterm types, such as chromosome
-    private static final List<String> SRC_FEATURE_TYPES = Arrays.asList( "chromosome", "polypeptide", "polypeptide_domain", "supercontig" );
+    private static final List<String> SRC_FEATURE_TYPES = Arrays.asList( "chromosome", "supercontig" );
 
     // the InterMine info for mapping chado features to InterMine classes; all must be IN SAME ORDER (I know, I should use maps)
-    private static final String[] SRC_FEATURE_IM_CLASSES =    { "Chromosome",         "Protein",         "ProteinDomain" ,        "Supercontig" };
-    private static final String[] SRC_FEATURE_IM_REFERENCES = { "chromosome",         "protein",         "proteinDomain" ,        "supercontig" };
-    private static final String[] SRC_FEATURE_IM_LOCATIONS =  { "chromosomeLocation", "proteinLocation", "proteinDomainLocation", "supercontigLocation" }; 
+    private static final String[] SRC_FEATURE_IM_CLASSES =    { "Chromosome",         "Supercontig" };
+    private static final String[] SRC_FEATURE_IM_REFERENCES = { "chromosome",         "supercontig" };
+    private static final String[] SRC_FEATURE_IM_LOCATIONS =  { "chromosomeLocation", "supercontigLocation" }; 
 	
     // Avoid explosion of log messages by only logging missing collections once
     private Set<String> loggedMissingCols = new HashSet<String>();

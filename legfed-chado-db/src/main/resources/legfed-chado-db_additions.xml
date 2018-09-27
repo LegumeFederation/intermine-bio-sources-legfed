@@ -32,7 +32,6 @@
     <attribute name="chadoUniqueName" type="java.lang.String"/>
     <attribute name="chadoName" type="java.lang.String"/>
     <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
-    <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
     <collection name="markers" referenced-type="GeneticMarker"/>
     <collection name="QTLs" referenced-type="QTL"/>
   </class>
