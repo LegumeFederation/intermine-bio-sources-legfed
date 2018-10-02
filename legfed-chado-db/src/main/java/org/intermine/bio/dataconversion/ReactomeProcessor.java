@@ -72,7 +72,7 @@ public class ReactomeProcessor extends ChadoProcessor {
         
         // store desired species strings in a Set, hopefully spelled same way!
         Set<String> speciesSet = new HashSet<String>();              // "Phaseolus vulgaris"
-        
+
         // initialize our DB statement
         Statement stmt = connection.createStatement();
         ResultSet rs;
