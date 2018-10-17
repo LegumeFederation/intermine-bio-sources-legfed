@@ -47,6 +47,8 @@ import org.intermine.model.bio.Organism;
  * #TaxonID        130453
  * #Variety        V14167
  *
+ * NOTE: this contains a hack to associate markers with Supercontig if the "chromosome" name contains "scaffold" (case-insensitively).
+ *
  * @author Sam Hokin
  */
 public class GeneticMarkerGFFConverter extends BioFileConverter {
@@ -61,9 +63,9 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
     String gffFilename;
 
     // stored to avoid dupes
-    Map<String,Item> organismMap = new HashMap<String,Item>();
-    Map<String,Item> chromosomeMap = new HashMap<String,Item>();
-    Set<String> markerSet = new HashSet<String>();
+    Map<String,Item> organismMap = new HashMap<>();
+    Map<String,Item> sequenceMap = new HashMap<>();
+    Set<String> markerSet = new HashSet<>();
     
     /**
      * Create a new GeneticMarkerGFFConverter
@@ -164,26 +166,33 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
                     markerSet.add(markerKey);
                 }
 		
-                String chromosomeName = gff.getSequenceID();
-                Item chromosome;
-                if (chromosomeMap.containsKey(chromosomeName)) {
-                    chromosome = chromosomeMap.get(chromosomeName);
+                Item sequence;
+                String sequenceName = gff.getSequenceID();
+                boolean isSupercontig = sequenceName.toLowerCase().contains("scaffold");
+                if (isSupercontig) sequenceName = sequenceName.toLowerCase();
+                if (sequenceMap.containsKey(sequenceName)) {
+                    sequence = sequenceMap.get(sequenceName);
                 } else {
-                    chromosome = createItem("Chromosome");
-                    chromosome.setAttribute("primaryIdentifier", chromosomeName);
-                    chromosome.setReference("organism", organism);
-                    store(chromosome);
-                    chromosomeMap.put(chromosomeName, chromosome);
-                    LOG.info("Created and stored chromosome: "+chromosomeName);
+                    if (isSupercontig) {
+                        sequence = createItem("Supercontig");
+                        sequence.setAttribute("primaryIdentifier", sequenceName); // we insist on it being "scaffold"
+                    } else {
+                        sequence = createItem("Chromosome");
+                        sequence.setAttribute("primaryIdentifier", sequenceName);
+                    }
+                    sequence.setReference("organism", organism);
+                    store(sequence);
+                    sequenceMap.put(sequenceName, sequence);
+                    LOG.info("Created and stored "+sequenceName);
                 }
 		
                 Item location = createItem("Location");
                 Item marker = createItem("GeneticMarker");
                 
-                // populate and store the chromosome location
+                // populate and store the location
                 location.setAttribute("start", String.valueOf(gff.getStart()));
                 location.setAttribute("end", String.valueOf(gff.getEnd()));
-                location.setReference("locatedOn", chromosome);
+                location.setReference("locatedOn", sequence);
                 location.setReference("feature", marker);
                 store(location);
                 
@@ -192,8 +201,13 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
                 marker.setReference("organism", organism);
                 marker.setAttribute("type", gff.getType());
                 marker.setAttribute("length", String.valueOf(gff.getEnd()-gff.getStart()+1));
-                marker.setReference("chromosome", chromosome);
-                marker.setReference("chromosomeLocation", location);
+                if (isSupercontig) {
+                    marker.setReference("supercontig", sequence);
+                    marker.setReference("supercontigLocation", location);
+                } else {
+                    marker.setReference("chromosome", sequence);
+                    marker.setReference("chromosomeLocation", location);
+                }
                 store(marker);
                 
             }

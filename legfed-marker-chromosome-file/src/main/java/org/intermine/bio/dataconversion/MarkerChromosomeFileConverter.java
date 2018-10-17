@@ -29,6 +29,7 @@ import org.intermine.xml.full.Item;
  * Variety Williams82
  * #primaryIdentifier secondaryIdentifier Type Chromosome Start   End     Motif
  * Sat_332            BARCSOYSSR_01_0019  SSR  Gm01       355597  355646  (AT)25
+ *
  * @author Sam Hokin, NCGR
  */
 public class MarkerChromosomeFileConverter extends BioFileConverter {

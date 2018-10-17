@@ -5,4 +5,7 @@
     <attribute name="type" type="java.lang.String"/>
   </class>
 
+  <!-- add supercontigs/scaffolds as standalone sequence features so they don't clutter chromosome space -->
+  <class name="Supercontig"  extends="SequenceFeature" is-interface="true"/>
+
 </classes>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- this loader loads genotyping lines -->
+  <class name="GenotypingLine" is-interface="true">
+	<attribute name="primaryIdentifier" type="java.lang.String"/>
+	<attribute name="origin" type="java.lang.String"/>
+	<attribute name="comment" type="java.lang.String"/>
+  </class>
+
+</classes>

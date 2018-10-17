@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- this loader loads phenotypes for given lines -->
+  <class name="GenotypingLine" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="line"/>
+  </class>
+
+  <class name="Phenotype" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="phenotype"/>
+  </class>
+
+  <class name="PhenotypeValue" is-interface="true">
+    <reference name="phenotype" referenced-type="Phenotype"/>
+    <reference name="line" referenced-type="GenotypingLine"/>
+    <attribute name="textValue" type="java.lang.String"/>
+    <attribute name="numericValue" type="java.lang.Double"/>
+    <attribute name="booleanValue" type="java.lang.Boolean"/>
+  </class>
+
+
+</classes>
