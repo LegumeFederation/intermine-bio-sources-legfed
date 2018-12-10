@@ -10,6 +10,7 @@ package org.intermine.bio.dataconversion;
  *
  */
 
+import java.util.Collection;
 import java.sql.Connection;
 
 import org.intermine.dataconversion.ItemWriter;
@@ -17,6 +18,7 @@ import org.intermine.metadata.Model;
 import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.sql.Database;
 import org.intermine.xml.full.Attribute;
+import org.intermine.xml.full.Item;
 
 /**
  * A processor for a chado module.  See http://www.gmod.org/wiki/index.php/Chado#Modules for
@@ -87,7 +89,28 @@ public abstract class ChadoProcessor {
         Attribute att = new Attribute();
         att.setName(attributeName);
         att.setValue(value);
-        getChadoDBConverter().store(att, intermineObjectId);
+        chadoDBConverter.store(att, intermineObjectId);
     }
+
+    /**
+     * Store an item.
+     * @param item the Item
+     * @return the database id of the new Item
+     * @throws ObjectStoreException if an error occurs while storing
+     */
+    protected Integer store(Item item) throws ObjectStoreException {
+        return chadoDBConverter.store(item);
+    }
+
+    /**
+     * Store the items.
+     * @param items the Item Collection
+     * @throws ObjectStoreException if an error occurs while storing
+     */
+    protected void store(Collection<Item> items) throws ObjectStoreException {
+        for (Item item : items) store(item);
+        return;
+    }
+
     
 }

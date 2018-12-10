@@ -413,16 +413,18 @@ public class SequenceProcessor extends ChadoProcessor {
         if (DEBUG) debugToLog("makeFeatureData: chadoType="+chadoType+" interMineType="+interMineType);
 
         OrganismData organismData = getChadoDBConverter().getChadoIdToOrgDataMap().get(new Integer(organismId));
+        String strainName = getChadoDBConverter().getChadoIdToStrainNameMap().get(new Integer(organismId));
 
         Item feature = makeFeature(new Integer(featureId), uniqueName, name, interMineType);
         if (feature == null) {
             return null;
         }
         String taxonId = organismData.getTaxonId();
-	String variety = organismData.getVariety();
         FeatureData fdat = new FeatureData();
-        Item organismItem = getChadoDBConverter().getOrganismItem(taxonId, variety);
+        Item organismItem = getChadoDBConverter().getOrganismItem(taxonId);
+        Item strainItem = getChadoDBConverter().getStrainItem(strainName, taxonId);
         feature.setReference("organism", organismItem);
+        if (strainItem!=null) feature.setReference("strain", strainItem);
         if (feature.checkAttribute("md5checksum") && md5checksum!=null) {
             feature.setAttribute("md5checksum", md5checksum);
         }
@@ -586,7 +588,7 @@ public class SequenceProcessor extends ChadoProcessor {
                 if (featureMap.containsKey(featureId)) {
                     FeatureData featureData = featureMap.get(featureId);
                     String taxonId = featureData.organismData.getTaxonId();
-                    Item location = makeLocation(start, end, strand, srcFeatureData, featureData, featureId, taxonId);
+                    Item location = makeLocation(start, end, strand, srcFeatureData, featureData);
 		    if (location!=null) {
 			getChadoDBConverter().store(location); // location should never be null
 		    } else {
@@ -647,13 +649,11 @@ public class SequenceProcessor extends ChadoProcessor {
      * @param strand the strand
      * @param srcFeatureData the FeatureData for the src feature
      * @param featureData the FeatureData for the SequenceFeature
-     * @param featureId id of feature
      * @return the new Location object
      * @throws ObjectStoreException if there is a problem while storing
      */
-    protected Item makeLocation(int start, int end, int strand, FeatureData srcFeatureData, FeatureData featureData, int featureId, String taxonId) throws ObjectStoreException {
-        Item location = getChadoDBConverter().makeLocation(srcFeatureData.getItemIdentifier(), featureData.getItemIdentifier(), start, end, strand, taxonId);
-        return location;
+    protected Item makeLocation(int start, int end, int strand, FeatureData srcFeatureData, FeatureData featureData) throws ObjectStoreException {
+        return getChadoDBConverter().makeLocation(srcFeatureData.getItemIdentifier(), featureData.getItemIdentifier(), start, end, strand);
     }
 
     /**

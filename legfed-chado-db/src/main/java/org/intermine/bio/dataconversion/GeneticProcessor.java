@@ -16,10 +16,10 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.HashMap;
 import java.util.Set;
+import java.util.HashSet;
 
 import org.apache.log4j.Logger;
 
@@ -74,32 +74,19 @@ public class GeneticProcessor extends ChadoProcessor {
         int favorableAlleleSourceTypeId = getTypeId(stmt, "Favorable Allele Source");
 
         // store stuff in maps to avoid duplication
-        Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
         Map<Integer,Item> linkageGroupMap = new HashMap<Integer,Item>();
         Map<Integer,Item> geneticMarkerMap = new HashMap<Integer,Item>();
         Map<Integer,Item> qtlMap = new HashMap<Integer,Item>();
         Map<Integer,Item> geneticMapMap = new HashMap<Integer,Item>();
         Map<Integer,Item> publicationMap = new HashMap<Integer,Item>();
         
-        // build the Organism map from the supplied taxon IDs, with optional variety suffixes, e.g. 3827_desi
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        for (Integer organismId : chadoToOrgData.keySet()) {
-            OrganismData organismData = chadoToOrgData.get(organismId);
-            String taxonId = organismData.getTaxonId();
-            String variety = organismData.getVariety();
-            if (variety==null) variety = OrganismData.DEFAULT_VARIETY; // need to provide a non-null default for merging
-            Item organism = getChadoDBConverter().createItem("Organism");
-            organism.setAttribute("taxonId", String.valueOf(taxonId));
-            organism.setAttribute("variety", variety);
-            store(organism);
-            organismMap.put(organismId, organism);
-        }
-        LOG.info("Created and stored "+organismMap.size()+" organism Items.");
+        // get the desired chado organism_ids
+        Set<Integer> organismIds = getChadoDBConverter().getDesiredChadoOrganismIds();
 
         // create a comma-separated list of organism IDs for WHERE organism_id IN query clauses
         String organismSQL = "(";
         boolean first = true;
-        for (Integer organismId : organismMap.keySet()) {
+        for (Integer organismId : organismIds) {
             if (first) {
                 organismSQL += organismId;
                 first = false;
@@ -109,15 +96,17 @@ public class GeneticProcessor extends ChadoProcessor {
         }
         organismSQL += ")";
 
-        // loop over the organisms to fill the Item maps 
-        for (Integer organismId : organismMap.keySet()) {
+        // loop over the chado organisms to fill the Item maps 
+        for (Integer organismId : organismIds) {
             int organism_id = organismId.intValue();
-            Item organism = organismMap.get(organismId);
+            Item organism = getChadoDBConverter().getOrganismItem(organismId);
+            Item strain = getChadoDBConverter().getStrainItem(organismId);
 
             // append the maps from the feature table
             linkageGroupMap.putAll(generateMap(stmt, "LinkageGroup", linkageGroupTypeId, organism_id));
 	    qtlMap.putAll(generateMap(stmt, "QTL", qtlTypeId, organism_id));
-            geneticMarkerMap.putAll(generateMap(stmt, "GeneticMarker", geneticMarkerTypeId, organism_id, organism));
+            // genetic markers are SequenceFeatures so they have an organism and strain reference
+            geneticMarkerMap.putAll(generateMap(stmt, "GeneticMarker", geneticMarkerTypeId, organism_id, organism, strain));
 
             // genetic maps are not in the feature table, so we use linkage groups to query them for this organism
             // we'll assume the units are cM, although we can query them if we want to be really pedantic
@@ -422,7 +411,7 @@ public class GeneticProcessor extends ChadoProcessor {
     
     /**
      * Generate a map, keyed with feature_id, with records from the chado feature table corresponding to the given organism_id and type_id.
-     * This version also sets a reference to the given organism.
+     * This version also sets a reference to the given organism and strain.
      *
      * @param stmt an SQL Statement object
      * @param className the IM class to be populated
@@ -430,7 +419,7 @@ public class GeneticProcessor extends ChadoProcessor {
      * @param organism_id the chado organism_id
      * @param organism the corresponding IM organism to associate with the feature
      */
-    Map<Integer,Item> generateMap(Statement stmt, String className, int typeId, int organism_id, Item organism) throws SQLException {
+    Map<Integer,Item> generateMap(Statement stmt, String className, int typeId, int organism_id, Item organism, Item strain) throws SQLException {
 	String query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+typeId;
         ResultSet rs = stmt.executeQuery(query);
         Map<Integer,Item> map = new HashMap<Integer,Item>();
@@ -439,7 +428,7 @@ public class GeneticProcessor extends ChadoProcessor {
 	    count++;
             Item item = getChadoDBConverter().createItem(className);
             ChadoFeature cf = new ChadoFeature(rs);
-            cf.populateItem(item, organism);
+            cf.populateItem(item, organism, strain);
             map.put(new Integer(cf.feature_id), item);
         }
         rs.close();

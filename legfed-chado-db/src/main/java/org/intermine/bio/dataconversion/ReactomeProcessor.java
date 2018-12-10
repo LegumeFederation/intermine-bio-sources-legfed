@@ -50,6 +50,8 @@ public class ReactomeProcessor extends ChadoProcessor {
 	
     private static final Logger LOG = LogManager.getLogger(ReactomeProcessor.class);
 
+    Map<String,Item> organismMap = new HashMap<>(); // keyed by "Genus species"
+
     /**
      * Create a new ReactomeProcessor
      * @param chadoDBConverter the ChadoDBConverter that is controlling this processor
@@ -66,35 +68,25 @@ public class ReactomeProcessor extends ChadoProcessor {
     public void process(Connection connection) throws Exception {
         
         // Items stored in maps to avoid dupe stores
-	Map<Integer,Item> organismMap = new HashMap<Integer,Item>();  // restrict to desired organisms
         Map<Integer,Item> geneMap = new HashMap<Integer,Item>();  // keyed by feature_id
         Map<String,Item> pathwayMap = new HashMap<String,Item>();    // keyed by identifier
         
-        // store desired species strings in a Set, hopefully spelled same way!
-        Set<String> speciesSet = new HashSet<String>();              // "Phaseolus vulgaris"
-
         // initialize our DB statement
         Statement stmt = connection.createStatement();
         ResultSet rs;
-        
-        // build the organism map from the supplied taxon_variety IDs
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        for (Integer organismId : chadoToOrgData.keySet()) {
-            OrganismData organismData = chadoToOrgData.get(organismId);
-            String taxonId = organismData.getTaxonId();
-            String genus = organismData.getGenus();
-            String species = organismData.getSpecies();
-            String variety = organismData.getVariety();
-            speciesSet.add(genus+" "+species);
-            Item organism = getChadoDBConverter().createItem("Organism");
-            organism.setAttribute("taxonId", String.valueOf(taxonId));
-            organism.setAttribute("genus", genus);
-            organism.setAttribute("species", species);
-            organism.setAttribute("variety", variety);
-            store(organism);
-	    organismMap.put(organismId, organism);
+
+        // get the desired chado organism_ids
+        Set<Integer> organismIds = getChadoDBConverter().getDesiredChadoOrganismIds();
+
+        // store desired species strings in a Set, hopefully spelled same way!
+        Set<String> speciesSet = new HashSet<String>();              // "Phaseolus vulgaris"
+        for (Integer organismId : organismIds) {
+            OrganismData od = getChadoDBConverter().getChadoIdToOrgDataMap().get(organismId);
+            String species = od.getGenus()+" "+od.getSpecies();
+            speciesSet.add(species);
+            Item organism = getChadoDBConverter().getOrganismItem(od.getTaxonId());
+            organismMap.put(species, organism);
         }
-        LOG.info("Species:"+speciesSet);
 
         // get the cv term ID for gene
         rs = stmt.executeQuery("SELECT cvterm_id FROM cvterm WHERE name='gene'");
@@ -116,6 +108,7 @@ public class ReactomeProcessor extends ChadoProcessor {
                 String geneName = fields[3];
                 if (speciesSet.contains(species)) {
                     String featureName = null;
+                    Item organism = organismMap.get(species);
                     // HACK: concoct the correct chado feature.name
                     if (geneName.contains("_")) {
                         String[] parts = geneName.split("_");
@@ -148,15 +141,13 @@ public class ReactomeProcessor extends ChadoProcessor {
                             if (geneMap.containsKey(feature_id)) {
                                 gene = geneMap.get(feature_id);
                             } else {
-                                int organism_id = rs.getInt("organism_id");
-                                Item organism = organismMap.get(organism_id);
                                 gene = getChadoDBConverter().createItem("Gene");
                                 gene.setAttribute("primaryIdentifier", rs.getString("uniquename"));
                                 gene.setAttribute("secondaryIdentifier", rs.getString("name"));
                                 gene.setReference("organism", organism);
                                 geneMap.put(feature_id, gene);
                             }
-                            // get or store the pathway, and store species, not organism (multiple varieties have same pathways)
+                            // get or store the pathway, with reference to organism
                             Item pathway = null;
                             if (pathwayMap.containsKey(identifier)) {
                                 pathway = pathwayMap.get(identifier);
@@ -164,7 +155,7 @@ public class ReactomeProcessor extends ChadoProcessor {
                                 pathway = getChadoDBConverter().createItem("Pathway");
                                 pathway.setAttribute("identifier", identifier);
                                 pathway.setAttribute("name", pathwayName);
-                                pathway.setAttribute("species", species);
+                                pathway.setReference("organism", organism);
                                 pathwayMap.put(identifier, pathway);
                             }
                             // associate gene with pathway
@@ -179,19 +170,9 @@ public class ReactomeProcessor extends ChadoProcessor {
         }
 
         // store the maps here so that the collection get stored
-        for (Item gene : geneMap.values()) store(gene);
-        for (Item pathway : pathwayMap.values()) store(pathway);
+        store(geneMap.values());
+        store(pathwayMap.values());
         
-    }
-
-    /**
-     * Store the item.
-     * @param item the Item
-     * @return the database id of the new Item
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected Integer store(Item item) throws ObjectStoreException {
-        return getChadoDBConverter().store(item);
     }
 
 }

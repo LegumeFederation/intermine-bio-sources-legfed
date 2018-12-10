@@ -18,8 +18,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -33,11 +32,7 @@ import org.intermine.xml.full.Reference;
  * Create and store Protein, ProteinMatch, ProteinHmmMatch, ConsensusRegion, ProteinDomain and mRNA objects by querying the chado feature and featureloc tables.
  * (The mRNAs are fully loaded as sequence features in SequenceProcessor, so here we simply associate them with proteins.)
  *
- * Since this processor deals only with chado data, Items are stored in maps with Integer keys equal to
- * the chado feature.feature_id.
- *
- * project.xml parameters:
- *   taxonid_variety e.g. "3920_IT97K-499-35"
+ * Since this processor deals only with chado data, Items are stored in maps with Integer keys equal to the chado feature.feature_id.
  *
  * @author Sam Hokin, NCGR
  */
@@ -69,23 +64,8 @@ public class ProteinProcessor extends ChadoProcessor {
         ResultSet rs2;
         ResultSet rs3;
         
-        // get and store the desired organisms from the supplied source taxon IDs
-        Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        for (Integer organismId : chadoToOrgData.keySet()) {
-            OrganismData organismData = chadoToOrgData.get(organismId);
-            String taxonId = organismData.getTaxonId();
-            String variety = organismData.getVariety();
-            Item organism = getChadoDBConverter().createItem("Organism");
-            organism.setAttribute("taxonId", String.valueOf(taxonId));
-            organism.setAttribute("variety", variety); // required
-            store(organism);
-	    organismMap.put(organismId, organism);
-        }
-        LOG.info("Created "+organismMap.size()+" organism Items.");
-        if (organismMap.size()==0) {
-            throw new RuntimeException("Property organisms must contain at least one taxonID_variety in project.xml.");
-        }
+        // get the desired chado organism_ids
+        Set<Integer> organismIds = getChadoDBConverter().getDesiredChadoOrganismIds();
 
         // CV term IDs
         int proteinTypeId = getCVTermId(stmt1, "polypeptide");
@@ -102,8 +82,12 @@ public class ProteinProcessor extends ChadoProcessor {
         Map<Integer,Item> proteinDomainMap = new HashMap<Integer,Item>();
 
         // cycle through organisms
-        for (Integer organismId : organismMap.keySet()) {
-            Item organism = organismMap.get(organismId);
+        for (Integer organismId : organismIds) {
+
+            // grab the Organism and Strain corresponding to this chado organism_id
+            Item organism = getChadoDBConverter().getOrganismItem(organismId);
+            Item strain = getChadoDBConverter().getStrainItem(organismId);
+
             // query the proteins for this organism
             rs1 = stmt1.executeQuery("SELECT * FROM feature WHERE organism_id="+organismId+" AND type_id="+proteinTypeId);
             while (rs1.next()) {
@@ -124,6 +108,7 @@ public class ProteinProcessor extends ChadoProcessor {
                 protein.setAttribute("chadoName", proteinName);
                 if (proteinMd5Checksum!=null) protein.setAttribute("md5checksum", proteinMd5Checksum);
                 protein.setReference("organism", organism);
+                if (strain!=null) protein.setReference("strain", strain);
 
                 // create and store the protein Sequence item
                 Item proteinSequence = getChadoDBConverter().createItem("Sequence");

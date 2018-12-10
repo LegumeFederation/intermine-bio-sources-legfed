@@ -35,11 +35,11 @@ import org.intermine.xml.full.Reference;
  *
  * Homologous genes are defined as genes that share a gene family.
  *
- * Since this processor deals only with chado data, Items are stored in maps with Integer keys equal to the chado feature.feature_id.
- *
  * project.xml parameters:
- *   organisms stored as Homologue.gene e.g. "3920_IT97K-499-35"
- *   homologue.organisms stored as Homologue.homologue e.g. "3920_IT97K-499-35 3702_Col0 3847_Williams82 3880_Mt4.0 3885_G19833 130453_V14167 130454_K30076 3827_CDCFrontier 3827_ICC4958"
+ *   organisms "3920"
+ *   strains "IT97K-499-35"
+ *   homologue.organisms "3920 3702 3847 3880"
+ *   homologue.strains "IT97K-499-35 Col0 Williams82  Mt4.0"
  *
  * @author Sam Hokin, NCGR
  */
@@ -69,57 +69,17 @@ public class GeneFamilyProcessor extends ChadoProcessor {
         ResultSet rs1;
         ResultSet rs2;
         
-	// store the full set of organisms in one place for storage since source and target organisms can overlap
-	Map<Integer,Item> organismMap = new HashMap<Integer,Item>();
-
         // same gene multiple times
         Map<String,Item> geneMap = new HashMap<String,Item>();
 
         // same gene family multiple times
         Map<String,Item> geneFamilyMap = new HashMap<String,Item>();
-        
-        // build sourceOrganisms set from the supplied source taxon IDs and add to the overall organism map
-        Set<Integer> sourceOrganisms = new HashSet<Integer>();
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        for (Map.Entry<Integer,OrganismData> entry : chadoToOrgData.entrySet()) {
-            Integer organismId = entry.getKey();
-            OrganismData organismData = entry.getValue();
-            String taxonId = organismData.getTaxonId();
-            String variety = organismData.getVariety();
-            Item organism = getChadoDBConverter().createItem("Organism");
-            organism.setAttribute("taxonId", String.valueOf(taxonId));
-            organism.setAttribute("variety", variety); // required
-            store(organism);
-	    organismMap.put(organismId, organism);
-            sourceOrganisms.add(organismId);
-        }
-        LOG.info("Created "+sourceOrganisms.size()+" source organism Items.");
-        if (sourceOrganisms.size()==0) {
-            throw new RuntimeException("Property organisms must contain at least one taxon ID in project.xml.");
-        }
 
-        // build the targetOrganisms set from the requested target taxon IDs and add to the overall organism map if not already there
-        Set<Integer> targetOrganisms = new HashSet<Integer>();
-        Map<Integer,OrganismData> chadoToHomologueOrgData = getChadoDBConverter().getChadoIdToHomologueOrgDataMap();
-        for (Map.Entry<Integer,OrganismData> entry : chadoToHomologueOrgData.entrySet()) {
-            Integer organismId = entry.getKey();
-            if (!organismMap.containsKey(organismId)) {
-                OrganismData organismData = entry.getValue();
-                String taxonId = organismData.getTaxonId();
-                String variety = organismData.getVariety();
-                Item organism = getChadoDBConverter().createItem("Organism");
-                organism = getChadoDBConverter().createItem("Organism");
-                organism.setAttribute("taxonId", String.valueOf(taxonId));
-                organism.setAttribute("variety", variety); // required
-                store(organism);
-                organismMap.put(organismId, organism);
-            }
-            targetOrganisms.add(organismId);
-        }
-        LOG.info("Created "+targetOrganisms.size()+" target organism Items.");
-        if (targetOrganisms.size()==0) {
-            throw new RuntimeException("Property homologue.organisms must contain at least one taxon ID in project.xml.");
-        }
+        // get the desired chado source organism_ids
+        Set<Integer> sourceOrganismIds = getChadoDBConverter().getDesiredChadoOrganismIds();
+	
+	// get the desired chado target (homologue) organism_ids
+        Set<Integer> targetOrganismIds = getChadoDBConverter().getDesiredChadoHomologueOrganismIds();
 
         // CV term IDs
         int geneFamilyTypeId = getCVTermId(stmt1, "gene family");
@@ -151,7 +111,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
 	LOG.info("Gene family descriptions added from phylotree.");
 
         // Associate consensus regions with gene families
-        // NOTE: we assume that consensus regions are named by appending "-consensus" to their gene family name!
+        // HACK: we assume that consensus regions are named by appending "-consensus" to their gene family name!!!!
         rs1 = stmt1.executeQuery("SELECT uniquename,name FROM feature WHERE type_id="+consensusRegionTypeId);
         while (rs1.next()) {
             String uniquename = rs1.getString("uniquename");
@@ -192,14 +152,15 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                 String uniquename = rs1.getString("uniquename");
 		String name = rs1.getString("name");
 		String key = uniquename+"xxx"+name;
-                if (sourceOrganisms.contains(organism_id)) sourceGeneMap.put(key,organism_id);
-                if (targetOrganisms.contains(organism_id)) targetGeneMap.put(key,organism_id);
+                if (sourceOrganismIds.contains(organism_id)) sourceGeneMap.put(key,organism_id);
+                if (targetOrganismIds.contains(organism_id)) targetGeneMap.put(key,organism_id);
             }
             rs1.close();
             // create and store the desired genes and homologs from this gene family
             for (String sourceKey : sourceGeneMap.keySet()) {
                 Integer sourceOrganismId = sourceGeneMap.get(sourceKey);
-                Item sourceOrganism = organismMap.get(sourceOrganismId);
+                Item sourceOrganism = getChadoDBConverter().getOrganismItem(sourceOrganismId);
+		Item sourceStrain = getChadoDBConverter().getStrainItem(sourceOrganismId);
                 Item sourceGene;
                 if (geneMap.containsKey(sourceKey)) {
                     sourceGene = geneMap.get(sourceKey);
@@ -213,13 +174,15 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                     sourceGene.setAttribute("chadoUniqueName", uniquename);
 		    sourceGene.setAttribute("chadoName", name);
                     sourceGene.setReference("organism", sourceOrganism);
+		    if (sourceStrain!=null) sourceGene.setReference("strain", sourceStrain);
                     sourceGene.setReference("geneFamily", geneFamily);
                     geneMap.put(sourceKey, sourceGene);
                 }
                 for (String targetKey : targetGeneMap.keySet()) {
                     if (!targetKey.equals(sourceKey)) {
                         Integer targetOrganismId = targetGeneMap.get(targetKey);
-                        Item targetOrganism = organismMap.get(targetOrganismId);
+                        Item targetOrganism = getChadoDBConverter().getHomologueOrganismItem(targetOrganismId);
+			Item targetStrain = getChadoDBConverter().getHomologueStrainItem(targetOrganismId);
                         Item targetGene;
                         if (geneMap.containsKey(targetKey)) {
                             targetGene = geneMap.get(targetKey);
@@ -233,6 +196,7 @@ public class GeneFamilyProcessor extends ChadoProcessor {
                             targetGene.setAttribute("chadoUniqueName", uniquename);
 			    targetGene.setAttribute("chadoName", name);
                             targetGene.setReference("organism", targetOrganism);
+			    if (targetStrain!=null) targetGene.setReference("strain", targetStrain);
                             targetGene.setReference("geneFamily", geneFamily);
                             geneMap.put(targetKey, targetGene);
                         }
@@ -255,16 +219,6 @@ public class GeneFamilyProcessor extends ChadoProcessor {
             store(gene);
         }
 
-    }
-
-    /**
-     * Store the item.
-     * @param item the Item
-     * @return the database id of the new Item
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected Integer store(Item item) throws ObjectStoreException {
-        return getChadoDBConverter().store(item);
     }
 
     /**

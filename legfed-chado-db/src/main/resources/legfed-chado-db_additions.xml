@@ -79,6 +79,7 @@
   <class name="Protein" extends="BioEntity" is-interface="true">
     <attribute name="note" type="java.lang.String"/>
     <attribute name="length" type="java.lang.Integer"/>
+    <reference name="strain" referenced-type="Strain"/>
     <reference name="sequence" referenced-type="Sequence"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
     <collection name="consensusRegions" referenced-type="ConsensusRegion"/>
@@ -144,7 +145,6 @@
   <class name="Organism" is-interface="true">
     <attribute name="chadoId" type="java.lang.Integer"/>
     <attribute name="description" type="java.lang.String"/>
-    <attribute name="variety" type="java.lang.String"/>
   </class>
 
   <!-- add chadoFeatureId, chadoUniqueName and chadoName to all BioEntity subclasses -->
@@ -170,7 +170,7 @@
   <class name="Pathway" is-interface="true" >
      <attribute name="identifier" type="java.lang.String"/>
      <attribute name="name" type="java.lang.String"/>
-     <attribute name="species" type="java.lang.String"/>
+     <reference name="organism" referenced-type="Organism"/>
      <collection name="genes" referenced-type="Gene" reverse-reference="pathways"/>
      <collection name="dataSets" referenced-type="DataSet"/>
   </class>

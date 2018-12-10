@@ -30,8 +30,8 @@ import org.intermine.xml.full.Item;
  *
  * <pre>
  * TaxonID	3917
- * Variety	CB27
- * AlternateVarietyName	California Blackeye 27
+ * Strain       CB27
+ * AlternateStrainName	California Blackeye 27
  * Description	California Blackeye 27 (or CB27) is ideally suited to the Central Valley of California....
  * PatentNumber	200000183
  * URL          https://techtransfer.universityofcalifornia.edu/NCD/10164.html
@@ -46,9 +46,13 @@ public class GermplasmFileConverter extends BioFileConverter {
 
     private static final Logger LOG = Logger.getLogger(GermplasmFileConverter.class);
 
+    // could have multiple strains per organism; only store organism once
+    Map<String,Item> organismMap = new HashMap<>();
+    
     // store all the pubs and authors in maps so we don't duplicate
-    Map<String,Item> publicationMap = new HashMap<String,Item>();
-    Map<String,Item> authorMap = new HashMap<String,Item>();
+    Map<String,Item> publicationMap = new HashMap<>();
+    Map<String,Item> authorMap = new HashMap<>();
+    
     
     /**
      * Create a new GermplasmFileConverter
@@ -72,12 +76,12 @@ public class GermplasmFileConverter extends BioFileConverter {
         LOG.info("Processing Germplasm file "+getCurrentFile().getName()+"...");
 
         // store the pubs for THIS organism in a list
-        List<Item> publicationList = new ArrayList<Item>();
+        List<Item> publicationList = new ArrayList<>();
         
         // the fields
-        String taxonId = null; // not null
-        String variety = null; // not null]
-        String alternateVarietyName = null;
+        String taxonId = null; // cannot be null
+        String strainName = null;  // cannot be null
+        String alternateStrainName = null;
         String description = null;
         String patentNumber = null;
         String url = null;
@@ -91,8 +95,8 @@ public class GermplasmFileConverter extends BioFileConverter {
                 String field = parts[0].toLowerCase();
                 String value = parts[1];
                 if (field.equals("taxonid")) taxonId = value;
-                if (field.equals("variety")) variety = value;
-                if (field.equals("alternatevarietyname")) alternateVarietyName = value;
+                if (field.equals("strain")) strainName = value;
+                if (field.equals("alternatestrainname")) alternateStrainName = value;
                 if (field.equals("description")) description = value;
                 if (field.equals("patentnumber")) patentNumber = value;
                 if (field.equals("url")) url = value;
@@ -114,20 +118,31 @@ public class GermplasmFileConverter extends BioFileConverter {
             }
         }
 
-        // store the organism if taxonId and variety are given
-        if (taxonId!=null && variety!=null) {
-            Item organism = createItem("Organism");
-            organism.setAttribute("taxonId", taxonId);
-            organism.setAttribute("variety", variety);
-            if (alternateVarietyName!=null) organism.setAttribute("alternateVarietyName", alternateVarietyName);
-            if (description!=null) organism.setAttribute("description", description);
-            if (patentNumber!=null) organism.setAttribute("patentNumber", patentNumber);
-            if (url!=null) organism.setAttribute("url", url);
-            if (country!=null) organism.setAttribute("country", country);
+        // store the organism (if new) and strain if strainName given
+        if (taxonId!=null && strainName!=null) {
+	    Item organism;
+	    if (organismMap.containsKey(taxonId)) {
+		organism = organismMap.get(taxonId);
+	    } else {
+		organism = createItem("Organism");
+		organism.setAttribute("taxonId", taxonId);
+		store(organism);
+		organismMap.put(taxonId, organism);
+	    }
+	    Item strain = createItem("Strain");
+	    strain.setAttribute("primaryIdentifier", strainName);
+	    strain.setReference("organism", organism);
+            if (alternateStrainName!=null) strain.setAttribute("name", alternateStrainName);
+            if (description!=null) strain.setAttribute("description", description);
+            if (patentNumber!=null) strain.setAttribute("patentNumber", patentNumber);
+            if (url!=null) strain.setAttribute("url", url);
+            if (country!=null) strain.setAttribute("country", country);
             for (Item publication : publicationList) {
-                organism.addToCollection("publications", publication);
+                strain.addToCollection("publications", publication);
             }
-            store(organism);
+	    store(strain);
+	    // don't forget to add strain to organism collection!
+	    organism.addToCollection("strains", strain);
         }
 
         // wrap up this file

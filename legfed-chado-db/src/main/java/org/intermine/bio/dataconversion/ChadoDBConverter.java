@@ -31,6 +31,7 @@ import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
 import org.intermine.sql.Database;
 import org.intermine.metadata.StringUtil;
+import org.intermine.xml.full.Item;
 
 /**
  * DataConverter to read from a Chado database into items
@@ -41,11 +42,17 @@ public class ChadoDBConverter extends BioDBConverter {
     
     protected static final Logger LOG = Logger.getLogger(ChadoDBConverter.class);
 
-    // a Map from chado organism_id to taxonId
+    // a Map from chado organism_id to OrganismData
     private final Map<Integer, OrganismData> chadoToOrgData = new HashMap<Integer, OrganismData>();
 
-    // a Map from chado organism_id to taxonId for desired homologue organisms
+    // a Map from chado organism_id to OrganismData for desired homologue organisms
     private final Map<Integer, OrganismData> chadoToHomologueOrgData = new HashMap<Integer, OrganismData>();
+
+    // a Map from chado organism_id to strain name
+    private final Map<Integer,String> chadoToStrainName = new HashMap<Integer,String>();
+
+    // a Map from chado organism_id to strain name for desired homologue strains
+    private final Map<Integer,String> chadoToHomologueStrainName = new HashMap<Integer,String>();
 
     private String processors = "";
 
@@ -54,9 +61,11 @@ public class ChadoDBConverter extends BioDBConverter {
     private String phytozomeVersion = "";
 
     private final Set<OrganismData> organismsToProcess = new HashSet<OrganismData>();
-
+    private final Set<String> strainsToProcess = new HashSet<String>();
+    
     private final Set<OrganismData> homologueOrganismsToProcess = new HashSet<OrganismData>();
-
+    private final Set<String> homologueStrainsToProcess = new HashSet<String>();
+    
     private final OrganismRepository organismRepository;
 
     private final List<ChadoProcessor> completedProcessors = new ArrayList<ChadoProcessor>();
@@ -84,40 +93,64 @@ public class ChadoDBConverter extends BioDBConverter {
     }
 
     /**
-     * Set the taxon ids to use when creating the Organism Item for the new features.  Only features
+     * Set the taxon ids for the desired organisms.
      * from chado with these organisms will be processed.
-     * @param organisms a space separated list of the organism abbreviations or taxon ids to look
-     * up in the organism table eg. "Dmel Dpse"
+     *
+     * @param organisms a space separated list of the organism taxon ids or abbreviations to look up in the organism table.
      */
     public void setOrganisms(String organisms) {
         String[] bits = StringUtil.split(organisms, " ");
-        for (String organismIdString: bits) {
-            LOG.info("setOrganisms:organismIdString="+organismIdString);
-            OrganismData od = null;
-            try {
-                if (organismIdString.contains("_")) {
-                    // we've got a species variety
-                    String[] parts = organismIdString.split("_");
-                    String taxonId = parts[0];
-                    String variety = parts[1];
-                    // DEBUG
-                    LOG.info("Creating "+taxonId+" ("+variety+") for organismsToProcess.");
-                    OrganismData od1 = organismRepository.getOrganismDataByTaxon(taxonId);
-                    od = organismRepository.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, od1.getGenus(), od1.getSpecies(), variety);
-                } else {
-                    // just a plain species
-                    String taxonId = organismIdString;
-                    od = organismRepository.getOrganismDataByTaxon(taxonId);
-                }
-            } catch (NumberFormatException e) {
-                LOG.error(e.toString());
-                od = organismRepository.getOrganismDataByAbbreviation(organismIdString);
-            }
+        for (String taxonId: bits) {
+            LOG.info("setOrganisms:taxonId="+taxonId);
+            OrganismData od = organismRepository.getOrganismDataByTaxon(taxonId);
             if (od == null) {
-                throw new RuntimeException("can't find organism for: " + organismIdString);
+                throw new RuntimeException("Can't find organism for taxonId " + taxonId);
             }
             LOG.info("od="+od);
             organismsToProcess.add(od);
+        }
+    }
+
+    /**
+     * Set the taxon ids for the desired homologues.
+     * @param organisms a space separated list of the taxon ids to look up in the organism table
+     */
+    public void setHomologueOrganisms(String organisms) {
+        String[] bits = StringUtil.split(organisms, " ");
+	LOG.info(bits.length+" homologue organisms from:"+organisms);
+        for (String taxonId: bits) {
+            LOG.info("setHomologueOrganisms:taxonId="+taxonId);
+            OrganismData od = organismRepository.getOrganismDataByTaxon(taxonId);
+            if (od == null) {
+                throw new RuntimeException("Can't find organism for taxonId=" + taxonId);
+            }
+            homologueOrganismsToProcess.add(od);
+        }
+    }
+
+    /**
+     * Set the strain names for desired organisms.
+     *
+     * @param strains a space separated list of the strain names.
+     */
+    public void setStrains(String strains) {
+        String[] bits = StringUtil.split(strains, " ");
+        for (String strainName : bits) {
+            LOG.info("setStrains:strainName="+strainName);
+            strainsToProcess.add(strainName);
+        }
+    }
+
+    /**
+     * Set the strain names for desired homologues.
+     *
+     * @param strains a space separated list of the strain names.
+     */
+    public void setHomologueStrains(String strains) {
+        String[] bits = StringUtil.split(strains, " ");
+        for (String strainName : bits) {
+            LOG.info("setHomologueStrains:strainName="+strainName);
+            homologueStrainsToProcess.add(strainName);
         }
     }
 
@@ -161,42 +194,6 @@ public class ChadoDBConverter extends BioDBConverter {
     }
     
     /**
-     * Set the taxon ids to use when creating the Organism Items for homologues in GeneFamilyProcessor and HomologyProcessor.
-     * Only genes from these organisms will be stored as Homologue.homologue.
-     * @param organisms a space separated list of the organism abbreviations or taxon ids to look up in the organism table
-     */
-    public void setHomologueOrganisms(String organisms) {
-        String[] bits = StringUtil.split(organisms, " ");
-	LOG.info(bits.length+" homologue organisms from:"+organisms);
-        for (String organismIdString: bits) {
-            LOG.info("setHomologueOrganisms:organismIdString="+organismIdString);
-            OrganismData od = null;
-            try {
-                if (organismIdString.contains("_")) {
-                    // we've got a species variety
-                    String[] parts = organismIdString.split("_");
-                    String taxonId = parts[0];
-                    String variety = parts[1];
-                    // DEBUG
-                    LOG.info("Creating "+taxonId+" ("+variety+") for organismsToProcess.");
-                    OrganismData od1 = organismRepository.getOrganismDataByTaxon(taxonId);
-                    od = organismRepository.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, od1.getGenus(), od1.getSpecies(), variety);
-                } else {
-                    // just a plain species
-                    String taxonId = organismIdString;
-                    od = organismRepository.getOrganismDataByTaxon(taxonId);
-                }
-            } catch (NumberFormatException e) {
-                od = organismRepository.getOrganismDataByAbbreviation(organismIdString);
-            }
-            if (od == null) {
-                throw new RuntimeException("can't find organism for: " + organismIdString);
-            }
-            homologueOrganismsToProcess.add(od);
-        }
-    }
-
-    /**
      * Return a map from chado organism_id to OrganismData object for all the organisms that we are processing.
      * @return the Map
      */
@@ -210,6 +207,22 @@ public class ChadoDBConverter extends BioDBConverter {
      */
     public Map<Integer, OrganismData> getChadoIdToHomologueOrgDataMap() {
         return chadoToHomologueOrgData;
+    }
+
+    /**
+     * Return a map from chado organism_id to strain name.
+     * @ return the strain name
+     */
+    public Map<Integer,String> getChadoIdToStrainNameMap() {
+        return chadoToStrainName;
+    }
+
+    /**
+     * Return a map from chado organism_id to strain name for homology organisms.
+     * @ return the strain name
+     */
+    public Map<Integer,String> getChadoIdToHomologueStrainNameMap() {
+        return chadoToHomologueStrainName;
     }
 
     /**
@@ -231,53 +244,44 @@ public class ChadoDBConverter extends BioDBConverter {
             throw new IllegalArgumentException("processors not set in ChadoDBConverter");
         }
 
-        Map<OrganismData, Integer> tempChadoOrgMap;
-        try {
-            tempChadoOrgMap = getChadoOrganismIds(getConnection());
-        } catch (Exception e) {
-            LOG.error(e.toString());
-            throw e;
-        }
+        Map<Integer,OrganismData> tempChadoOrgMap = getChadoOrganismIds(getConnection());
+        Map<Integer,String> tempChadoStrainMap = getChadoStrainNames(getConnection());
 
         // DEBUG
         for (OrganismData od : organismsToProcess) {
             LOG.info("organismsToProcess: ["+od+"]");
         }
-        for (OrganismData od : tempChadoOrgMap.keySet()) {
-            LOG.info("tempChadoOrgMap: key=["+od+"] value=["+tempChadoOrgMap.get(od)+"]");
+        for (Integer chadoId : tempChadoOrgMap.keySet()) {
+            LOG.info("tempChadoOrgMap: key="+chadoId+" value=["+tempChadoOrgMap.get(chadoId)+"]");
+        }
+        for (String strainName : strainsToProcess) {
+            LOG.info("strainsToProcess: "+strainName);
+        }
+        for (Integer chadoId : tempChadoStrainMap.keySet()) {
+            LOG.info("tempChadoStrainMap: key="+chadoId+" value="+tempChadoStrainMap.get(chadoId));
         }
 
-        // build the map of desired organisms to process
-        for (OrganismData od: organismsToProcess) {
-            Integer chadoId = tempChadoOrgMap.get(od);
-            if (chadoId == null) {
-                LOG.error("Organism ["+od+"] not found in the chado organism table");
-                throw new RuntimeException("Organism ["+od+"] not found in the chado organism table");
+        // build the map of chadoId to desired organisms (and homologue organisms) to process
+        for (Integer chadoId : tempChadoOrgMap.keySet()) {
+            OrganismData od = tempChadoOrgMap.get(chadoId);
+            if (organismsToProcess.contains(od)) {
+                chadoToOrgData.put(chadoId, od);
             }
-            chadoToOrgData.put(chadoId, od);
-        }
-
-        if (chadoToOrgData.size() == 0) {
-            throw new RuntimeException("can't find any known organisms in the organism table");
-        } else {
-            for (Integer chadoId : chadoToOrgData.keySet()) {
-                LOG.info("process: chadoId="+chadoId+" chadoToOrgData="+chadoToOrgData.get(chadoId).toString());
+            if (homologueOrganismsToProcess.contains(od)) {
+                chadoToHomologueOrgData.put(chadoId, od);
             }
         }
 
-        // build the map of desired organisms to process for homology in GeneFamilyProcessor and HomologyProcessor
-        for (OrganismData od: homologueOrganismsToProcess) {
-            Integer chadoId = tempChadoOrgMap.get(od);
-            if (chadoId == null) {
-                String error = "Homologue organism ["+od+"] not found in the chado organism table:\n";
-                for (OrganismData orgData : tempChadoOrgMap.keySet()) {
-                    error += "["+orgData+"]\n";
-                }
-                throw new RuntimeException(error);
+        // build the map of chadoId to desired strains (and homologue strains) to process
+        for (Integer chadoId : tempChadoStrainMap.keySet()) {
+            String strainName = tempChadoStrainMap.get(chadoId);
+            if (strainsToProcess.contains(strainName)) {
+                chadoToStrainName.put(chadoId, strainName);
             }
-            chadoToHomologueOrgData.put(chadoId, od);
+            if (homologueStrainsToProcess.contains(strainName)) {
+                chadoToHomologueStrainName.put(chadoId, strainName);
+            }
         }
-        
 
         String[] bits = processors.trim().split("[ \\t]+");
         for (int i = 0; i < bits.length; i++) {
@@ -293,44 +297,32 @@ public class ChadoDBConverter extends BioDBConverter {
     }
 
     /**
-     * Return a map from chado organism id to OrganismData for the organisms in the organism table
-     * in chado.  This is a protected method so that it can be overriden for testing
+     * Return a map from chado organism_id to OrganismData.
      * @param conn the db connection
-     * @param organismsToProcess2
      * @return a Map from abbreviation to chado organism_id
-     * @throws SQLException if the is a database problem
+     * @throws SQLException if there is a database problem
      */
-    protected Map<OrganismData, Integer> getChadoOrganismIds(Connection conn) throws SQLException {
-        
-        String query = "select organism_id, abbreviation, genus, species from organism";
-        LOG.info("executing: " + query);
-
+    protected Map<Integer,OrganismData> getChadoOrganismIds(Connection conn) throws SQLException {
+        String query = "SELECT organism_id, abbreviation, genus, species FROM organism";
+        LOG.info("Executing: " + query);
         Statement stmt = conn.createStatement();
         ResultSet res = stmt.executeQuery(query);
-
         LOG.info("ResultSet returned.");
-        
-        Map<OrganismData, Integer> retMap = new HashMap<OrganismData, Integer>();
-        
+        Map<Integer,OrganismData> retMap = new HashMap<>();
         OrganismRepository or = OrganismRepository.getOrganismRepository();
-
         LOG.info("OrganismRepository gotten.");
-        
         while (res.next()) {
             int organismId = res.getInt("organism_id");
             String abbreviation = res.getString("abbreviation");
             String genus = res.getString("genus");
             String species = res.getString("species");
-            String variety = OrganismData.DEFAULT_VARIETY;
-            // non-default varieties are signified with underscore on species in chado, e.g. arietinum_desi, arietinum_kabuli
+            String strain = null;
+            // strains are signified with underscore on species in chado, e.g. arietinum_desi, arietinum_kabuli
             if (genus!=null && species!=null && species.contains("_")) {
                 String[] parts = species.split("_");
                 species = parts[0];
-                variety = parts[1];
-                LOG.info(organismId+":"+abbreviation+":"+genus+":"+species+":"+variety);
-            } else {
-                LOG.info(organismId+":"+abbreviation+":"+genus+":"+species);
             }
+            LOG.info(organismId+":"+abbreviation+":"+genus+":"+species);
             
             // use genus and species to get Taxon ID
             OrganismData od1 = or.getOrganismDataByGenusSpecies(genus, species);
@@ -339,14 +331,43 @@ public class ChadoDBConverter extends BioDBConverter {
             }
             String taxonId = od1.getTaxonId();
             
-            // get full OrganismData with variety
-            OrganismData od = or.createOrganismDataByTaxonGenusSpeciesVariety(taxonId, genus, species, variety);
+            // get full OrganismData with taxonId
+            OrganismData od = or.getOrganismDataByTaxon(taxonId);
             
-            retMap.put(od, new Integer(organismId));
+            retMap.put(new Integer(organismId), od);
         }
-        
         return retMap;
-            
+    }
+
+    /**
+     * Return a map from chado organism_id to strain name.
+     * @param conn the db connection
+     * @return a Map from abbreviation to chado organism_id
+     * @throws SQLException if the is a database problem
+     */
+    protected Map<Integer,String> getChadoStrainNames(Connection conn) throws SQLException {
+        String query = "SELECT organism_id, abbreviation, genus, species FROM organism";
+        LOG.info("Executing: " + query);
+        Statement stmt = conn.createStatement();
+        ResultSet res = stmt.executeQuery(query);
+        LOG.info("ResultSet returned.");
+        Map<Integer,String> retMap = new HashMap<>();
+        while (res.next()) {
+            int organismId = res.getInt("organism_id");
+            String abbreviation = res.getString("abbreviation");
+            String genus = res.getString("genus");
+            String species = res.getString("species");
+            String strain = null;
+            // strains are signified with underscore on species in chado, e.g. arietinum_desi, arietinum_kabuli
+            if (genus!=null && species!=null && species.contains("_")) {
+                String[] parts = species.split("_");
+                species = parts[0];
+                strain = parts[1];
+                retMap.put(new Integer(organismId), strain);
+                LOG.info(organismId+":"+abbreviation+":"+genus+":"+species+":"+strain);
+            }
+        }
+        return retMap;
     }
 
     /**
@@ -355,6 +376,14 @@ public class ChadoDBConverter extends BioDBConverter {
      */
     public Set<OrganismData> getOrganismsToProcess() {
         return organismsToProcess;
+    }
+
+    /**
+     * Return the names of strains to process.
+     * @return the strains to process
+     */
+    public Set<String> getStrainsToProcess() {
+        return strainsToProcess;
     }
 
     /**
@@ -393,6 +422,7 @@ public class ChadoDBConverter extends BioDBConverter {
         }
         return returnProcessor;
     }
+    
     /**
      * Default implementation that makes a data set title based on the data source name.
      * {@inheritDoc}
@@ -411,6 +441,80 @@ public class ChadoDBConverter extends BioDBConverter {
      */
     public List<ChadoProcessor> getCompletedProcessors() {
         return completedProcessors;
+    }
+
+    /**
+     * @return a Set of desired chado organism_ids
+     */
+    public Set<Integer> getDesiredChadoOrganismIds() {
+        Set<Integer> organismIds = new HashSet<>();
+        for (Integer organismId : chadoToOrgData.keySet()) {
+            organismIds.add(organismId);
+        }
+        for (Integer organismId : chadoToStrainName.keySet()) {
+            organismIds.add(organismId);
+        }
+        return organismIds;
+    }
+
+    /**
+     * @return a Set of desired chado homologue organism_ids
+     */
+    public Set<Integer> getDesiredChadoHomologueOrganismIds() {
+        Set<Integer> organismIds = new HashSet<>();
+        for (Integer organismId : chadoToHomologueOrgData.keySet()) {
+            organismIds.add(organismId);
+        }
+        for (Integer organismId : chadoToHomologueStrainName.keySet()) {
+            organismIds.add(organismId);
+        }
+        return organismIds;
+    }
+
+    /**
+     * Provides the Organism item for the given chado organism_id.
+     * @param chadoId the chado organism_id
+     * @return the Organism Item
+     */
+    public Item getOrganismItem(Integer chadoId) {
+	OrganismData od = chadoToOrgData.get(chadoId);
+	String taxonId = od.getTaxonId();
+	return getOrganismItem(taxonId);
+    }
+
+    /**
+     * Provides the Strain item for the given chado organism_id.
+     * @param chadoId the chado organism_id
+     * @return the Strain Item
+     */
+    public Item getStrainItem(Integer chadoId) {
+	OrganismData od = chadoToOrgData.get(chadoId);
+	String taxonId = od.getTaxonId();
+	String strainName = chadoToStrainName.get(chadoId);
+	return getStrainItem(strainName, taxonId);
+    }
+
+    /**
+     * Provides the Organism item for the given homologue chado organism_id.
+     * @param chadoId the chado organism_id
+     * @return the Organism Item
+     */
+    public Item getHomologueOrganismItem(Integer chadoId) {
+	OrganismData od = chadoToHomologueOrgData.get(chadoId);
+	String taxonId = od.getTaxonId();
+	return getOrganismItem(taxonId);
+    }
+
+    /**
+     * Provides the Strain item for the given homologue chado organism_id.
+     * @param chadoId the chado organism_id
+     * @return the Strain Item
+     */
+    public Item getHomologueStrainItem(Integer chadoId) {
+	OrganismData od = chadoToHomologueOrgData.get(chadoId);
+	String taxonId = od.getTaxonId();
+	String strainName = chadoToHomologueStrainName.get(chadoId);
+	return getStrainItem(strainName, taxonId);
     }
 
 }

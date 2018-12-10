@@ -83,13 +83,14 @@ public class ChadoFeature {
     }
 
     /**
-     * Populate the attributes of a Item with this feature's data, as well as set a reference to an organism.
+     * Populate the attributes of a Item with this feature's data, as well as set a reference to an organism and strain.
      */
-    public void populateItem(Item item, Item organism) {
+    public void populateItem(Item item, Item organism, Item strain) {
         item.setAttribute("chadoFeatureId", String.valueOf(feature_id));
 	item.setAttribute("chadoUniqueName", uniquename);
         item.setAttribute("primaryIdentifier", uniquename);
         item.setReference("organism", organism);
+        item.setReference("strain", strain);
         if (name!=null && name.length()>0) {
 	    item.setAttribute("chadoName", name);
             item.setAttribute("secondaryIdentifier", name);
@@ -97,10 +98,11 @@ public class ChadoFeature {
     }
 
     /**
-     * Populate the attributes of a SequenceFeature Item with this feature's data; related Sequence Item must be passed in
+     * Populate the attributes of a SequenceFeature Item with this feature's data; related Sequence Item must be passed in.
+     * Also sets reference to organism and strain.
      */
-    public void populateSequenceFeature(Item sequenceFeature, Item sequence, Item organism) {
-        populateItem(sequenceFeature, organism);
+    public void populateSequenceFeature(Item sequenceFeature, Item sequence, Item organism, Item strain) {
+        populateItem(sequenceFeature, organism, strain);
         if (seqlen>0) sequenceFeature.setAttribute("length", String.valueOf(seqlen));
         if (residues!=null) {
             // populate the Sequence

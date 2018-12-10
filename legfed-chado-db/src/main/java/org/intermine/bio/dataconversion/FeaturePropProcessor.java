@@ -16,10 +16,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.HashMap;
 import java.util.Set;
+import java.util.HashSet;
 
 import org.apache.log4j.Logger;
 
@@ -60,20 +60,18 @@ public class FeaturePropProcessor extends ChadoProcessor {
         // initialize our DB statement
         Statement stmt = connection.createStatement();
                 
-        // loop over the requested organisms
-        Map<Integer,OrganismData> chadoToOrgData = getChadoDBConverter().getChadoIdToOrgDataMap();
-        for (Integer organismId : chadoToOrgData.keySet()) {
+        // get the desired chado organism_ids
+        Set<Integer> organismIds = getChadoDBConverter().getDesiredChadoOrganismIds();
 
+        // now loop over the desired chado organisms
+        for (Integer organismId : organismIds) {
             int organism_id = organismId.intValue();
-            OrganismData organismData = chadoToOrgData.get(organismId);
-            
-            // create and store organism Item
-            String taxonId = organismData.getTaxonId();
-            String variety = organismData.getVariety();
+
+            // add the organism description
+            OrganismData od = getChadoDBConverter().getChadoIdToOrgDataMap().get(organismId);
+            String taxonId = od.getTaxonId();
             Item organism = getChadoDBConverter().createItem("Organism");
-            organism.setAttribute("taxonId", String.valueOf(taxonId));
-            organism.setAttribute("variety", variety); // non-null variety is required
-            // add organism.description if it exists
+            organism.setAttribute("taxonId", taxonId);
             ResultSet rs = stmt.executeQuery("SELECT * FROM organism WHERE organism_id="+organism_id);
             if (rs.next()) {
                 String description = rs.getString("comment");
@@ -82,21 +80,21 @@ public class FeaturePropProcessor extends ChadoProcessor {
                 }
             }
             rs.close();
-            LOG.info("Storing organism "+taxonId+" ("+variety+")");
             store(organism);
+            LOG.info("Stored organism.description for taxonId "+taxonId);
 
             // load gene attributes
-            Map<Integer,Item> geneMap = generateMap(stmt, organism_id, organism, "Gene", "gene");
+            Map<Integer,Item> geneMap = generateMap(stmt, organism_id, "Gene", "gene");
             geneMap = loadAttributes(geneMap, stmt, organism_id, "description", "gene", "Note");
             store(geneMap.values());
-            LOG.info("Stored "+geneMap.size()+" genes for organism "+taxonId+" ("+variety+")");
+            LOG.info("Stored "+geneMap.size()+" genes for organism_id="+organism_id);
 
             // load linkage group attributes
             Map<Integer,Item> linkageGroupMap = generateMap(stmt, organism_id, "LinkageGroup", "linkage_group");
             linkageGroupMap = loadAttributes(linkageGroupMap, stmt, organism_id, "assignedLinkageGroup", "linkage_group", "Assigned Linkage Group");
             store(linkageGroupMap.values());
-            LOG.info("Stored "+linkageGroupMap.size()+" linkage groups for organism "+taxonId+" ("+variety+")");
-
+            LOG.info("Stored "+linkageGroupMap.size()+" linkage groups for organism_id="+organism_id);
+            
             // load QTL attributes
             Map<Integer,Item> qtlMap = generateMap(stmt, organism_id, "QTL", "QTL");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "description", "QTL", "comment");
@@ -109,61 +107,41 @@ public class FeaturePropProcessor extends ChadoProcessor {
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "peak", "QTL", "QTL Peak");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "studyTreatment", "QTL", "QTL Study Treatment");
             store(qtlMap.values());
-            LOG.info("Stored "+qtlMap.size()+" QTLs for organism "+taxonId+" ("+variety+")");
+            LOG.info("Stored "+qtlMap.size()+" QTLs for organism_id="+organism_id);
 
             // load genetic marker attributes
-            Map<Integer,Item> geneticMarkerMap = generateMap(stmt, organism_id, organism, "GeneticMarker", "genetic_marker");
+            Map<Integer,Item> geneticMarkerMap = generateMap(stmt, organism_id, "GeneticMarker", "genetic_marker");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "description", "genetic_marker", "description");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "sourceDescription", "genetic_marker", "Source Description");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "canonicalMarker", "genetic_marker", "Canonical Marker");
             store(geneticMarkerMap.values());
-            LOG.info("Stored "+geneticMarkerMap.size()+" genetic markers for organism "+taxonId+" ("+variety+")");
+            LOG.info("Stored "+geneticMarkerMap.size()+" genetic markers for organism_id="+organism_id);
 
             // load protein attributes
             // NOTE: proteins are stored in chado as "polypeptide"
-            Map<Integer,Item> proteinMap = generateMap(stmt, organism_id, organism, "Protein", "polypeptide");
+            Map<Integer,Item> proteinMap = generateMap(stmt, organism_id, "Protein", "polypeptide");
             proteinMap = loadAttributes(proteinMap, stmt, organism_id, "note", "polypeptide", "Note");
             store(proteinMap.values());
-            LOG.info("Stored "+proteinMap.size()+" proteins for organism "+taxonId+" ("+variety+")");
+            LOG.info("Stored "+proteinMap.size()+" proteins for organism_id="+organism_id);
 
             // load protein match attributes
-            Map<Integer,Item> proteinMatchMap = generateMap(stmt, organism_id, organism, "ProteinMatch", "protein_match");
+            Map<Integer,Item> proteinMatchMap = generateMap(stmt, organism_id, "ProteinMatch", "protein_match");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "signatureDesc", "protein_match", "signature_desc");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "status", "protein_match", "status");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "date", "protein_match", "date");
             store(proteinMatchMap.values());
-            LOG.info("Stored "+proteinMatchMap.size()+" protein matches for organism "+taxonId+" ("+variety+")");
+            LOG.info("Stored "+proteinMatchMap.size()+" protein matches for organism_id="+organism_id);
 
             // load protein HMM match attributes
-            Map<Integer,Item> proteinHmmMatchMap = generateMap(stmt, organism_id, organism, "ProteinHmmMatch", "protein_hmm_match");
+            Map<Integer,Item> proteinHmmMatchMap = generateMap(stmt, organism_id, "ProteinHmmMatch", "protein_hmm_match");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "signatureDesc", "protein_hmm_match", "signature_desc");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "status", "protein_hmm_match", "status");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "date", "protein_hmm_match", "date");
             store(proteinHmmMatchMap.values());
-            LOG.info("Stored "+proteinHmmMatchMap.size()+" protein matches for organism "+taxonId+" ("+variety+")");
+            LOG.info("Stored "+proteinHmmMatchMap.size()+" protein matches for organism_id="+organism_id);
 
         } // organism loop
 
-    }
-
-    /**
-     * Store the item.
-     * @param item the Item
-     * @return the database id of the new Item
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected Integer store(Item item) throws ObjectStoreException {
-        return getChadoDBConverter().store(item);
-    }
-
-    /**
-     * Store the items.
-     * @param items the Item Collection
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected void store(Collection<Item> items) throws ObjectStoreException {
-        for (Item item : items) store(item);
-        return;
     }
 
     /**
@@ -202,38 +180,11 @@ public class FeaturePropProcessor extends ChadoProcessor {
     }
 
     /**
-     * Create a map, keyed with chado feature_id, with records from the feature table; restrict to feature records which have corresponding records in featureprop.
-     * This version also creates an organism reference.
-     */
-    Map<Integer,Item> generateMap(Statement stmt, int organism_id, Item organism, String className, String featureCVTermName) throws SQLException {
-        int featureTypeId = getTypeId(stmt, featureCVTermName);
-        Map<Integer,Item> map = new HashMap<Integer,Item>();
-        ResultSet rs = stmt.executeQuery("SELECT DISTINCT feature.feature_id,feature.uniquename " +
-                                         "FROM feature,featureprop " +
-                                         "WHERE feature.feature_id=featureprop.feature_id " +
-                                         "AND organism_id="+organism_id+" " +
-                                         "AND feature.type_id="+featureTypeId+" " +
-                                         "ORDER BY feature_id");
-        while (rs.next()) {
-            Integer featureId = new Integer(rs.getInt("feature_id"));
-            String uniquename = rs.getString("uniquename");
-            Item item = getChadoDBConverter().createItem(className);
-            item.setAttribute("primaryIdentifier", uniquename);
-            item.setReference("organism", organism);
-            map.put(featureId, item);
-        }
-        rs.close();
-        return map;
-    }
-
-    /**
      * Load an attribute into the items in the given map.
      */
     Map<Integer,Item> loadAttributes(Map<Integer,Item> map, Statement stmt, int organism_id, String attributeName, String featureCVTermName, String propCVTermName) throws SQLException {
-    
         int featureTypeId = getTypeId(stmt, featureCVTermName);
         int propTypeId = getTypeId(stmt, propCVTermName);
-
         // spin through the featureprop records and load the desired property value as the attribute nam
         ResultSet rs = stmt.executeQuery("SELECT featureprop.* FROM featureprop,feature " +
                                          "WHERE featureprop.feature_id=feature.feature_id " +
@@ -254,7 +205,6 @@ public class FeaturePropProcessor extends ChadoProcessor {
             }
         }
         rs.close();
-        
         // return map without storing its items
         return map;
     }
