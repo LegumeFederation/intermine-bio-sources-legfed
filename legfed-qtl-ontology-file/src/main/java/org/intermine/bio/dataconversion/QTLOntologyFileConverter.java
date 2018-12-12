@@ -23,12 +23,8 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store the QTL-ontology term annotations from tab-delimited files, max one organism/variety per file.
- * The files have a header indicating the organism taxonId and variety, and then rows contain the QTL name and ontology term.
- * The organism is only used here to enforce uniqueness on the QTL, since QTLs often have the same name for different organisms.
+ * Store the QTL-ontology term annotations from tab-delimited files. The file rows contain the QTL name and ontology term.
  *
- * TaxonID     3257
- * Variety     FunkySkunky
  * #QTL        TOTerm
  * Qpl.zaas-3  TO:0002626
  * Qpl.zaas-3  PO:1234566
@@ -41,7 +37,6 @@ public class QTLOntologyFileConverter extends BioFileConverter {
 
     Map<String,Item> qtlMap = new HashMap<String,Item>();
     Map<String,Item> termMap = new HashMap<String,Item>();
-    Map<String,Item> organismMap = new HashMap<String,Item>();
     
     /**
      * Create a new QTLOntologyFileConverter
@@ -70,26 +65,11 @@ public class QTLOntologyFileConverter extends BioFileConverter {
 
         // header constants
         String taxonId = null;
-        String variety = null;
-        Item organism = null;
 
         BufferedReader buffReader = new BufferedReader(reader);
 	String line;
         while ((line=buffReader.readLine())!=null) {
 
-            // initialize organism if not already set
-            if (organism==null && taxonId!=null && variety!=null) {
-                String organismKey = taxonId+"_"+variety;
-                if (organismMap.containsKey(organismKey)) {
-                    organism = organismMap.get(organismKey);
-                } else {
-                    organism = createItem("Organism");
-                    organism.setAttribute("taxonId", taxonId);
-                    organism.setAttribute("variety", variety);
-                    organismMap.put(organismKey, organism);
-                }
-            }
-            
             if (!line.startsWith("#") && line.trim().length()>0) {
 
                 String[] parts = line.split("\t");
@@ -98,57 +78,41 @@ public class QTLOntologyFileConverter extends BioFileConverter {
                     String key = parts[0];
                     String value = parts[1];
                     
-                    if (key.toLowerCase().equals("taxonid")) {
-                        taxonId = value;
-                        
-                    } else if (key.toLowerCase().equals("variety")) {
-                        variety = value;
-                        
+                    String qtlName = key;
+                    String termID = value;
+                    String termType = termID.substring(0,2); // GO, PO, TO, etc.
+                    
+                    // find the QTL in the map, or add it with qtlName=primaryIdentifier
+                    Item qtl = null;
+                    if (qtlMap.containsKey(qtlName)) {
+                        qtl = qtlMap.get(qtlName);
                     } else {
-
-                        // error out permanently if we haven't created an organism for these QTLs
-                        if (organism==null) {
-                            LOG.error("Error loading organism from "+getCurrentFile().getName());
-                            throw new RuntimeException("Error loading organism from "+getCurrentFile().getName());
-                        }
-                        
-                        String qtlName = key;
-                        String termID = value;
-                        String termType = termID.substring(0,2); // GO, PO, TO, etc.
-                        
-                        // find the QTL in the map, or add it with qtlName=primaryIdentifier
-                        Item qtl = null;
-                        if (qtlMap.containsKey(qtlName)) {
-                            qtl = qtlMap.get(qtlName);
-                        } else {
-                            qtl = createItem("QTL");
-                            qtl.setAttribute("primaryIdentifier", qtlName);
-                            // qtl.setReference("organism", organism);
-                            qtlMap.put(qtlName, qtl);
-                        }
-
-                        // find the term in the map, or add it with termID=identifier
-                        Item term = null;
-                        if (termMap.containsKey(termID)) {
-                            term = termMap.get(termID);
-                        } else {
-                            // determine the type from the prefix, hopefully supported in the data model!
-                            term = createItem(termType+"Term");
-                            term.setAttribute("identifier", termID);
-                            termMap.put(termID, term);
-                        }
-                        
-                        // create this annotation, associate it with the term and QTL, and store it
-                        Item annotation = createItem(termType+"Annotation");
-                        annotation.setReference("ontologyTerm", term);
-                        annotation.setReference("subject", qtl);
-                        store(annotation);
-                        LOG.info("Storing annotation for QTL "+qtlName+" and term "+termID);
-
+                        qtl = createItem("QTL");
+                        qtl.setAttribute("primaryIdentifier", qtlName);
+                        // qtl.setReference("organism", organism);
+                        qtlMap.put(qtlName, qtl);
                     }
-
+                    
+                    // find the term in the map, or add it with termID=identifier
+                    Item term = null;
+                    if (termMap.containsKey(termID)) {
+                        term = termMap.get(termID);
+                    } else {
+                        // determine the type from the prefix, hopefully supported in the data model!
+                        term = createItem(termType+"Term");
+                        term.setAttribute("identifier", termID);
+                        termMap.put(termID, term);
+                    }
+                    
+                    // create this annotation, associate it with the term and QTL, and store it
+                    Item annotation = createItem(termType+"Annotation");
+                    annotation.setReference("ontologyTerm", term);
+                    annotation.setReference("subject", qtl);
+                    store(annotation);
+                    LOG.info("Storing annotation for QTL "+qtlName+" and term "+termID);
+                    
                 }
-		    
+		
             }
 	    
         }
@@ -162,9 +126,6 @@ public class QTLOntologyFileConverter extends BioFileConverter {
      */
     @Override
     public void close() throws Exception {
-        
-        // LOG.info("Storing "+organismMap.size()+" Organism items...");
-        // store(organismMap.values());
         
         LOG.info("Storing "+qtlMap.size()+" QTL items...");
         store(qtlMap.values());

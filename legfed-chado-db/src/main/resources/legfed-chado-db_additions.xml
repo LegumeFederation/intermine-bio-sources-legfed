@@ -183,5 +183,10 @@
     <reference name="homologue" referenced-type="Gene"/>
     <collection name="dataSets" referenced-type="DataSet"/>
   </class>
+
+  <!-- need to describe the strains -->
+  <class name="Strain" is-interface="true">
+    <attribute name="description" type="java.lang.String"/>
+  </class>
   
 </classes>

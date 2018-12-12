@@ -3,6 +3,7 @@
 
   <!-- extend Strain to handle some extra germplasm-related attributes -->
   <class name="Strain" is-interface="true">
+    <attribute name="description" type="java.lang.String"/>
     <attribute name="patentNumber" type="java.lang.String"/>
     <attribute name="url" type="java.lang.String"/>
     <attribute name="country" type="java.lang.String"/>
