@@ -61,7 +61,6 @@ public class MarkerQTLFileConverter extends BioFileConverter {
 
         // header constants
         String taxonId = null;
-        String variety = null;
         Item organism = null;
 
         BufferedReader markerReader = new BufferedReader(reader);
@@ -69,17 +68,15 @@ public class MarkerQTLFileConverter extends BioFileConverter {
         while ((line=markerReader.readLine())!=null) {
 
             // initialize organism if not set and can be
-            if (organism==null && taxonId!=null && variety!=null) {
-                String organismKey = taxonId+"_"+variety;
-                if (organismMap.containsKey(organismKey)) {
-                    organism = organismMap.get(organismKey);
+            if (organism==null && taxonId!=null) {
+                if (organismMap.containsKey(taxonId)) {
+                    organism = organismMap.get(taxonId);
                 } else {
                     organism = createItem("Organism");
                     organism.setAttribute("taxonId", taxonId);
-                    organism.setAttribute("variety", variety);
                     store(organism);
-                    organismMap.put(organismKey, organism);
-                    LOG.info("Storing organism: "+taxonId+" ("+variety+")");
+                    organismMap.put(taxonId, organism);
+                    LOG.info("Stored organism: "+taxonId);
                 }
             }
 
@@ -92,17 +89,12 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                 String[] parts = line.split("\t");
                 taxonId = parts[1];
                 
-            } else if (line.startsWith("Variety")) {
-                
-                String[] parts = line.split("\t");
-                variety = parts[1];
-                
             } else {
 
                 // bail if organism not set, otherwise merging is nightmare
                 if (organism==null) {
-                    LOG.error("Organism not set: taxonId="+taxonId+", variety="+variety);
-                    throw new RuntimeException("Organism not set: taxonId="+taxonId+", variety="+variety);
+                    LOG.error("Organism not set: taxonId="+taxonId);
+                    throw new RuntimeException("Organism not set: taxonId="+taxonId);
                 }
                         
                 String[] parts = line.split("\t");
@@ -128,7 +120,7 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                 } else {
                     qtl = createItem("QTL");
                     qtl.setAttribute("primaryIdentifier", qtlID);
-                    // qtl.setReference("organism", organism);
+                    qtl.setReference("organism", organism);
                     qtlMap.put(qtlID, qtl);
                     LOG.info("Storing QTL "+qtlID);
                 }

@@ -29,12 +29,9 @@ import org.intermine.xml.full.Item;
  * Store details on SNP array markers from a tab-delimited file. Data fields are:
  *
  * TaxonID	3917
- * Variety      IT97K-499-35
  * ArrayName	Illumina Cowpea iSelect Consortium Array
  * PMID         27775877
  * MarkerType	SNP
- * AssociatedOrganism_1  3702_Col0
- * AssociatedOrganism_2  3885_G19833
  * #ID	   DesignSequence   Alleles Source BeadType StepDescription  AssociatedGene_1 AssociatedGene_2 ...
  * 1_0002  TAC..[A/G]..AGA  A/G     COPA   0	    List 1 inside    AT1G53750        Phvul.010G122200 ...
  *
@@ -52,7 +49,8 @@ public class SNPMarkerFileConverter extends BioFileConverter {
     Map<String,Item> publicationMap = new HashMap<String,Item>();       // keyed by pubMedId
     Map<String,Item> authorMap = new HashMap<String,Item>();            // keyed by name
     Map<String,Item> geneMap = new HashMap<String,Item>();              // keyed by primaryIdentifier
-    Map<String,Item> organismMap = new HashMap<String,Item>();          // keyed by TaxonID_Variety
+    Map<String,Item> organismMap = new HashMap<String,Item>();          // keyed by TaxonID
+    Map<String,Item> strainMap = new HashMap<String,Item>();            // keyed by primaryIdentifier
 
     /**
      * Create a new SNPMarkerFileConverter
@@ -79,12 +77,10 @@ public class SNPMarkerFileConverter extends BioFileConverter {
         Item publication = null;
         String arrayName = null;
         String markerType = null;
-	Item[] associatedOrganisms = new Item[2]; // the organisms associated with these markers, assuming two!
 
         // this file's organism
         Item organism = null;
         String taxonId = null;
-        String variety = null;
 
         // -----------------------------------------------------------------------------------------------------------------------------------
         // Load genetic markers and associated data
@@ -94,19 +90,17 @@ public class SNPMarkerFileConverter extends BioFileConverter {
         String line = null;
         while ((line=br.readLine())!=null) {
 
-            // create these markers' organism if taxon ID and variety have been supplied
-            if (organism==null && taxonId!=null && variety!=null) {
-                String key = taxonId+"_"+variety;
-                if (organismMap.containsKey(key)) {
-                    organism = organismMap.get(key);
+            // create these markers' organism if TaxonId has been supplied
+            if (organism==null && taxonId!=null) {
+                if (organismMap.containsKey(taxonId)) {
+                    organism = organismMap.get(taxonId);
                 } else {
                     // create and store this organism
                     organism = createItem("Organism");
                     organism.setAttribute("taxonId", taxonId);
-                    organism.setAttribute("variety", variety);
                     store(organism);
-                    organismMap.put(key, organism);
-                    LOG.info("Stored marker organism: "+taxonId+" ("+variety+")");
+                    organismMap.put(taxonId, organism);
+                    LOG.info("Stored marker organism: "+taxonId);
                 }
             }
 
@@ -114,31 +108,25 @@ public class SNPMarkerFileConverter extends BioFileConverter {
 
 		// do nothing, comment
 
-            } else if (line.startsWith("TaxonID")) {
+            } else if (line.toLowerCase().startsWith("taxonid")) {
 
                 // this file's organism.taxonId
                 String[] parts = line.split("\t");
                 taxonId = parts[1];
 
-            } else if (line.startsWith("Variety")) {
-
-                // this file's organism.variety
-                String[] parts = line.split("\t");
-                variety = parts[1];
-
-	    } else if (line.startsWith("ArrayName")) {
-
+	    } else if (line.toLowerCase().startsWith("arrayname")) {
+		
                 // array name is stored in a string, a marker attribute
                 String[] parts = line.split("\t");
                 arrayName = parts[1];
 
-            } else if (line.startsWith("MarkerType")) {
+            } else if (line.toLowerCase().startsWith("markertype")) {
 
                 // marker type is stored in a string, a marker attribute
                 String[] parts = line.split("\t");
                 markerType = parts[1];
 
-            } else if (line.startsWith("PMID")) {
+            } else if (line.toLowerCase().startsWith("pmid")) {
 
                 // get the publication
                 String[] parts = line.split("\t");
@@ -152,35 +140,12 @@ public class SNPMarkerFileConverter extends BioFileConverter {
                     publicationMap.put(pubMedId, publication);
                 }
 
-	    } else if (line.startsWith("AssociatedOrganism")) {
-
-		// load an associated organisms
-		String[] parts = line.split("\t");
-		String[] numBits = parts[0].split("_");
-                int num = Integer.parseInt(numBits[1]);
-                String key = parts[1];
-                String[] orgBits = key.split("_");
-		String assTaxonId = orgBits[0];
-		String assVariety = orgBits[1];
-                Item associatedOrganism;
-                if (organismMap.containsKey(key)) {
-                    associatedOrganism = organismMap.get(key);
-                } else {
-                    associatedOrganism = createItem("Organism");
-                    associatedOrganism.setAttribute("taxonId", assTaxonId);
-                    associatedOrganism.setAttribute("variety", assVariety);
-                    store(associatedOrganism);
-                    organismMap.put(key, associatedOrganism);
-                    LOG.info("Stored associated organism: "+assTaxonId+" ("+assVariety+")");
-                }
-		associatedOrganisms[num-1] = associatedOrganism;
-                
             } else {
 
                 // bail if we've not specified the markers' organism
                 if (organism==null) {
-                    LOG.error("Marker organism not specified: taxonId="+taxonId+" variety="+variety);
-                    throw new RuntimeException("Marker organism not specified: taxonId="+taxonId+" variety="+variety);
+                    LOG.error("Marker organism not specified: taxonId="+taxonId);
+                    throw new RuntimeException("Marker organism not specified: taxonId="+taxonId);
                 }
                     
                 // looks like it's a data record
@@ -210,7 +175,6 @@ public class SNPMarkerFileConverter extends BioFileConverter {
                             } else {
                                 gene = createItem("Gene");
                                 gene.setAttribute("primaryIdentifier", primaryIdentifier);
-				gene.setReference("organism", associatedOrganisms[i]);
                                 store(gene);
                                 geneMap.put(record.associatedGenes[i], gene);
                             }

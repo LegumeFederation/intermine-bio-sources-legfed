@@ -31,6 +31,7 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="chadoUniqueName" type="java.lang.String"/>
     <attribute name="chadoName" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
     <reference name="geneticMap" referenced-type="GeneticMap" reverse-reference="linkageGroups"/>
     <collection name="markers" referenced-type="GeneticMarker"/>
     <collection name="QTLs" referenced-type="QTL"/>
@@ -54,6 +55,7 @@
   <class name="GeneticMap" extends="Annotatable" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
     <attribute name="unit" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
     <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
     <collection name="markers" referenced-type="GeneticMarker"/>
   </class>

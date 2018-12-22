@@ -23,10 +23,9 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store genetic marker linkage group positions. Prepend the taxon ID and variety to define the organism of the markers for merging.
+ * Store genetic marker linkage group positions. Prepend the taxon ID to define the organism of the markers for merging.
  *
  * TaxonID    3920
- * Variety    IT97K-499-35
  *
  * #Marker    LinkageGroup    Position
  *
@@ -63,7 +62,6 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
         String taxonId = null;
-        String variety = null;
         Item organism = null;
 
         BufferedReader markerReader = new BufferedReader(reader);
@@ -71,17 +69,15 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
         while ((line=markerReader.readLine())!=null) {
 
             // create and store the organism if needed
-            if (organism==null && taxonId!=null && variety!=null) {
-                String key = taxonId+"_"+variety;
-                if (organismMap.containsKey(key)) {
-                    organism = organismMap.get(key);
+            if (organism==null && taxonId!=null) {
+                if (organismMap.containsKey(taxonId)) {
+                    organism = organismMap.get(taxonId);
                 } else {
                     organism = createItem("Organism");
                     organism.setAttribute("taxonId", taxonId);
-                    organism.setAttribute("variety", variety);
                     store(organism);
-                    organismMap.put(key, organism);
-                    LOG.info("Stored organism: "+taxonId+", "+variety);
+                    organismMap.put(taxonId, organism);
+                    LOG.info("Stored organism: "+taxonId);
                 }
             }
 
@@ -94,17 +90,12 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
                 String[] parts = line.split("\t");
                 taxonId = parts[1];
 
-            } else if (line.startsWith("Variety")) {
-
-                String[] parts = line.split("\t");
-                variety = parts[1];
-
             } else {
 
-                // bail if we don't have an organism or variety
-                if (organism==null || variety==null) {
-                    LOG.error("Organism not defined: taxonId="+taxonId+" variety="+variety);
-                    throw new RuntimeException("Organism not defined: taxonId="+taxonId+" variety="+variety);
+                // bail if we don't have an organism
+                if (organism==null) {
+                    LOG.error("Organism not defined: taxonId="+taxonId);
+                    throw new RuntimeException("Organism not defined: taxonId="+taxonId);
                 }
 
                 // parsing

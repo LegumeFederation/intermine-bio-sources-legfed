@@ -89,7 +89,6 @@ public class QTLOntologyFileConverter extends BioFileConverter {
                     } else {
                         qtl = createItem("QTL");
                         qtl.setAttribute("primaryIdentifier", qtlName);
-                        // qtl.setReference("organism", organism);
                         qtlMap.put(qtlName, qtl);
                     }
                     

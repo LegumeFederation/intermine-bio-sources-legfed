@@ -26,10 +26,9 @@ import org.intermine.xml.full.Item;
  * Store Linkage Groups and their Genetic Maps from tab-delimited files. An optional length column may be added.
  * Number is used simply for sorting purposes, but is required.
  * 
- * Taxon ID, variety and publication info (PMID or DOI) are placed in the header.
+ * Taxon ID and publication info (PMID or DOI) are placed in the header.
  *
  * TaxonID        3847
- * Variety        Williams82
  * PMID           123456
  * #LinkageGroup        Number GeneticMap      [Length(cM)]
  * GmComposite2003_D1a  1      GmComposite2003 120.89
@@ -68,7 +67,6 @@ public class LinkageGroupFileConverter extends BioFileConverter {
 
         // header data
         String taxonId = null;
-        String variety = null;
         Item organism = null;
         int pmid = 0;
         String doi = null;
@@ -82,17 +80,15 @@ public class LinkageGroupFileConverter extends BioFileConverter {
             if (line.startsWith("#")) continue;
 
             // set organism if we're ready
-            if (organism==null && taxonId!=null && variety!=null) {
-                String organismKey = taxonId+"_"+variety;
-                if (organismMap.containsKey(organismKey)) {
-                    organism = organismMap.get(organismKey);
+            if (organism==null && taxonId!=null) {
+                if (organismMap.containsKey(taxonId)) {
+                    organism = organismMap.get(taxonId);
                 } else {
                     organism = createItem("Organism");
                     organism.setAttribute("taxonId", taxonId);
-                    organism.setAttribute("variety", variety);
                     store(organism);
-                    organismMap.put(organismKey, organism);
-                    LOG.info("Stored organism "+organismKey);
+                    organismMap.put(taxonId, organism);
+                    LOG.info("Stored organism "+taxonId);
                 }
             }
 
@@ -128,8 +124,6 @@ public class LinkageGroupFileConverter extends BioFileConverter {
             // header stuff
             if (key.toLowerCase().equals("taxonid")) {
                 taxonId = value;
-            } else if (key.toLowerCase().equals("variety")) {
-                variety = value;
             } else if (key.toLowerCase().equals("pmid")) {
                 pmid = Integer.parseInt(value);
             } else if (key.toLowerCase().equals("doi")) {
@@ -175,13 +169,6 @@ public class LinkageGroupFileConverter extends BioFileConverter {
         
         linkageGroupReader.close();
     
-    }
-
-    /**
-     * Do nothing, we're storing as we build above.
-     */
-    @Override
-    public void close() throws Exception {
     }
     
 }

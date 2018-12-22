@@ -9,6 +9,8 @@
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
     <attribute name="matrixNotes" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <collection name="parents" referenced-type="Strain"/>
     <collection name="publications" referenced-type="Publication"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="genotypingStudies"/>
     <collection name="lines" referenced-type="GenotypingLine" reverse-reference="genotypingStudy"/>

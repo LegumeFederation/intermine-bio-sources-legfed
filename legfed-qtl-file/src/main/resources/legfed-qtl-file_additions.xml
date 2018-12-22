@@ -4,16 +4,17 @@
   <!-- this loader loads QTLs per publication/mapping populations -->
 
   <class name="QTL" extends="Annotatable" is-interface="true">
-	<attribute name="traitName" type="java.lang.String"/>
-	<collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="QTLs"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <attribute name="traitName" type="java.lang.String"/>
+    <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="QTLs"/>
   </class>
 
   <class name="MappingPopulation" is-interface="true">
-	<attribute name="primaryIdentifier" type="java.lang.String"/>
-        <attribute name="description" type="java.lang.String"/>
-	<collection name="parents" referenced-type="Organism"/>
-	<collection name="QTLs" referenced-type="QTL" reverse-reference="mappingPopulations"/>
-        <collection name="publications" referenced-type="Publication"/>
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
+    <collection name="parents" referenced-type="Organism"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="mappingPopulations"/>
+    <collection name="publications" referenced-type="Publication"/>
   </class>
 
   <class name="Publication" is-interface="true">

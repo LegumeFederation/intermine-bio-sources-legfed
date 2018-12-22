@@ -83,6 +83,20 @@ public class ChadoFeature {
     }
 
     /**
+     * Populate the attributes of a Item with this feature's data, as well as set a reference to an organism.
+     */
+    public void populateItem(Item item, Item organism) {
+        item.setAttribute("chadoFeatureId", String.valueOf(feature_id));
+	item.setAttribute("chadoUniqueName", uniquename);
+        item.setAttribute("primaryIdentifier", uniquename);
+        item.setReference("organism", organism);
+        if (name!=null && name.length()>0) {
+	    item.setAttribute("chadoName", name);
+            item.setAttribute("secondaryIdentifier", name);
+        }
+    }
+
+    /**
      * Populate the attributes of a Item with this feature's data, as well as set a reference to an organism and strain.
      */
     public void populateItem(Item item, Item organism, Item strain) {

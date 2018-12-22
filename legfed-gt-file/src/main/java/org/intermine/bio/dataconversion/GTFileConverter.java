@@ -56,6 +56,7 @@ public class GTFileConverter extends BioFileConverter {
     // store items at end in close() method, they may be duplicated across files
     Map<String,Item> publicationMap = new HashMap<String,Item>();
     Map<String,Item> markerMap = new HashMap<String,Item>();
+    Map<String,Item> strainMap = new HashMap<String,Item>();
 
     /**
      * Create a new GTFileConverter
@@ -134,6 +135,21 @@ public class GTFileConverter extends BioFileConverter {
                         genotypingStudy.addToCollection("publications", publication);
                     }
 
+		} else if (key.toLowerCase().equals("parent")) {
+
+		    // add a parent strain
+		    String strainName = value;
+		    if (strainMap.containsKey(strainName)) {
+			Item strain = strainMap.get(strainName);
+			genotypingStudy.addToCollection("parents", strain);
+		    } else {
+			Item strain = createItem("Strain");
+			strain.setAttribute("primaryIdentifier", strainName);
+			store(strain);
+			strainMap.put(strainName, strain);
+			genotypingStudy.addToCollection("parents", strain);
+		    }
+			
                 } else if (key.toLowerCase().equals("lines")) {
 
                     int num = parts.length - 1;    // number of genotyping lines

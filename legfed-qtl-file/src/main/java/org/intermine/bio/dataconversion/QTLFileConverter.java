@@ -27,10 +27,9 @@ import org.intermine.xml.full.Item;
 /**
  * Store QTL data and relationships from tab-delimited files organized by publication.
  * Mapping population name may be given, e.g. Sanzi_x_Vita7.
- * TaxonID and Variety are provided to establish uniqueness for merging, since the same QTL names often appear for different species/varieties.
+ * TaxonID is provided to establish uniqueness for merging, since the same QTL names often appear for different organisms.
  *
  * TaxonID     3817
- * Variety     IT97K-499-35
  * PMID        123456 [optional]
  * Journal     Intl. J. Genetics [optional]
  * Year        2007 [optional]
@@ -53,7 +52,10 @@ public class QTLFileConverter extends BioFileConverter {
 
     // Typically one organism across all files
     Map<String,Item> organismMap = new HashMap<String,Item>();
-    
+
+    // Store parents as Strain
+    Map<String,Item> strainMap = new HashMap<String,Item>();
+
     // Store QTLs in a map since there may be multiple pubs with the same QTLs
     Map<String,Item> qtlMap = new HashMap<String,Item>();
 
@@ -82,8 +84,7 @@ public class QTLFileConverter extends BioFileConverter {
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
         // header values
-        int taxonId = 0;
-        String variety = null;
+        String taxonId = null;
 
         // these are loaded to populate a publication by title, etc.
         String title = null;
@@ -102,16 +103,15 @@ public class QTLFileConverter extends BioFileConverter {
         while ((line=qtlReader.readLine())!=null) {
 
             // create and store organism (or pull it from map) if ready
-            if (organism==null && taxonId>0 && variety!=null) {
-                String organismKey = taxonId+"_"+variety;
-                if (organismMap.containsKey(organismKey)) {
-                    organism = organismMap.get(organismKey);
+            if (organism==null && taxonId!=null) {
+                if (organismMap.containsKey(taxonId)) {
+                    organism = organismMap.get(taxonId);
                 } else {
                     organism = createItem("Organism");
-                    organism.setAttribute("taxonId", String.valueOf(taxonId));
-                    organism.setAttribute("variety", variety);
-                    organismMap.put(organismKey, organism);
-                    LOG.info("Storing organism: "+taxonId+" ("+variety+")");
+                    organism.setAttribute("taxonId", taxonId);
+                    store(organism);
+                    organismMap.put(taxonId, organism);
+                    LOG.info("Stored organism: "+taxonId);
                 }
             }
 
@@ -125,10 +125,7 @@ public class QTLFileConverter extends BioFileConverter {
 		    
 		    // header data
 		    if (key.toLowerCase().equals("taxonid")) {
-			taxonId = Integer.parseInt(value);
-                        
-		    } else if (key.toLowerCase().equals("variety")) {
-			variety = value;
+			taxonId = value;
                         
 		    } else if (key.toLowerCase().equals("pmid")) {
 			int pmid = Integer.parseInt(value);
@@ -177,22 +174,21 @@ public class QTLFileConverter extends BioFileConverter {
 
                         // be sure to put parents AFTER mapping population line!
 			// if parent is present, then we assume that we only have one mapping population
-			String parentVariety = value;
-			String parentKey = taxonId+"_"+parentVariety;
+			String strainName = value;
 			Item parent;
-			if (organismMap.containsKey(parentKey)) {
-			    parent = organismMap.get(parentKey);
+			if (strainMap.containsKey(strainName)) {
+			    parent = strainMap.get(strainName);
 			} else {
-			    parent = createItem("Organism");
-			    parent.setAttribute("taxonId", String.valueOf(taxonId));
-			    parent.setAttribute("variety", parentVariety);
-			    organismMap.put(parentKey, parent);
-			    LOG.info("Storing parent: "+parentVariety);
+			    parent = createItem("Strain");
+			    parent.setAttribute("primaryIdentifier", strainName);
+                            store(parent);
+			    strainMap.put(strainName, parent);
+			    LOG.info("Stored parent: "+strainName);
 			}
 			for (Item mappingPopulation : mappingPopulations) {
 			    mappingPopulation.addToCollection("parents", parent);
 			}
-                        LOG.info("Added parent "+parentVariety+" to mapping populations.");
+                        LOG.info("Added parent "+strainName+" to mapping populations.");
 
                     } else if (key.toLowerCase().equals("description")) {
 
@@ -227,9 +223,6 @@ public class QTLFileConverter extends BioFileConverter {
 			String qtlName = key;
 			String traitName = value;
 
-                        // DEBUG
-                        LOG.info("Storing QTL "+qtlName+":"+traitName);
-                        
 			// find the QTL in the map, or add it with qtlName=primaryIdentifier
 			Item qtl;
 			if (qtlMap.containsKey(qtlName)) {
@@ -237,7 +230,7 @@ public class QTLFileConverter extends BioFileConverter {
 			} else {
 			    qtl = createItem("QTL");
 			    qtl.setAttribute("primaryIdentifier", qtlName);
-			    // qtl.setReference("organism", organism);
+                            qtl.setReference("organism", organism);
 			    if (traitName.length()>0) qtl.setAttribute("traitName", traitName);
 			    qtlMap.put(qtlName, qtl);
 			}
@@ -263,8 +256,6 @@ public class QTLFileConverter extends BioFileConverter {
      */
     @Override
     public void close() throws Exception {
-        LOG.info("Storing "+organismMap.size()+" Organism items...");
-        store(organismMap.values());
         LOG.info("Storing "+mappingPopulationMap.size()+" MappingPopulation items...");
         store(mappingPopulationMap.values());
         LOG.info("Storing "+qtlMap.size()+" QTL items...");

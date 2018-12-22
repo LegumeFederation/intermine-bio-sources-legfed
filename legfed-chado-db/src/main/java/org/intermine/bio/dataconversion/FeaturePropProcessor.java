@@ -63,25 +63,30 @@ public class FeaturePropProcessor extends ChadoProcessor {
         // get the desired chado organism_ids
         Set<Integer> organismIds = getChadoDBConverter().getDesiredChadoOrganismIds();
 
+	// put the organism Items into a map, keyed by taxonId, since we may have multiple strains per organism
+	Map<String,Item> organismMap = new HashMap<>();
+
         // now loop over the desired chado organisms
         for (Integer organismId : organismIds) {
             int organism_id = organismId.intValue();
 
-            // add the organism description
-            OrganismData od = getChadoDBConverter().getChadoIdToOrgDataMap().get(organismId);
-            String taxonId = od.getTaxonId();
-            Item organism = getChadoDBConverter().createItem("Organism");
-            organism.setAttribute("taxonId", taxonId);
+            // grab the Organism corresponding to this chado organism_id (they get stored if first time)
+            Item organism = getChadoDBConverter().getOrganismItem(organismId);
+
+            // add the strain description from the chado organism description
             ResultSet rs = stmt.executeQuery("SELECT * FROM organism WHERE organism_id="+organism_id);
             if (rs.next()) {
                 String description = rs.getString("comment");
                 if (description!=null && description.trim().length()>0) {
-                    organism.setAttribute("description", description.trim());
+		    String strainName = getChadoDBConverter().getStrainName(organismId);
+		    Item strain = getChadoDBConverter().createItem("Strain");
+		    strain.setAttribute("primaryIdentifier", strainName);
+                    strain.setAttribute("description", description.trim());
+		    store(strain);
+		    LOG.info("Stored description for strain "+strainName);
                 }
             }
             rs.close();
-            store(organism);
-            LOG.info("Stored organism.description for taxonId "+taxonId);
 
             // load gene attributes
             Map<Integer,Item> geneMap = generateMap(stmt, organism_id, "Gene", "gene");

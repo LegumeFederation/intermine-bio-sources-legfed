@@ -103,8 +103,8 @@ public class GeneticProcessor extends ChadoProcessor {
             Item strain = getChadoDBConverter().getStrainItem(organismId);
 
             // append the maps from the feature table
-            linkageGroupMap.putAll(generateMap(stmt, "LinkageGroup", linkageGroupTypeId, organism_id));
-	    qtlMap.putAll(generateMap(stmt, "QTL", qtlTypeId, organism_id));
+            linkageGroupMap.putAll(generateMap(stmt, "LinkageGroup", linkageGroupTypeId, organism_id, organism));
+	    qtlMap.putAll(generateMap(stmt, "QTL", qtlTypeId, organism_id, organism));
             // genetic markers are SequenceFeatures so they have an organism and strain reference
             geneticMarkerMap.putAll(generateMap(stmt, "GeneticMarker", geneticMarkerTypeId, organism_id, organism, strain));
 
@@ -125,6 +125,7 @@ public class GeneticProcessor extends ChadoProcessor {
                 geneticMap.setAttribute("primaryIdentifier", name);
                 geneticMap.setAttribute("description", description);
                 geneticMap.setAttribute("unit", "cM");
+                geneticMap.setReference("organism", organism);
                 geneticMapMap.put(new Integer(featuremap_id), geneticMap);
             }
             rs.close();
@@ -408,7 +409,32 @@ public class GeneticProcessor extends ChadoProcessor {
         rs.close();
         return map;
     }
-    
+
+    /**
+     * Generate a map, keyed with feature_id, with records from the chado feature table corresponding to the given organism_id and type_id.
+     *
+     * @param stmt an SQL Statement object
+     * @param className the IM class to be populated
+     * @param typeId the CV term type_id of the chado feature
+     * @param organism_id the chado organism_id for the features of interest
+     * @param organism the Organism Item to associate with the feature
+     */
+    Map<Integer,Item> generateMap(Statement stmt, String className, int typeId, int organism_id, Item organism) throws SQLException {
+	String query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+typeId;
+        ResultSet rs = stmt.executeQuery(query);
+        Map<Integer,Item> map = new HashMap<Integer,Item>();
+	int count = 0;
+        while (rs.next()) {
+	    count++;
+            Item item = getChadoDBConverter().createItem(className);
+            ChadoFeature cf = new ChadoFeature(rs);
+            cf.populateItem(item, organism);
+            map.put(new Integer(cf.feature_id), item);
+        }
+        rs.close();
+        return map;
+    }
+
     /**
      * Generate a map, keyed with feature_id, with records from the chado feature table corresponding to the given organism_id and type_id.
      * This version also sets a reference to the given organism and strain.
@@ -417,7 +443,8 @@ public class GeneticProcessor extends ChadoProcessor {
      * @param className the IM class to be populated
      * @param typeId the CV term type_id of the chado feature
      * @param organism_id the chado organism_id
-     * @param organism the corresponding IM organism to associate with the feature
+     * @param organism the Organism Item to associate with the feature
+     * @param strain the Strain Item to associate with the feature
      */
     Map<Integer,Item> generateMap(Statement stmt, String className, int typeId, int organism_id, Item organism, Item strain) throws SQLException {
 	String query = "SELECT * FROM feature WHERE organism_id="+organism_id+" AND type_id="+typeId;

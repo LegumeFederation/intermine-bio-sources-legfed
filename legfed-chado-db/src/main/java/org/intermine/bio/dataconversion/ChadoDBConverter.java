@@ -517,4 +517,14 @@ public class ChadoDBConverter extends BioDBConverter {
 	return getStrainItem(strainName, taxonId);
     }
 
+    /**
+     * Provides the Strain.primaryIdentifier for the given chado organism_id.
+     * @param chadoId the chado organism_id
+     * @return the Strain.primaryIdentifier
+     */
+    public String getStrainName(Integer chadoId) {
+	OrganismData od = chadoToOrgData.get(chadoId);
+	return chadoToStrainName.get(chadoId);
+    }
+
 }
