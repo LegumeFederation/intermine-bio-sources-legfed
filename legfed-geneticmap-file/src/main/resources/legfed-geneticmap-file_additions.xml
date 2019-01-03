@@ -28,6 +28,7 @@
   </class>
 
   <class name="QTL" extends="Annotatable" is-interface="true">
+    <reference name="organism" referenced-type="Organism"/>      
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
   </class>

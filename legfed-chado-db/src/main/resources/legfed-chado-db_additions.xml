@@ -18,6 +18,7 @@
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="chadoUniqueName" type="java.lang.String"/>
     <attribute name="chadoName" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>

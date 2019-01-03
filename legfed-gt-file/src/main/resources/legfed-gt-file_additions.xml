@@ -13,7 +13,7 @@
     <collection name="parents" referenced-type="Strain"/>
     <collection name="publications" referenced-type="Publication"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="genotypingStudies"/>
-    <collection name="lines" referenced-type="GenotypingLine" reverse-reference="genotypingStudy"/>
+    <collection name="lines" referenced-type="GenotypingLine" reverse-reference="genotypingStudies"/>
   </class>
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
@@ -24,7 +24,8 @@
   <class name="GenotypingLine" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="number" type="java.lang.Integer"/>
-    <reference name="genotypingStudy" referenced-type="GenotypingStudy" reverse-reference="lines"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <collection name="genotypingStudies" referenced-type="GenotypingStudy" reverse-reference="lines"/>
   </class>
 
   <class name="GenotypeValue" is-interface="true">

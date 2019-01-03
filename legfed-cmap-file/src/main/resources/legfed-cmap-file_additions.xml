@@ -7,6 +7,7 @@
 
   <class name="QTL" extends="Annotatable" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
   </class>

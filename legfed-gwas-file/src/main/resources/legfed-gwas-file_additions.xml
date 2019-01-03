@@ -16,6 +16,7 @@
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="traitName" type="java.lang.String"/>
     <attribute name="pValue" type="java.lang.Double"/>
+    <reference name="organism" referenced-type="Organism"/>
     <reference name="gwasExperiment" referenced-type="GWASExperiment" reverse-reference="QTLs"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
   </class>

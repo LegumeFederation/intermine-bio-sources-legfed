@@ -67,8 +67,15 @@ public class MarkerQTLFileConverter extends BioFileConverter {
 	String line;
         while ((line=markerReader.readLine())!=null) {
 
-            // initialize organism if not set and can be
-            if (organism==null && taxonId!=null) {
+            String[] parts = line.split("\t");
+
+            if (line.startsWith("#") || line.trim().length()==0) {
+
+                // do nothing, comment
+                
+            } else if (parts[0].toLowerCase().equals("taxonid")) {
+                
+                taxonId = parts[1];
                 if (organismMap.containsKey(taxonId)) {
                     organism = organismMap.get(taxonId);
                 } else {
@@ -78,16 +85,6 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                     organismMap.put(taxonId, organism);
                     LOG.info("Stored organism: "+taxonId);
                 }
-            }
-
-            if (line.startsWith("#") || line.trim().length()==0) {
-
-                // do nothing, comment
-                
-            } else if (line.startsWith("TaxonID")) {
-                
-                String[] parts = line.split("\t");
-                taxonId = parts[1];
                 
             } else {
 
@@ -97,7 +94,6 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                     throw new RuntimeException("Organism not set: taxonId="+taxonId);
                 }
                         
-                String[] parts = line.split("\t");
                 String markerID = parts[0];
                 String qtlID = parts[1];
                 
