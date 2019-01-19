@@ -180,6 +180,7 @@ public class GTFileConverter extends BioFileConverter {
 		    } else {
 			Item strain = createItem("Strain");
 			strain.setAttribute("primaryIdentifier", strainName);
+			strain.setReference("organism", organism);
 			store(strain);
 			strainMap.put(strainName, strain);
 			genotypingStudy.addToCollection("parents", strain);

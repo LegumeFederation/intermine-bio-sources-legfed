@@ -15,6 +15,8 @@ import java.io.Reader;
 
 import java.util.List;
 import java.util.LinkedList;
+import java.util.Map;
+import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
@@ -35,6 +37,9 @@ public class GenotypingLineFileConverter extends BioFileConverter {
 
     // store lines so we only load them once
     List<String> lines = new LinkedList<>();
+
+    // same with organisms
+    Map<String,Item> organismMap = new HashMap<>();
     
     /**
      * Create a new GenotypingLineFileConverter
@@ -57,39 +62,47 @@ public class GenotypingLineFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
+	// this file's organism
+	Item organism = null;
+
         BufferedReader br = new BufferedReader(reader);
 	String line;
         while ((line=br.readLine())!=null) {
-
             if (line.startsWith("#") || line.trim().length()==0) {
-
-                // do nothing, comment
+		continue; // comment
+	    }
                 
-            } else {
-
-                String[] parts = line.split("\t");
-                String primaryIdentifier = parts[0];
-                String origin = null;
-                if (parts.length>1) origin = parts[1];
-                String comment = null;
-                if (parts.length>2) comment = parts[2];
-
-                // only load fresh records
-                if (!lines.contains(primaryIdentifier)) {
-                    Item genotypingLine = createItem("GenotypingLine");
-                    genotypingLine.setAttribute("primaryIdentifier", primaryIdentifier);
-                    if (origin!=null) genotypingLine.setAttribute("origin", origin);
-                    if (comment!=null) genotypingLine.setAttribute("comment", comment);
-                    store(genotypingLine);
-                    lines.add(primaryIdentifier);
-                }
-
-            }
-            
-        }
-        
+	    String[] parts = line.split("\t");
+ 
+	    if (parts[0].toLowerCase().equals("taxonid")) {
+		String taxonId = parts[1];
+		if (organismMap.containsKey(taxonId)) {
+		    organism = organismMap.get(taxonId);
+		} else {
+		    organism = createItem("Organism");
+		    organism.setAttribute("taxonId", taxonId);
+		    store(organism);
+		    organismMap.put(taxonId, organism);
+		}
+	    } else {
+		String primaryIdentifier = parts[0];
+		String origin = null;
+		if (parts.length>1) origin = parts[1];
+		String comment = null;
+		if (parts.length>2) comment = parts[2];
+		// only load fresh records
+		if (!lines.contains(primaryIdentifier)) {
+		    Item genotypingLine = createItem("GenotypingLine");
+		    genotypingLine.setAttribute("primaryIdentifier", primaryIdentifier);
+		    genotypingLine.setReference("organism", organism);
+		    if (origin!=null) genotypingLine.setAttribute("origin", origin);
+		    if (comment!=null) genotypingLine.setAttribute("comment", comment);
+		    store(genotypingLine);
+		    lines.add(primaryIdentifier);
+		}
+	    }
+	}
         br.close();
-
     }
     
 }

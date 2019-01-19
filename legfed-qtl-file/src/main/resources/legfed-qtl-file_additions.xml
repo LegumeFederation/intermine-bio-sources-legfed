@@ -1,12 +1,13 @@
 <?xml version="1.0"?>
 <classes>
 
-  <!-- this loader loads QTLs per publication/mapping populations -->
+  <!-- this loader loads QTLs per publication/mapping populations/genotyping studies -->
 
   <class name="QTL" extends="Annotatable" is-interface="true">
     <reference name="organism" referenced-type="Organism"/>
     <attribute name="traitName" type="java.lang.String"/>
     <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="QTLs"/>
+    <collection name="genotypingStudies" referenced-type="GenotypingStudy" reverse-reference="QTLs"/>
   </class>
 
   <class name="MappingPopulation" is-interface="true">
@@ -15,6 +16,13 @@
     <collection name="parents" referenced-type="Organism"/>
     <collection name="QTLs" referenced-type="QTL" reverse-reference="mappingPopulations"/>
     <collection name="publications" referenced-type="Publication"/>
+  </class>
+
+  <class name="GenotypingStudy" is-interface="true">
+    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <collection name="publications" referenced-type="Publication"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="genotypingStudies"/>
   </class>
 
   <class name="Publication" is-interface="true">
