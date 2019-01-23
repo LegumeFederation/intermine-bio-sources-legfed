@@ -30,12 +30,12 @@ import org.intermine.xml.full.Item;
  *
  * TaxonID     3817
  * PMID        123456 [optional]
+ * DOI         10.1101/202044 [optional]
  * Journal     Intl. J. Genetics [optional]
  * Year        2007 [optional]
  * Volume      23 [optional]
  * Pages       345-357 [optional]
  * Title       A cowpea genetic map for the ages [optional]
- * DOI         10.1101/202044 [optional]
  * MappingPopulation Sanzi_x_Vita7 [optional, can have more than one; parent1_x_parent2 results in strains being created and associated as parents]
  * GenotypingStudy   MAGIC-2007 [optional]
  * Description A description of the purpose of this mapping population/genotyping study and why the parents were chosen. [optional]

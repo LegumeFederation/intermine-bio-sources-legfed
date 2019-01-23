@@ -55,81 +55,86 @@ public class QTLOntologyFileConverter extends BioFileConverter {
      */
     @Override
     public void process(Reader reader) throws Exception {
-
+	
         // don't process README files
         if (getCurrentFile().getName().contains("README")) return;
-
+	
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
-
+	
         // -------------------------------------------------------------------------------------------------
         // Run through the file and add the associated ontology terms to the QTLs.
         // -------------------------------------------------------------------------------------------------
 
         // set organism in header
-        String taxonId = null;
         Item organism = null;
 
         BufferedReader buffReader = new BufferedReader(reader);
 	String line;
         while ((line=buffReader.readLine())!=null) {
 
-            if (!line.startsWith("#") && line.trim().length()>0) {
+            if (line.startsWith("#") && line.trim().length()>0) {
+		continue;
+	    }
 
-                String[] parts = line.split("\t");
-                if (parts.length==2) {
-                    
-                    String key = parts[0];
-                    String value = parts[1];
-
-                    // get the organism from the taxonId, this should be before the QTL/Ontology records.
-                    if (key.toLowerCase().equals("taxonid")) {
-                        taxonId = value;
-                        if (organismMap.containsKey(taxonId)) {
-                            organism = organismMap.get(taxonId);
-                        } else {
-                            organism = createItem("Organism");
-                            organism.setAttribute("taxonId", taxonId);
-                            store(organism);
-                            organismMap.put(taxonId, organism);
-                        }
-                    } else {
-                    
-                        String qtlName = key;
-                        String termID = value;
-                        String termType = termID.substring(0,2); // GO, PO, TO, etc.
-                        
-                        // find the QTL in the map, or add it with qtlName=primaryIdentifier
-                        Item qtl = null;
-                        if (qtlMap.containsKey(qtlName)) {
-                            qtl = qtlMap.get(qtlName);
-                        } else {
-                            qtl = createItem("QTL");
-                            qtl.setAttribute("primaryIdentifier", qtlName);
-                            qtl.setReference("organism", organism);
-                            qtlMap.put(qtlName, qtl);
-                        }
-                        
-                        // find the term in the map, or add it with termID=identifier
-                        Item term = null;
-                        if (termMap.containsKey(termID)) {
-                            term = termMap.get(termID);
-                        } else {
-                            // determine the type from the prefix, hopefully supported in the data model!
-                            term = createItem(termType+"Term");
-                            term.setAttribute("identifier", termID);
-                            termMap.put(termID, term);
-                        }
-                        
-                        // create this annotation, associate it with the term and QTL, and store it
-                        Item annotation = createItem(termType+"Annotation");
-                        annotation.setReference("ontologyTerm", term);
-                        annotation.setReference("subject", qtl);
-                        store(annotation);
-                        LOG.info("Storing annotation for QTL "+qtlName+" and term "+termID);
-
-                    }
-                }
-            }
+	    String[] parts = line.split("\t");
+	    String key = parts[0];
+	    String value = parts[1];
+		
+	    if (key.toLowerCase().equals("taxonid")) {
+		
+		// get the organism from the taxonId, this should be before the QTL/Ontology records.
+		String taxonId = value;
+		if (organismMap.containsKey(taxonId)) {
+		    organism = organismMap.get(taxonId);
+		} else {
+		    organism = createItem("Organism");
+		    organism.setAttribute("taxonId", taxonId);
+		    store(organism);
+		    organismMap.put(taxonId, organism);
+		}
+		
+	    } else {
+		
+		// check that we have an organism
+		if (organism==null) {
+		    LOG.error("No organism set!");
+		    throw new RuntimeException("No organism set!");
+		}
+                
+		String qtlName = key;
+		String termID = value;
+		String termType = termID.substring(0,2); // GO, PO, TO, etc.
+                
+		// find the QTL in the map, or add it with qtlName=primaryIdentifier
+		Item qtl = null;
+		if (qtlMap.containsKey(qtlName)) {
+		    qtl = qtlMap.get(qtlName);
+		} else {
+		    qtl = createItem("QTL");
+		    qtl.setAttribute("primaryIdentifier", qtlName);
+		    qtl.setReference("organism", organism);
+		    qtlMap.put(qtlName, qtl);
+		}
+                
+		// find the term in the map, or add it with termID=identifier
+		Item term = null;
+		if (termMap.containsKey(termID)) {
+		    term = termMap.get(termID);
+		} else {
+		    // determine the type from the prefix, hopefully supported in the data model!
+		    term = createItem(termType+"Term");
+		    term.setAttribute("identifier", termID);
+		    termMap.put(termID, term);
+		}
+                
+		// create this annotation, associate it with the term and QTL, and store it
+		Item annotation = createItem(termType+"Annotation");
+		annotation.setReference("ontologyTerm", term);
+		annotation.setReference("subject", qtl);
+		store(annotation);
+		LOG.info("Storing annotation for QTL "+qtlName+" and term "+termID);
+		
+	    }
         }
 	
         buffReader.close();

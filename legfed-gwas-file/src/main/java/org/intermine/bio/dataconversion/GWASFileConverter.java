@@ -26,13 +26,15 @@ import org.intermine.xml.full.Item;
  * Store GWAS QTL/marker data from a SoyBase (or other) dump. See GWASFileRecord for individual record format.
  *
  * TaxonID	         3847
- * PrimaryIdentifier     KGK20170714.1
- * PlatformName          SoySNP50k
- * PlatformDetails       Illumina Infinium BeadChip
- * NumberLociTested      52041
- * NumberGermplasmTested 12116
+ * PrimaryIdentifier     KGK20170714.1 [required; must be first GWAS experiment datum]
+ * PlatformName          SoySNP50k [optional]
+ * PlatformDetails       Illumina Infinium BeadChip [optional]
+ * NumberLociTested      52041 [optional]
+ * NumberGermplasmTested 12116 [optional]
+ * PubMedId              26224783 [optional]
+ * DOI                   10.1534/g3.115.019000 [optional]
  *
- * @author Sam Hokin, NCGR
+ * @author Sam Hokin
  */
 public class GWASFileConverter extends BioFileConverter {
 	
@@ -65,42 +67,24 @@ public class GWASFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
-        // to identify the organism
+        // persistent items
         Item organism = null;
-
-        // to identify the experiment
-        String primaryIdentifier = null;
-        String platformName = null;
-        String platformDetails = null;
-        int numberLociTested = 0;
-        int numberGermplasmTested = 0;
         Item gwasExperiment = null;
 
         BufferedReader bufferedReader = new BufferedReader(reader);
 	String line;
         while ((line=bufferedReader.readLine())!=null) {
 
-            String[] parts = line.split("\t");
-            String lcLine = line.toLowerCase();
-
-            // create the GWAS experiment if we have the required stuff
-            if (gwasExperiment==null && primaryIdentifier!=null && numberLociTested>0 && numberGermplasmTested>0) {
-                gwasExperiment = createItem("GWASExperiment");
-                gwasExperiment.setAttribute("primaryIdentifier", primaryIdentifier);
-                gwasExperiment.setAttribute("numberLociTested", String.valueOf(numberLociTested));
-                gwasExperiment.setAttribute("numberGermplasmTested", String.valueOf(numberGermplasmTested));
-                if (platformName!=null) gwasExperiment.setAttribute("platformName", platformName);
-                if (platformDetails!=null) gwasExperiment.setAttribute("platformDetails", platformDetails);
-                store(gwasExperiment);
-                LOG.info("Created and stored GWASExperiment with primaryIdentifier="+primaryIdentifier);
+            if (line.startsWith("#") || line.trim().length()==0) {
+                continue;
             }
             
-            if (line.startsWith("#") || line.trim().length()==0) {
+            String[] parts = line.split("\t");
+            String key = parts[0];
+            String value = parts[1];
 
-                // do nothing, comment
-
-            } else if (lcLine.startsWith("taxonid")) {
-                String taxonId = parts[1];
+            if (key.toLowerCase().equals("taxonid")) {
+                String taxonId = value;
                 if (organismMap.containsKey(taxonId)) {
                     organism = organismMap.get(taxonId);
                 } else {
@@ -110,16 +94,40 @@ public class GWASFileConverter extends BioFileConverter {
                     LOG.info("Created and stored Organism:"+taxonId);
                     organismMap.put(taxonId, organism);
                 }
-            } else if (lcLine.startsWith("primaryidentifier")) {
-                primaryIdentifier = parts[1];
-            } else if (lcLine.startsWith("platformname")) {
-                platformName = parts[1];
-            } else if (lcLine.startsWith("platformdetails")) {
-                platformDetails = parts[1];
-            } else if (lcLine.startsWith("numberlocitested")) {
-                numberLociTested = Integer.parseInt(parts[1]);
-            } else if (lcLine.startsWith("numbergermplasmtested")) {
-                numberGermplasmTested = Integer.parseInt(parts[1]);
+
+            } else if (key.toLowerCase().equals("primaryidentifier")) {
+                // primaryIdentifier must be FIRST GWAS experiment record!
+                gwasExperiment = createItem("GWASExperiment");
+                gwasExperiment.setAttribute("primaryIdentifier", value);
+
+            } else if (key.toLowerCase().equals("platformname")) {
+                gwasExperiment.setAttribute("platformName", value);
+
+            } else if (key.toLowerCase().equals("numberlocitested")) {
+                gwasExperiment.setAttribute("numberLociTested", value);
+
+            } else if (key.toLowerCase().equals("numbergermplasmtested")) {
+                gwasExperiment.setAttribute("numberGermplasmTested", value);
+
+            } else if (key.toLowerCase().equals("platformdetails")) {
+                gwasExperiment.setAttribute("platformDetails", value);
+
+            } else if (key.toLowerCase().equals("pmid")) {
+                int pmid = Integer.parseInt(value);
+                Item publication = createItem("Publication");
+                publication.setAttribute("pubMedId", String.valueOf(pmid));
+                store(publication);
+                LOG.info("Stored publication PMID="+pmid);
+                gwasExperiment.addToCollection("publications", publication);
+
+            } else if (key.toLowerCase().equals("doi")) {
+                String doi = value;
+                Item publication = createItem("Publication");
+                publication.setAttribute("doi", doi);
+                store(publication);
+                LOG.info("Stored publication DOI="+doi);
+                gwasExperiment.addToCollection("publications", publication);
+
             } else {
                 
                 // check that we've got an organism - fatal exit if not
@@ -131,12 +139,7 @@ public class GWASFileConverter extends BioFileConverter {
                 
                 // check that we've got a GWAS experiment - fatal exit if not
                 if (gwasExperiment==null) {
-                    String errorMsg = "GWAS experiment is not fully described:\n" +
-                        "primaryIdentifier="+primaryIdentifier+"\n" +
-                        "platformName="+platformName+"\n" +
-                        "platformDetails="+platformDetails+"\n" +
-                        "numberLociTested="+numberLociTested+"\n" +
-                        "numberGermplasmTested="+numberGermplasmTested;
+                    String errorMsg = "GWAS experiment has not been created";
                     LOG.error(errorMsg);
                     throw new RuntimeException(errorMsg);
                 }
@@ -207,7 +210,7 @@ public class GWASFileConverter extends BioFileConverter {
                     LOG.info("Duplicate QTL:"+qtlKey+" with marker:"+markerKey);
                 } else {
                     qtl = createItem("QTL");
-                    // qtl.setReference("organism", organism);
+                    qtl.setReference("organism", organism);
                     qtl.setAttribute("primaryIdentifier", rec.gwasName);
                     qtl.setAttribute("traitName", rec.gwasClass);
                     qtl.setAttribute("pValue", String.valueOf(rec.pValue));
@@ -218,9 +221,11 @@ public class GWASFileConverter extends BioFileConverter {
                     
                 // relate the QTL and marker
                 marker.addToCollection("QTLs", qtl);
-
             }
         }
+
+        // finally store this GWAS experiment
+        store(gwasExperiment);
         
         bufferedReader.close();
     }
@@ -233,5 +238,4 @@ public class GWASFileConverter extends BioFileConverter {
         for (Item qtl : qtlMap.values()) store(qtl);
         for (Item marker : markerMap.values()) store(marker);
     }
-    
 }
