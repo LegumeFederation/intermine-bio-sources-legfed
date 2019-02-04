@@ -22,6 +22,7 @@ import org.apache.log4j.Logger;
 
 import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
+import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
 /**
@@ -266,7 +267,7 @@ public class QTLFileConverter extends BioFileConverter {
      * Store the items we've collected in maps across all the files
      */
     @Override
-    public void close() throws Exception {
+    public void close() throws ObjectStoreException {
         LOG.info("Storing "+mappingPopulationMap.size()+" MappingPopulation items...");
         store(mappingPopulationMap.values());
 	LOG.info("Storing "+genotypingStudyMap.size()+" GenotypingStudy items...");

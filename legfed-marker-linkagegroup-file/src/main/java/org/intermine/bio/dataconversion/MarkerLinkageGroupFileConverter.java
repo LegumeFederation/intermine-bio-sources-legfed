@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 
 import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
+import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
 /**
@@ -142,7 +143,7 @@ public class MarkerLinkageGroupFileConverter extends BioFileConverter {
      * Store the markers and linkage groups
      */
     @Override
-    public void close() throws Exception {
+    public void close() throws ObjectStoreException {
 
         LOG.info("Storing "+markerMap.size()+" GeneticMarker items...");
         store(markerMap.values());

@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 
 import org.intermine.dataconversion.ItemWriter;
 import org.intermine.metadata.Model;
+import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
 /**
@@ -144,7 +145,7 @@ public class PhenotypeFileConverter extends BioFileConverter {
      * Store the phenotypes and lines
      */
     @Override
-    public void close() throws Exception {
+    public void close() throws ObjectStoreException {
 
         LOG.info("Storing "+phenotypeMap.size()+" Phenotype items...");
         store(phenotypeMap.values());

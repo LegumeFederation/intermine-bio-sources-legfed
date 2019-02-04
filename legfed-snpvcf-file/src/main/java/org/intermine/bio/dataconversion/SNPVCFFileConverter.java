@@ -111,13 +111,4 @@ public class SNPVCFFileConverter extends BioFileConverter {
         br.close();
         
     }
-    
-
-    /**
-     * Store the items held in maps (there are none)
-     */
-    @Override
-    public void close() throws Exception {
-    }
-    
 }

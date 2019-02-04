@@ -284,7 +284,7 @@ public class GeneticMapFileConverter extends BioFileConverter {
      * Store the items we've collected from the LinkageGroup files
      */
     @Override
-    public void close() throws Exception {
+    public void close() throws ObjectStoreException {
         store(organismMap.values());
         store(geneticMapMap.values());
         store(mappingPopulationMap.values());

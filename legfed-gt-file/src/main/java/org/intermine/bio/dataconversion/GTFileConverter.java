@@ -319,7 +319,7 @@ public class GTFileConverter extends BioFileConverter {
      * Store the items stored in global maps; may have the same publication in multiple genotyping studies.
      */
     @Override
-    public void close() throws Exception {
+    public void close() throws ObjectStoreException {
         store(publicationMap.values());
     }
 

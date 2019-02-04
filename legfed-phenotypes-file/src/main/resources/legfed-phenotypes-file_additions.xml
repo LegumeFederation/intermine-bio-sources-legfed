@@ -8,7 +8,7 @@
   </class>
 
   <class name="Phenotype" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
+    <attribute name="name" type="java.lang.String"/>
     <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="phenotype"/>
   </class>
 

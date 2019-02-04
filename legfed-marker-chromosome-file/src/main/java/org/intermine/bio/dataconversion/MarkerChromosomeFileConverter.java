@@ -23,7 +23,8 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Store genetic marker genomic positions, type and motif from a tab-delimited file. TaxonID/Strain Name are entered as shown.
+ * Store genetic marker genomic positions, type and optional motif from a tab-delimited file. TaxonID/Strain Name are entered as shown.
+ * Motif is optional.
  *
  * TaxonID 3847
  * Strain Williams82
@@ -36,8 +37,10 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(MarkerChromosomeFileConverter.class);
 
-    // store chromosomes and supercontigs in map for repeated use
+    // maps contain Items that are repeated across files
     Map<String,Item> chromosomeMap = new HashMap<String,Item>();
+    Map<String,Item> organismMap = new HashMap<String,Item>();
+    Map<String,Item> strainMap = new HashMap<String,Item>();
 
     /**
      * Create a new MarkerChromosomeFileConverter
@@ -60,41 +63,44 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
-        // to identify the organism
-        String taxonId = null;
-        String strainName = null;
+        // organism/strain for this file
         Item organism = null;
 	Item strain = null;
 
         BufferedReader markerReader = new BufferedReader(reader);
 	String line;
         while ((line=markerReader.readLine())!=null) {
-
             if (!line.startsWith("#") && line.trim().length()>0) {
+                String[] parts = line.split("\t");
+                String key = parts[0];
+                String value = parts[1];
 		
-                // create the organism if we have the Taxon ID
-                if (organism==null && taxonId!=null) {
-                    organism = createItem("Organism");
-                    organism.setAttribute("taxonId", taxonId);
-                    store(organism);
-                    LOG.info("Created and stored organism:"+taxonId);
-                }
+                // organism and strain lines at top
+                if (key.toLowerCase().equals("taxonid")) {
+                    String taxonId = parts[1];
+                    if (organismMap.containsKey(taxonId)) {
+                        organism = organismMap.get(taxonId);
+                    } else {
+                        organism = createItem("Organism");
+                        organism.setAttribute("taxonId", taxonId);
+                        store(organism);
+                        LOG.info("Stored organism:"+taxonId);
+                        organismMap.put(taxonId, organism);
+                    }
+                    
+                } else if (key.toLowerCase().equals("strain")) {
+                    String strainName = parts[1];
+                    if (strainMap.containsKey(strainName)) {
+                        strain = strainMap.get(strainName);
+                    } else {
+                        strain = createItem("Strain");
+                        strain.setAttribute("primaryIdentifier", strainName);
+                        strain.setReference("organism", organism);
+                        store(strain);
+                        LOG.info("Stored strain:"+strainName);
+                        strainMap.put(strainName, strain);
+                    }
 
-		// create the strain if we have the Strain Name
-		if (strain==null && strainName!=null) {
-		    strain = createItem("Strain");
-		    strain.setAttribute("primaryIdentifier", strainName);
-		    store(strain);
-		    LOG.info("Created and stored strain:"+strainName);
-		}
-
-                // organism or strain line at top
-                if (line.toLowerCase().startsWith("taxonid")) {
-                    String[] parts = line.split("\t");
-                    taxonId = parts[1];
-                } else if (line.toLowerCase().startsWith("strain")) {
-                    String[] parts = line.split("\t");
-                    strainName = parts[1];
                 } else {
 		    
                     // check that we've got an organism and strain
@@ -116,7 +122,7 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
 		    marker.setReference("strain", strain);
                     if (rec.secondaryIdentifier.length()>0) marker.setAttribute("secondaryIdentifier", rec.secondaryIdentifier);
                     if (rec.type.length()>0) marker.setAttribute("type", rec.type);
-                    if (rec.motif.length()>0) marker.setAttribute("motif", rec.motif);
+                    if (rec.motif!=null && rec.motif.length()>0) marker.setAttribute("motif", rec.motif);
                     // set the chromosome or supercontig reference
                     // HACK: assume supercontig has "scaffold" or "contig" in the name
                     boolean isSupercontig = (rec.chromosome.toLowerCase().contains("scaffold") || rec.chromosome.toLowerCase().contains("contig"));
@@ -165,7 +171,5 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
 	}
         
 	markerReader.close();
-
     }
-    
 }
