@@ -14,7 +14,7 @@
   </class>
   
   <!-- GWASResult connects the marker to the phenotype -->
-  <class name="GWASResult" extends="Annotatable" is-interface="true">
+  <class name="GWASResult" is-interface="true">
     <!-- future core model -->
     <attribute name="pValue" type="java.lang.Double"/>
     <reference name="phenotype" referenced-type="Phenotype"/>
@@ -26,14 +26,14 @@
   <!-- associate a phenotype with its measured values and ontology annotation -->
   <class name="Phenotype" extends="Annotatable" is-interface="true">
     <!-- future core model -->
-    <attribute name="name" type="java.lang.String"/>
+    <collection name="gwasResults" referenced-type="GWASResult" reverse-reference="phenotype"/>
     <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="phenotype"/>
   </class>
 
-  <!-- phenotype measurements can be all sorts of things, and often refer to a Strain (or GenotypingLine) -->
+  <!-- phenotype measurements can be all sorts of things, and refer to a Strain (or GenotypingLine) -->
   <class name="PhenotypeValue" is-interface="true">
     <!-- future core model -->
-    <reference name="phenotype" referenced-type="Phenotype"/>
+    <reference name="phenotype" referenced-type="Phenotype" reverse-reference="phenotypeValues"/>
     <reference name="strain" referenced-type="Strain"/>
     <attribute name="textValue" type="java.lang.String"/>
     <attribute name="numericValue" type="java.lang.Double"/>

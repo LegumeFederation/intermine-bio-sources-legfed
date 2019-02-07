@@ -1,18 +1,23 @@
 <?xml version="1.0"?>
 <classes>
 
-  <!-- this loader loads QTLs per publication/mapping populations/genotyping studies -->
-
+  <!-- extend Annotatable for ontology and publication support -->
   <class name="QTL" extends="Annotatable" is-interface="true">
     <reference name="organism" referenced-type="Organism"/>
-    <attribute name="traitName" type="java.lang.String"/>
+    <reference name="phenotype" referenced-type="Phenotype" reverse-reference="QTLs"/>
     <collection name="mappingPopulations" referenced-type="MappingPopulation" reverse-reference="QTLs"/>
     <collection name="genotypingStudies" referenced-type="GenotypingStudy" reverse-reference="QTLs"/>
+  </class>
+
+  <!-- associate a phenotype with its measured values and ontology annotation -->
+  <class name="Phenotype" extends="Annotatable" is-interface="true">
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="phenotype"/>
   </class>
 
   <class name="MappingPopulation" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
     <collection name="parents" referenced-type="Organism"/>
     <collection name="QTLs" referenced-type="QTL" reverse-reference="mappingPopulations"/>
     <collection name="publications" referenced-type="Publication"/>
@@ -23,10 +28,6 @@
     <reference name="organism" referenced-type="Organism"/>
     <collection name="publications" referenced-type="Publication"/>
     <collection name="QTLs" referenced-type="QTL" reverse-reference="genotypingStudies"/>
-  </class>
-
-  <class name="Publication" is-interface="true">
-    <attribute name="lastAuthor" type="java.lang.String"/>
   </class>
 
 </classes>

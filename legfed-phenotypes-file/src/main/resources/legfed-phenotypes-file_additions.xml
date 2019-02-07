@@ -7,13 +7,12 @@
     <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="line"/>
   </class>
 
-  <class name="Phenotype" is-interface="true">
-    <attribute name="name" type="java.lang.String"/>
+  <class name="Phenotype" extends="Annotatable" is-interface="true">
     <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="phenotype"/>
   </class>
 
   <class name="PhenotypeValue" is-interface="true">
-    <reference name="phenotype" referenced-type="Phenotype"/>
+    <reference name="phenotype" referenced-type="Phenotype" reverse-reference="phenotypeValues"/>
     <reference name="line" referenced-type="GenotypingLine"/>
     <attribute name="textValue" type="java.lang.String"/>
     <attribute name="numericValue" type="java.lang.Double"/>

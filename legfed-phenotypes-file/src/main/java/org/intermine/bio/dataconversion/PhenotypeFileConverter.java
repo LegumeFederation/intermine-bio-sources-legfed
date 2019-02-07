@@ -73,7 +73,7 @@ public class PhenotypeFileConverter extends BioFileConverter {
 
                 String[] parts = line.split("\t");
                 String lineId = parts[0];
-                String phenotypeId = parts[1];
+                String phenotypeName = parts[1];
                 String value = parts[2];
 
                 // retrieve or create the GenotypingLine item
@@ -88,12 +88,12 @@ public class PhenotypeFileConverter extends BioFileConverter {
                 
                 // retrieve or create the Phenotype item and associate it with this GenotypingLine
                 Item phenotype = null;
-                if (phenotypeMap.containsKey(phenotypeId)) {
-                    phenotype = phenotypeMap.get(phenotypeId);
+                if (phenotypeMap.containsKey(phenotypeName)) {
+                    phenotype = phenotypeMap.get(phenotypeName);
                 } else {
                     phenotype = createItem("Phenotype");
-                    phenotype.setAttribute("primaryIdentifier", phenotypeId);
-                    phenotypeMap.put(phenotypeId, phenotype);
+                    phenotype.setAttribute("primaryIdentifier", phenotypeName);
+                    phenotypeMap.put(phenotypeName, phenotype);
                 }
                 
                 // create the PhenotypeValue and associate with the line and phenotype

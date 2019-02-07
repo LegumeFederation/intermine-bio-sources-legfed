@@ -25,10 +25,10 @@ public class GWASFileRecord implements Comparable {
     String phenotype;          // 0
     String ontologyIdentifier; // 1
     String marker;             // 2
-    double pValue;             // 3
+    double pvalue = 0.0;       // 3
     String chromosome;         // 4
-    int start;                 // 5
-    int end;                   // 6
+    int start = 0;             // 5
+    int end = 0;               // 6
 
     // set this based on start,end
     String type;
@@ -42,13 +42,13 @@ public class GWASFileRecord implements Comparable {
             System.err.println("ERROR: GWASFileRecord input does not have 7 parts:"+line);
             System.exit(1);
         }
-        phenotype = parts[0];
-        ontologyIdentifier = parts[1];
-        marker = parts[2];
-        if (parts[3]!=null && parts[3].length()>0) pValue = Double.parseDouble(parts[3]);
-        chromosome = parts[4];
-        start = Integer.parseInt(parts[5]);
-        end = Integer.parseInt(parts[6]);
+        phenotype = parts[0].trim();
+        if (parts[1].trim().length()>0) ontologyIdentifier = parts[1].trim();
+        marker = parts[2].trim();
+        if (parts[3].trim().length()>0) pvalue = Double.parseDouble(parts[3].trim());
+        chromosome = parts[4].trim();
+        start = Integer.parseInt(parts[5].trim());
+        end = Integer.parseInt(parts[6].trim());
         // set type based on length
         if (start==end) {
             type = "SNP";
@@ -77,7 +77,7 @@ public class GWASFileRecord implements Comparable {
         str += "phenotype="+phenotype;
         str += "ontologyIdentifier="+ontologyIdentifier;
         str += "marker="+marker;
-        str += "pValue="+pValue;
+        str += "pvalue="+pvalue;
         str += "chromosome="+chromosome;
         str += "start="+start;
         str += "end="+end;

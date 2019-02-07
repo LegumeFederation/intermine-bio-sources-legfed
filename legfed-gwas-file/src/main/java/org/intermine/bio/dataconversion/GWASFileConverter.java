@@ -87,11 +87,11 @@ public class GWASFileConverter extends BioFileConverter {
 	String line;
         while ((line=bufferedReader.readLine())!=null) {
 
-            if (line.startsWith("#") || line.trim().length()==0) {
+            String[] parts = line.split("\t");
+            if (line.startsWith("#") || line.trim().length()==0 || parts.length<2) {
                 continue;
             }
             
-            String[] parts = line.split("\t");
             String key = parts[0];
             String value = parts[1];
 
@@ -178,12 +178,11 @@ public class GWASFileConverter extends BioFileConverter {
                     throw new RuntimeException(errorMsg);
                 }
                 
-                // process a record
+                /////////////////////////////////
+                // process a GWASResult record //
+                /////////////////////////////////
                 GWASFileRecord rec = new GWASFileRecord(line);
 
-                //
-                // Genetic Marker, Chromosome
-                //
                 Item marker = null;
                 if (markerMap.containsKey(rec.marker)) {
                     marker = markerMap.get(rec.marker);
@@ -239,6 +238,16 @@ public class GWASFileConverter extends BioFileConverter {
                     markerMap.put(rec.marker, marker);
                 }
 
+                Item phenotype = null;
+                if (phenotypeMap.containsKey(rec.phenotype)) {
+                    phenotype = phenotypeMap.get(rec.phenotype);
+                } else {
+                    phenotype = createItem("Phenotype");
+                    phenotype.setAttribute("primaryIdentifier", rec.phenotype);
+                    phenotypeMap.put(rec.phenotype, phenotype);
+                }
+                if (publication!=null) phenotype.addToCollection("publications", publication);
+
                 Item ontologyAnnotation = null;
                 if (rec.ontologyIdentifier!=null) {
                     Item ontologyTerm = null;
@@ -252,24 +261,15 @@ public class GWASFileConverter extends BioFileConverter {
                     }
                     ontologyAnnotation = createItem("OntologyAnnotation");
                     ontologyAnnotation.setReference("ontologyTerm", ontologyTerm);
+                    ontologyAnnotation.setReference("subject", phenotype);
                     store(ontologyAnnotation);
                 }
 
-                Item phenotype = null;
-                if (phenotypeMap.containsKey(rec.phenotype)) {
-                    phenotype = phenotypeMap.get(rec.phenotype);
-                } else {
-                    phenotype = createItem("Phenotype");
-                    phenotype.setAttribute("name", rec.phenotype);
-                }
-                if (ontologyAnnotation!=null) phenotype.addToCollection("ontologyAnnotations", ontologyAnnotation);
-                if (publication!=null) phenotype.addToCollection("publications", publication);
-
                 Item gwasResult = createItem("GWASResult");
+                if (rec.pvalue>0) gwasResult.setAttribute("pValue", String.valueOf(rec.pvalue));
                 gwasResult.setReference("study", gwas);
                 gwasResult.setReference("phenotype", phenotype);
                 gwasResult.setReference("marker", marker);
-                if (ontologyAnnotation!=null) gwasResult.addToCollection("ontologyAnnotations", ontologyAnnotation);
                 store(gwasResult);
             }
         }
@@ -281,7 +281,7 @@ public class GWASFileConverter extends BioFileConverter {
     }
 
     /**
-     * Store some maps.
+     * Store some remaining Items.
      * @override
      */
     public void close() throws ObjectStoreException {
