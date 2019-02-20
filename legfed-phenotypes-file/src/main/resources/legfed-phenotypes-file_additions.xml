@@ -1,10 +1,9 @@
 <?xml version="1.0"?>
 <classes>
 
-  <!-- this loader loads phenotypes for given lines -->
-  <class name="GenotypingLine" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="line"/>
+  <!-- this loader loads phenotypes for given strains -->
+  <class name="Strain" is-interface="true">
+    <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="strain"/>
   </class>
 
   <class name="Phenotype" extends="Annotatable" is-interface="true">
@@ -13,7 +12,7 @@
 
   <class name="PhenotypeValue" is-interface="true">
     <reference name="phenotype" referenced-type="Phenotype" reverse-reference="phenotypeValues"/>
-    <reference name="line" referenced-type="GenotypingLine"/>
+    <reference name="strain" referenced-type="Strain" reverse-reference="phenotypeValues"/>
     <attribute name="textValue" type="java.lang.String"/>
     <attribute name="numericValue" type="java.lang.Double"/>
     <attribute name="booleanValue" type="java.lang.Boolean"/>

@@ -9,7 +9,7 @@
     <collection name="genotypingStudies" referenced-type="GenotypingStudy" reverse-reference="QTLs"/>
   </class>
 
-  <!-- associate a phenotype with its measured values and ontology annotation -->
+  <!-- associate a phenotype with its associated QTLs (and ontology annotation) -->
   <class name="Phenotype" extends="Annotatable" is-interface="true">
     <collection name="QTLs" referenced-type="QTL" reverse-reference="phenotype"/>
   </class>

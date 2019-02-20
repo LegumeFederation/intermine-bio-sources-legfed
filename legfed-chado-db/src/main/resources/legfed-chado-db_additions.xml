@@ -16,10 +16,10 @@
     <attribute name="identifier" type="java.lang.String"/>
     <attribute name="peak" type="java.lang.Double"/>
     <attribute name="studyTreatment" type="java.lang.String"/>
-    <attribute name="favorableAlleleSource" type="java.lang.String"/>
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="chadoUniqueName" type="java.lang.String"/>
     <attribute name="chadoName" type="java.lang.String"/>
+    <reference name="favorableAlleleSource" referenced-type="Strain" reverse-reference="favorableAlleleQTLs"/>
   </class>
 
   <!-- associate a phenotype with its measured values and ontology annotation -->
@@ -30,7 +30,7 @@
     <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="phenotype"/>
   </class>
 
-  <!-- phenotype measurements can be all sorts of things, and often refer to a Strain (or GenotypingLine) -->
+  <!-- phenotype measurements can be all sorts of things, and usually refer to a Strain -->
   <class name="PhenotypeValue" is-interface="true">
     <reference name="phenotype" referenced-type="Phenotype" reverse-reference="phenotypeValues"/>
     <reference name="strain" referenced-type="Strain"/>
@@ -205,6 +205,7 @@
   <!-- need to describe the strains -->
   <class name="Strain" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
+    <collection name="favorableAlleleQTLs" referenced-type="QTL" reverse-reference="favorableAlleleSource"/>
   </class>
   
 </classes>

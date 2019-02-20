@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- this loader loads strains with additional attributes -->
+  <class name="Strain" is-interface="true">
+    <attribute name="origin" type="java.lang.String"/>
+    <attribute name="comment" type="java.lang.String"/>
+  </class>
+
+</classes>

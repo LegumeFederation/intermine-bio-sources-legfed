@@ -122,7 +122,7 @@ public class GWASFileConverter extends BioFileConverter {
 
             } else if (key.toLowerCase().equals("name")) {
                 gwas = createItem("GWAS");
-                gwas.setAttribute("name", value);
+                gwas.setAttribute("primaryIdentifier", value);
 
             } else if (key.toLowerCase().equals("platformname")) {
                 gwas.setAttribute("platformName", value);

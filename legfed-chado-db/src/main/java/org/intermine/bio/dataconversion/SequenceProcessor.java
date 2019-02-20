@@ -58,8 +58,8 @@ import org.intermine.xml.full.ReferenceList;
  * Neither is exon:part_of:gene, as you might expect!
  *
  * This processor is only for genomic quantities. Genetic quantites such as QTLs and linkage groups are dealt with in GeneticProcessor, as well as 
- * genetic relationships like genetic marker positions on QTLs (Nearest Marker, Flanking Marker Low, Flanking Marker High). Genetic markers are loaded
- * here since they are sequence features as well.
+ * genetic relationships like genetic marker positions on QTLs (Nearest Marker, Flanking Marker Low, Flanking Marker High).
+ * Genetic markers are NOT loaded here because chado has duplicates; they are also loaded in GeneticProcessor.
  *
  * @author Sam Hokin
  */
@@ -95,10 +95,10 @@ public class SequenceProcessor extends ChadoProcessor {
 
     // desired feature cvterm types to query from the chado.feature table INCLUDING those that appear as sources in chado.featureloc
     // NOTE: polypeptide and polypeptide_domain REMOVED!
+    // NOTE: genetic_marker removed because of dupes; loaded in GeneticProcessor instead
     private static final List<String> DESIRED_FEATURES = Arrays.asList(
         							       "gene", "mRNA", "exon", 
-        							       "chromosome", "supercontig",
-                                                                       "genetic_marker"
+        							       "chromosome", "supercontig"
         							       );
 
     // source feature cvterm types, such as chromosome

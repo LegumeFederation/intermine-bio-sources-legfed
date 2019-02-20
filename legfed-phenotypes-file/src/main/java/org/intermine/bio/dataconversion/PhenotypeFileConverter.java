@@ -24,9 +24,11 @@ import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
 /**
- * Store Phenotypes and phenotype-line associations as PhenotypeValues.
- *
- * GenotypingLine Phenotype Value
+ * Store Phenotypes and phenotype-strain associations as PhenotypeValues.
+ * TaxonID 3477
+ * Strain Phenotype Value
+ * Strain Phenotype Value
+ * Strain Phenotype Value
  *
  * Value can be text, numeric or boolean (+/-), stored in different fields as appropriate.
  *
@@ -36,8 +38,9 @@ public class PhenotypeFileConverter extends BioFileConverter {
 	
     private static final Logger LOG = Logger.getLogger(PhenotypeFileConverter.class);
 
-    // store lines and phenotypes in maps for reuse
-    Map<String,Item> lineMap = new HashMap<>();
+    // store strains and phenotypes in maps for reuse
+    Map<String,Item> organismMap = new HashMap<>();
+    Map<String,Item> strainMap = new HashMap<>();
     Map<String,Item> phenotypeMap = new HashMap<>();
     
     /**
@@ -51,7 +54,7 @@ public class PhenotypeFileConverter extends BioFileConverter {
 
     /**
      * {@inheritDoc}
-     * Process the line-phenotype relationships by reading in from a tab-delimited file.
+     * Process the strain-phenotype relationships by reading in from a tab-delimited file.
      */
     @Override
     public void process(Reader reader) throws Exception {
@@ -61,32 +64,46 @@ public class PhenotypeFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
+        Item organism = null;
+
         BufferedReader br = new BufferedReader(reader);
 	String line;
         while ((line=br.readLine())!=null) {
 
             if (line.startsWith("#") || line.trim().length()==0) {
+                continue; // comment
+            }
 
-                // do nothing, comment
-                
+            String[] parts = line.split("\t");
+
+            if (parts[0].toLowerCase().equals("taxonid")) {
+                String taxonId = parts[1];
+                if (organismMap.containsKey(taxonId)) {
+                    organism = organismMap.get(taxonId);
+                } else {
+                    organism = createItem("Organism");
+                    organism.setAttribute("taxonId", taxonId);
+                    store(organism);
+                    organismMap.put(taxonId, organism);
+                }
+
             } else {
-
-                String[] parts = line.split("\t");
-                String lineId = parts[0];
+                String strainName = parts[0];
                 String phenotypeName = parts[1];
                 String value = parts[2];
 
-                // retrieve or create the GenotypingLine item
-                Item genotypingLine = null;
-                if (lineMap.containsKey(lineId)) {
-                    genotypingLine = lineMap.get(lineId);
+                // retrieve or create the Strain item
+                Item strain = null;
+                if (strainMap.containsKey(strainName)) {
+                    strain = strainMap.get(strainName);
                 } else {
-                    genotypingLine = createItem("GenotypingLine");
-                    genotypingLine.setAttribute("primaryIdentifier", lineId);
-                    lineMap.put(lineId, genotypingLine);
+                    strain = createItem("Strain");
+                    strain.setAttribute("primaryIdentifier", strainName);
+                    strain.setReference("organism", organism);
+                    strainMap.put(strainName, strain);
                 }
-                
-                // retrieve or create the Phenotype item and associate it with this GenotypingLine
+            
+                // retrieve or create the Phenotype item
                 Item phenotype = null;
                 if (phenotypeMap.containsKey(phenotypeName)) {
                     phenotype = phenotypeMap.get(phenotypeName);
@@ -95,8 +112,8 @@ public class PhenotypeFileConverter extends BioFileConverter {
                     phenotype.setAttribute("primaryIdentifier", phenotypeName);
                     phenotypeMap.put(phenotypeName, phenotype);
                 }
-                
-                // create the PhenotypeValue and associate with the line and phenotype
+            
+                // create the PhenotypeValue and associate with the strain and phenotype
                 Item phenotypeValue = createItem("PhenotypeValue");
                 if (value.contains(";")) {
                     // HACK: the GRIN data can have semi-colon separated values - we take the first for boolean and the mean for numeric
@@ -130,29 +147,24 @@ public class PhenotypeFileConverter extends BioFileConverter {
                     }
                 }
                 phenotypeValue.setReference("phenotype", phenotype);
-                phenotypeValue.setReference("line", genotypingLine);
+                phenotypeValue.setReference("strain", strain);
                 store(phenotypeValue);
-
             }
-            
         }
-        
         br.close();
-
     }
 
     /**
-     * Store the phenotypes and lines
+     * Store the phenotypes and strains
      */
     @Override
     public void close() throws ObjectStoreException {
-
+        
         LOG.info("Storing "+phenotypeMap.size()+" Phenotype items...");
         store(phenotypeMap.values());
-
-        LOG.info("Storing "+lineMap.size()+" GenotypingLine items...");
-        store(lineMap.values());
+        
+        LOG.info("Storing "+strainMap.size()+" Strain items...");
+        store(strainMap.values());
         
     }
-    
 }

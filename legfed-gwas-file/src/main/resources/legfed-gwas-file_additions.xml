@@ -4,7 +4,6 @@
   <!-- GWAS extends Annotatable for the standard Publication support (and there's probably an ontology with GWAS in it) -->  
   <class name="GWAS" extends="Annotatable" is-interface="true">
     <!-- future core model -->
-    <attribute name="name" type="java.lang.String"/>
     <collection name="results" referenced-type="GWASResult" reverse-reference="study"/>
     <!-- SoyBase-specific -->
     <attribute name="platformName" type="java.lang.String"/>

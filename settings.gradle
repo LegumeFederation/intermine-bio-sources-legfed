@@ -20,7 +20,7 @@ include ':bio-source-legfed-chado-db',
 	':bio-source-legfed-snpvcf-file',
 	':bio-source-legfed-synteny-gff',
  	':bio-source-legfed-trait-ontology',
-	':bio-source-legfed-lines-file',
+	':bio-source-legfed-strains-file',
 	':bio-source-legfed-phenotypes-file'
 
 project(':bio-source-legfed-chado-db').projectDir = new File(settingsDir, 'legfed-chado-db')
@@ -43,5 +43,5 @@ project(':bio-source-legfed-snpmarker-file').projectDir = new File(settingsDir, 
 project(':bio-source-legfed-snpvcf-file').projectDir = new File(settingsDir, 'legfed-snpvcf-file')
 project(':bio-source-legfed-synteny-gff').projectDir = new File(settingsDir, 'legfed-synteny-gff')
 project(':bio-source-legfed-trait-ontology').projectDir = new File(settingsDir, 'legfed-trait-ontology')
-project(':bio-source-legfed-lines-file').projectDir = new File(settingsDir, 'legfed-lines-file')
+project(':bio-source-legfed-strains-file').projectDir = new File(settingsDir, 'legfed-strains-file')
 project(':bio-source-legfed-phenotypes-file').projectDir = new File(settingsDir, 'legfed-phenotypes-file')
