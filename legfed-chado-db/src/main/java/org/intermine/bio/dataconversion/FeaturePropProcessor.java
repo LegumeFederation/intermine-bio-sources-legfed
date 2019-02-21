@@ -31,10 +31,8 @@ import org.intermine.xml.full.Reference;
 
 /**
  * Store the extra data from the chado.featureprop table in attributes defined in the data model.
- * It does not create any new items; these must be merged with items that have already been loaded from chado.
  *
- * Since this processer deals only with chado data, Items are stored in maps with Integer keys equal to
- * the chado feature.feature_id.
+ * Since this processer deals only with chado data, Items are stored in maps with Integer keys equal to the chado feature.feature_id.
  *
  * @author Sam Hokin, NCGR
  */
@@ -79,7 +77,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
                 String description = rs.getString("comment");
                 if (description!=null && description.trim().length()>0) {
 		    String strainName = getChadoDBConverter().getStrainName(organismId);
-		    Item strain = getChadoDBConverter().createItem("Strain");
+		    Item strain = createItem("Strain");
 		    strain.setAttribute("primaryIdentifier", strainName);
                     strain.setAttribute("description", description.trim());
 		    store(strain);
@@ -89,33 +87,67 @@ public class FeaturePropProcessor extends ChadoProcessor {
             rs.close();
 
             // load gene attributes
-            Map<Integer,Item> geneMap = generateMap(stmt, organism_id, "Gene", "gene");
+            Map<Integer,Item> geneMap = generateMap(stmt, organism_id, organism, "Gene", "gene");
             geneMap = loadAttributes(geneMap, stmt, organism_id, "description", "gene", "Note");
             store(geneMap.values());
             LOG.info("Stored "+geneMap.size()+" genes for organism_id="+organism_id);
 
             // load linkage group attributes
-            Map<Integer,Item> linkageGroupMap = generateMap(stmt, organism_id, "LinkageGroup", "linkage_group");
+            Map<Integer,Item> linkageGroupMap = generateMap(stmt, organism_id, organism, "LinkageGroup", "linkage_group");
             linkageGroupMap = loadAttributes(linkageGroupMap, stmt, organism_id, "assignedLinkageGroup", "linkage_group", "Assigned Linkage Group");
             store(linkageGroupMap.values());
             LOG.info("Stored "+linkageGroupMap.size()+" linkage groups for organism_id="+organism_id);
             
             // load QTL attributes
-            Map<Integer,Item> qtlMap = generateMap(stmt, organism_id, "QTL", "QTL");
+            Map<Integer,Item> qtlMap = generateMap(stmt, organism_id, organism, "QTL", "QTL");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "description", "QTL", "comment");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "traitDescription", "QTL", "Experiment Trait Description");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "traitName", "QTL", "Experiment Trait Name");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "publicationLinkageGroup", "QTL", "Publication Linkage Group");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "analysisMethod", "QTL", "QTL Analysis Method");
-            qtlMap = loadAttributes(qtlMap, stmt, organism_id, "traitUnit", "QTL", "Trait Unit");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "identifier", "QTL", "QTL Identifier");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "peak", "QTL", "QTL Peak");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "studyTreatment", "QTL", "QTL Study Treatment");
+            // run through the QTLs and create Phenotype references
+            Map<String,Item> phenotypeMap = new HashMap<>(); // keyed by name=Experiment Trait Name
+            int traitNameTypeId = getTypeId(stmt, "Experiment Trait Name");
+            int traitDescriptionTypeId = getTypeId(stmt, "Experiment Trait Description");
+            int traitUnitTypeId = getTypeId(stmt, "Trait Unit");
+            for (Integer featureId : qtlMap.keySet()) {
+                Item qtl = qtlMap.get(featureId);
+                String name = null;
+                String description = null;
+                String unit = null;
+                rs = stmt.executeQuery("SELECT * FROM featureprop WHERE feature_id="+featureId+" ORDER BY rank DESC");
+                while (rs.next()) {
+                    int type_id = rs.getInt("type_id");
+                    if (type_id==traitNameTypeId && name==null) {
+                        name = rs.getString("value");
+                    } else if (type_id==traitDescriptionTypeId && description==null) {
+                        description = rs.getString("value");
+                    } else if (type_id==traitUnitTypeId && unit==null) {
+                        unit = rs.getString("value");
+                    }
+                }
+                if (name!=null) {
+                    Item phenotype = null;
+                    if (phenotypeMap.containsKey(name)) {
+                        phenotype = phenotypeMap.get(name);
+                    } else {
+                        phenotype = createItem("Phenotype");
+                        phenotype.setAttribute("primaryIdentifier", name);
+                        if (description!=null) phenotype.setAttribute("description", description);
+                        if (unit!=null) phenotype.setAttribute("unit", unit);
+                        store(phenotype);
+                        phenotypeMap.put(name, phenotype);
+                    }
+                    qtl.setReference("phenotype", phenotype);
+                }
+            }
+            // store the QTLs
             store(qtlMap.values());
             LOG.info("Stored "+qtlMap.size()+" QTLs for organism_id="+organism_id);
 
             // load genetic marker attributes
-            Map<Integer,Item> geneticMarkerMap = generateMap(stmt, organism_id, "GeneticMarker", "genetic_marker");
+            Map<Integer,Item> geneticMarkerMap = generateMap(stmt, organism_id, organism, "GeneticMarker", "genetic_marker");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "description", "genetic_marker", "description");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "sourceDescription", "genetic_marker", "Source Description");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "canonicalMarker", "genetic_marker", "Canonical Marker");
@@ -124,13 +156,13 @@ public class FeaturePropProcessor extends ChadoProcessor {
 
             // load protein attributes
             // NOTE: proteins are stored in chado as "polypeptide"
-            Map<Integer,Item> proteinMap = generateMap(stmt, organism_id, "Protein", "polypeptide");
+            Map<Integer,Item> proteinMap = generateMap(stmt, organism_id, organism, "Protein", "polypeptide");
             proteinMap = loadAttributes(proteinMap, stmt, organism_id, "note", "polypeptide", "Note");
             store(proteinMap.values());
             LOG.info("Stored "+proteinMap.size()+" proteins for organism_id="+organism_id);
 
             // load protein match attributes
-            Map<Integer,Item> proteinMatchMap = generateMap(stmt, organism_id, "ProteinMatch", "protein_match");
+            Map<Integer,Item> proteinMatchMap = generateMap(stmt, organism_id, organism, "ProteinMatch", "protein_match");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "signatureDesc", "protein_match", "signature_desc");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "status", "protein_match", "status");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "date", "protein_match", "date");
@@ -138,7 +170,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
             LOG.info("Stored "+proteinMatchMap.size()+" protein matches for organism_id="+organism_id);
 
             // load protein HMM match attributes
-            Map<Integer,Item> proteinHmmMatchMap = generateMap(stmt, organism_id, "ProteinHmmMatch", "protein_hmm_match");
+            Map<Integer,Item> proteinHmmMatchMap = generateMap(stmt, organism_id, organism, "ProteinHmmMatch", "protein_hmm_match");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "signatureDesc", "protein_hmm_match", "signature_desc");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "status", "protein_hmm_match", "status");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "date", "protein_hmm_match", "date");
@@ -164,7 +196,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
     /**
      * Create a map, keyed with chado feature_id, with records from the feature table; restrict to feature records which have corresponding records in featureprop.
      */
-    Map<Integer,Item> generateMap(Statement stmt, int organism_id, String className, String featureCVTermName) throws SQLException {
+    Map<Integer,Item> generateMap(Statement stmt, int organism_id, Item organism, String className, String featureCVTermName) throws SQLException {
         int featureTypeId = getTypeId(stmt, featureCVTermName);
         Map<Integer,Item> map = new HashMap<Integer,Item>();
         ResultSet rs = stmt.executeQuery("SELECT DISTINCT feature.feature_id,feature.uniquename " +
@@ -176,8 +208,9 @@ public class FeaturePropProcessor extends ChadoProcessor {
         while (rs.next()) {
             Integer featureId = new Integer(rs.getInt("feature_id"));
             String uniquename = rs.getString("uniquename");
-            Item item = getChadoDBConverter().createItem(className);
+            Item item = createItem(className);
             item.setAttribute("primaryIdentifier", uniquename);
+            item.setReference("organism", organism);
             map.put(featureId, item);
         }
         rs.close();

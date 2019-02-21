@@ -31,28 +31,28 @@ import org.intermine.xml.full.Item;
  *
  * @author Sam Hokin
  */
-public class GenotypingLineFileConverter extends BioFileConverter {
+public class StrainFileConverter extends BioFileConverter {
 	
-    private static final Logger LOG = Logger.getLogger(GenotypingLineFileConverter.class);
+    private static final Logger LOG = Logger.getLogger(StrainFileConverter.class);
 
-    // store lines so we only load them once
-    List<String> lines = new LinkedList<>();
+    // store strains so we only load them once
+    List<String> strains = new LinkedList<>();
 
     // same with organisms
     Map<String,Item> organismMap = new HashMap<>();
     
     /**
-     * Create a new GenotypingLineFileConverter
+     * Create a new StrainFileConverter
      * @param writer the ItemWriter to write out new items
      * @param model the data model
      */
-    public GenotypingLineFileConverter(ItemWriter writer, Model model) {
+    public StrainFileConverter(ItemWriter writer, Model model) {
         super(writer, model);
     }
 
     /**
      * {@inheritDoc}
-     * Process the lines by reading in from a tab-delimited file.
+     * Process the strains by reading in from a tab-delimited file.
      */
     @Override
     public void process(Reader reader) throws Exception {
@@ -91,14 +91,14 @@ public class GenotypingLineFileConverter extends BioFileConverter {
 		String comment = null;
 		if (parts.length>2) comment = parts[2];
 		// only load fresh records
-		if (!lines.contains(primaryIdentifier)) {
-		    Item genotypingLine = createItem("GenotypingLine");
-		    genotypingLine.setAttribute("primaryIdentifier", primaryIdentifier);
-		    genotypingLine.setReference("organism", organism);
-		    if (origin!=null) genotypingLine.setAttribute("origin", origin);
-		    if (comment!=null) genotypingLine.setAttribute("comment", comment);
-		    store(genotypingLine);
-		    lines.add(primaryIdentifier);
+		if (!strains.contains(primaryIdentifier)) {
+		    Item strain = createItem("Strain");
+		    strain.setAttribute("primaryIdentifier", primaryIdentifier);
+		    strain.setReference("organism", organism);
+		    if (origin!=null) strain.setAttribute("origin", origin);
+		    if (comment!=null) strain.setAttribute("comment", comment);
+		    store(strain);
+		    strains.add(primaryIdentifier);
 		}
 	    }
 	}

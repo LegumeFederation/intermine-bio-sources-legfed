@@ -112,5 +112,13 @@ public abstract class ChadoProcessor {
         return;
     }
 
-    
+    /**
+     * Create an Item.
+     * @param className the class of the Item to create
+     * @return the Item
+     * @throws ObjectStoreException
+     */
+    protected Item createItem(String className) {
+        return chadoDBConverter.createItem(className);
+    }
 }

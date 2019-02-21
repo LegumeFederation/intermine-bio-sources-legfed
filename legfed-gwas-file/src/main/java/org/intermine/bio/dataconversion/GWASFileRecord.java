@@ -1,7 +1,5 @@
 package org.intermine.bio.dataconversion;
 
-import org.apache.log4j.Logger;
-
 /*
  * Copyright (C) 2015-2016 NCGR
  *
@@ -15,65 +13,43 @@ import org.apache.log4j.Logger;
 /**
  * Encapsulates a single tab-delimited GWAS experiment file record.
  *
- * Records:
- * gwas_id gwas_name         other_name gwas_family    gwas_class   trait_SOY_number QTL_type    QTL_category               locus_id locus_name  p_value  LOD  R2   chromosome linkage_group qtl_start qtl_end
- * 1       Seed protein 3-g1 Foobar     Seed protein 3 Seed protein SOY:0001676	     QTL_protein seed_composition_and_yield 119892   ss715637225 3.24E-06 0.87 0.67 Gm20       I	     30743655  30743655
- *
- * Note that the "qtl_start" and "qtl_end" are really the start, end of the associated marker, either a SNP (start=end) or a SSR (start<end). So those are stored with the marker, not the QTL.
+ * 0          1                   2           3        4          5        6
+ * phenotype  ontology_identifier marker      p_value  chromosome start    end
+ * Seed oil   SOY:0001668         ss715591649 1.12E-09 Gm05       41780982 41780982
  *
  * @author Sam Hokin, NCGR
  */
 public class GWASFileRecord implements Comparable {
 
-    private static final Logger LOG = Logger.getLogger(GWASFileRecord.class);
-
     // file record values
-    int gwasId;
-    String gwasName;
-    String otherName;
-    String gwasFamily;
-    String gwasClass;
-    String traitIdentifier;
-    String qtlType;
-    String qtlCategory;
-    int    locusId;
-    String locusName;
-    double pValue;
-    double lod;
-    double r2;
-    String chromosome;
-    String linkageGroup;
-    int    start;
-    int    end;
+    String phenotype;          // 0
+    String ontologyIdentifier; // 1
+    String marker;             // 2
+    double pvalue = 0.0;       // 3
+    String chromosome;         // 4
+    int start = 0;             // 5
+    int end = 0;               // 6
 
     // set this based on start,end
     String type;
 
     /**
-     * Instantiate from a line from a QTL file. Do nothing if it's a comment.
+     * Instantiate from a line in the GWAS file.
      */
     public GWASFileRecord(String line) {
         String[] parts = line.split("\t");
-        int i = 0;
-        gwasId = Integer.parseInt(parts[i++]);
-        gwasName = parts[i++];
-        otherName = parts[i++];
-        gwasFamily = parts[i++];
-        gwasClass = parts[i++];
-        traitIdentifier = parts[i++];
-        qtlType = parts[i++];
-        qtlCategory = parts[i++];
-        if (parts[i].length()>0) locusId = Integer.parseInt(parts[i]); i++;
-        locusName = parts[i++];
-        if (parts[i].length()>0) pValue = Double.parseDouble(parts[i]); i++;
-        if (parts[i].length()>0) lod = Double.parseDouble(parts[i]); i++;
-        if (parts[i].length()>0) r2 = Double.parseDouble(parts[i]); i++;
-        chromosome = parts[i++];
-        linkageGroup = parts[i++];
-        // these must exist, otherwise file needs to be fixed
-        start = Integer.parseInt(parts[i++]);
-        end = Integer.parseInt(parts[i++]);
-        // set type
+        if (parts.length!=7) {
+            System.err.println("ERROR: GWASFileRecord input does not have 7 parts:"+line);
+            System.exit(1);
+        }
+        phenotype = parts[0].trim();
+        if (parts[1].trim().length()>0) ontologyIdentifier = parts[1].trim();
+        marker = parts[2].trim();
+        if (parts[3].trim().length()>0) pvalue = Double.parseDouble(parts[3].trim());
+        chromosome = parts[4].trim();
+        start = Integer.parseInt(parts[5].trim());
+        end = Integer.parseInt(parts[6].trim());
+        // set type based on length
         if (start==end) {
             type = "SNP";
         } else {
@@ -98,24 +74,13 @@ public class GWASFileRecord implements Comparable {
      */
     public String toString() {
         String str = "";
-        str += "gwasId="+gwasId;
-        str += "gwasName="+gwasName;
-        str += "otherName="+otherName;
-        str += "gwasFamily="+gwasFamily;
-        str += "gwasClass="+gwasClass;
-        str += "traitIdentifier="+traitIdentifier;
-        str += "qtlType="+qtlType;
-        str += "qtlCategory="+qtlCategory;
-        str += "locusId="+locusId;
-        str += "locusName="+locusName;
-        str += "pValue="+pValue;
-        str += "lod="+lod;
-        str += "r2="+r2;
+        str += "phenotype="+phenotype;
+        str += "ontologyIdentifier="+ontologyIdentifier;
+        str += "marker="+marker;
+        str += "pvalue="+pvalue;
         str += "chromosome="+chromosome;
-        str += "linkageGroup="+linkageGroup;
         str += "start="+start;
         str += "end="+end;
         return str;
     }
-
 }

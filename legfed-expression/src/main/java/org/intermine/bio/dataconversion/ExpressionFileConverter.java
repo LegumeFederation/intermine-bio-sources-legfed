@@ -190,7 +190,7 @@ public class ExpressionFileConverter extends BioFileConverter {
      * Store the items we've held in sets or maps.
      */
     @Override
-    public void close() throws Exception {
+    public void close() throws ObjectStoreException {
 
         LOG.info("Storing "+geneMap.size()+" gene items...");
         for (Item gene : geneMap.values()) store(gene);

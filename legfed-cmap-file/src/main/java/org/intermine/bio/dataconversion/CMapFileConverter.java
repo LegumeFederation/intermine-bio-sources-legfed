@@ -192,7 +192,7 @@ public class CMapFileConverter extends BioFileConverter {
      * Store the items we've collected from the CMap files
      */
     @Override
-    public void close() throws Exception {
+    public void close() throws ObjectStoreException {
     
         LOG.info("Storing "+organismSet.size()+" organisms...");
         store(organismSet);

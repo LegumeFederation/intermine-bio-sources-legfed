@@ -1,27 +1,42 @@
 <?xml version="1.0"?>
 <classes>
 
-  <!-- genetics from GeneticProcessor, plus feature properties from FeaturePropProcessor -->
-
+  <!-- extend Annotatable for ontology and publication support -->
   <class name="QTL" extends="Annotatable" is-interface="true">
     <attribute name="secondaryIdentifier" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
-    <attribute name="traitDescription" type="java.lang.String"/>
-    <attribute name="traitName" type="java.lang.String"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <reference name="phenotype" referenced-type="Phenotype" reverse-reference="QTLs"/>
+    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+    <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
+    <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
+    <!-- LIS attributes -->
     <attribute name="publicationLinkageGroup" type="java.lang.String"/>
-    <attribute name="traitUnit" type="java.lang.String"/>
     <attribute name="analysisMethod" type="java.lang.String"/>
     <attribute name="identifier" type="java.lang.String"/>
     <attribute name="peak" type="java.lang.Double"/>
     <attribute name="studyTreatment" type="java.lang.String"/>
-    <attribute name="favorableAlleleSource" type="java.lang.String"/>
     <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="chadoUniqueName" type="java.lang.String"/>
     <attribute name="chadoName" type="java.lang.String"/>
-    <reference name="organism" referenced-type="Organism"/>
-    <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
-    <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
-    <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
+    <reference name="favorableAlleleSource" referenced-type="Strain" reverse-reference="favorableAlleleQTLs"/>
+  </class>
+
+  <!-- associate a phenotype with its measured values and ontology annotation -->
+  <class name="Phenotype" extends="Annotatable" is-interface="true">
+    <attribute name="description" type="java.lang.String"/>
+    <attribute name="unit" type="java.lang.String"/>
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="phenotype"/>
+    <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="phenotype"/>
+  </class>
+
+  <!-- phenotype measurements can be all sorts of things, and usually refer to a Strain -->
+  <class name="PhenotypeValue" is-interface="true">
+    <reference name="phenotype" referenced-type="Phenotype" reverse-reference="phenotypeValues"/>
+    <reference name="strain" referenced-type="Strain"/>
+    <attribute name="textValue" type="java.lang.String"/>
+    <attribute name="numericValue" type="java.lang.Double"/>
+    <attribute name="booleanValue" type="java.lang.Boolean"/>
   </class>
 
   <class name="LinkageGroup" extends="Annotatable" is-interface="true">
@@ -190,6 +205,7 @@
   <!-- need to describe the strains -->
   <class name="Strain" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
+    <collection name="favorableAlleleQTLs" referenced-type="QTL" reverse-reference="favorableAlleleSource"/>
   </class>
   
 </classes>

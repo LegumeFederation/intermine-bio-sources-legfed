@@ -10,10 +10,9 @@
     <attribute name="description" type="java.lang.String"/>
     <attribute name="matrixNotes" type="java.lang.String"/>
     <reference name="organism" referenced-type="Organism"/>
-    <collection name="parents" referenced-type="Strain"/>
     <collection name="publications" referenced-type="Publication"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="genotypingStudies"/>
-    <collection name="lines" referenced-type="GenotypingLine" reverse-reference="genotypingStudies"/>
+    <collection name="lines" referenced-type="Strain"/>
   </class>
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
@@ -21,17 +20,10 @@
     <collection name="genotypingStudies" referenced-type="GenotypingStudy" reverse-reference="markers"/>
   </class>
 
-  <class name="GenotypingLine" is-interface="true">
-    <attribute name="primaryIdentifier" type="java.lang.String"/>
-    <attribute name="number" type="java.lang.Integer"/>
-    <reference name="organism" referenced-type="Organism"/>
-    <collection name="genotypingStudies" referenced-type="GenotypingStudy" reverse-reference="lines"/>
-  </class>
-
   <class name="GenotypeValue" is-interface="true">
     <attribute name="value" type="java.lang.String"/>
     <reference name="marker" referenced-type="GeneticMarker"/>
-    <reference name="line" referenced-type="GenotypingLine"/>
+    <reference name="line" referenced-type="Strain"/>
   </class>
   
 </classes>

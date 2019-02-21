@@ -15,6 +15,7 @@ import org.apache.log4j.Logger;
 /**
  * Encapsulates a single tab-delimited marker-chromosome file record.
  *
+ * 0                 1                   2    3          4     5   6
  * primaryIdentifier secondaryIdentifier Type Chromosome Start End Motif
  *
  * @author Sam Hokin, NCGR
@@ -29,7 +30,7 @@ public class MarkerChromosomeRecord implements Comparable {
     String chromosome;
     int start;
     int end;
-    String motif;
+    String motif; // optional
 
     /**
      * Instantiate from a line from a QTL file. Do nothing if it's a comment.
@@ -42,11 +43,11 @@ public class MarkerChromosomeRecord implements Comparable {
         chromosome = parts[3];
         start = Integer.parseInt(parts[4]);
         end = Integer.parseInt(parts[5]);
-        motif = parts[6];
+        if (parts.length>6) motif = parts[6];
     }
 
     /**
-     * For alpha sorting on chromosome and begin
+     * For alpha sorting on chromosome and start
      */
     public int compareTo(Object o) {
         MarkerChromosomeRecord that = (MarkerChromosomeRecord)o;
