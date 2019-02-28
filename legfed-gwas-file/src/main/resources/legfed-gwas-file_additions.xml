@@ -29,7 +29,7 @@
     <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="phenotype"/>
   </class>
 
-  <!-- phenotype measurements can be all sorts of things, and refer to a Strain (or GenotypingLine) -->
+  <!-- phenotype measurements can be all sorts of things, and refer to a Strain -->
   <class name="PhenotypeValue" is-interface="true">
     <!-- future core model -->
     <reference name="phenotype" referenced-type="Phenotype" reverse-reference="phenotypeValues"/>

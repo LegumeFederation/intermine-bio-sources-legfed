@@ -106,12 +106,12 @@ public class GeneticProcessor extends ChadoProcessor {
                 String cname = rs.getString("cname");
                 String cuniquename = rs.getString("cuniquename");
                 String mname = rs.getString("mname");
-                String muniquename = rs.getString("muniquename");
+                String muniquename = fixUniqueName(rs.getString("muniquename"));
                 int start = rs.getInt("start");
                 int end = rs.getInt("end");
                 Item chromosome;
-                if (chromosomeMap.containsKey(cname)) {
-                    chromosome = chromosomeMap.get(cname);
+                if (chromosomeMap.containsKey(cuniquename)) {
+                    chromosome = chromosomeMap.get(cuniquename);
                 } else {
                     // assume no markers positioned on scaffolds!
                     chromosome = createItem("Chromosome");
@@ -119,17 +119,18 @@ public class GeneticProcessor extends ChadoProcessor {
                     chromosome.setAttribute("secondaryIdentifier", cname);
                     chromosome.setReference("organism", organism);
                     chromosome.setReference("strain", strain);
-                    chromosomeMap.put(cname, chromosome);
+                    chromosomeMap.put(cuniquename, chromosome);
                 }
                 Item marker;
-                if (markerMap.containsKey(mname)) {
-                    marker = markerMap.get(mname);
+                if (markerMap.containsKey(muniquename)) {
+                    marker = markerMap.get(muniquename);
                 } else {
                     marker = createItem("GeneticMarker");
-                    marker.setAttribute("primaryIdentifier", mname);
+                    marker.setAttribute("primaryIdentifier", muniquename);
+                    marker.setAttribute("secondaryIdentifier", mname);
                     marker.setReference("organism", organism);
                     marker.setReference("strain", strain);
-                    markerMap.put(mname, marker);
+                    markerMap.put(muniquename, marker);
                 }
                 // create the marker's location
                 marker.setReference("chromosome", chromosome);
@@ -144,7 +145,8 @@ public class GeneticProcessor extends ChadoProcessor {
             rs.close();
 
             // query the feature_relationship table for marker-QTL relations
-            query = "SELECT DISTINCT Q.name AS qname, M.name AS mname " +
+            query = "SELECT DISTINCT Q.uniquename AS quniquename, Q.name AS qname, " +
+                "M.uniquename AS muniquename, M.name AS mname " +
                 "FROM feature_relationship, feature Q, feature M " +
                 "WHERE Q.organism_id="+organism_id+" " +
                 "AND feature_relationship.type_id IN ("+nearestMarkerTypeId+","+flankingMarkerLowTypeId+","+flankingMarkerHighTypeId+") " +
@@ -152,49 +154,57 @@ public class GeneticProcessor extends ChadoProcessor {
                 "AND feature_relationship.object_id=M.feature_id";
             rs = stmt.executeQuery(query);
             while (rs.next()) {
+                String quniquename = fixUniqueName(rs.getString("quniquename"));
                 String qname = rs.getString("qname");
+                String muniquename = fixUniqueName(rs.getString("muniquename"));
                 String mname = rs.getString("mname");
                 Item qtl;
-                if (qtlMap.containsKey(qname)) {
-                    qtl = qtlMap.get(qname);
+                if (qtlMap.containsKey(quniquename)) {
+                    qtl = qtlMap.get(quniquename);
                 } else {
                     qtl = createItem("QTL");
-                    qtl.setAttribute("primaryIdentifier", qname);
+                    qtl.setAttribute("primaryIdentifier", quniquename);
+                    qtl.setAttribute("secondaryIdentifier", qname);
                     qtl.setReference("organism", organism);
-                    qtlMap.put(qname, qtl);
+                    qtlMap.put(quniquename, qtl);
                 }
                 Item marker;
-                if (markerMap.containsKey(mname)) {
-                    marker = markerMap.get(mname);
+                if (markerMap.containsKey(muniquename)) {
+                    marker = markerMap.get(muniquename);
                 } else {
                     marker = createItem("GeneticMarker");
-                    marker.setAttribute("primaryIdentifier", mname);
+                    marker.setAttribute("primaryIdentifier", muniquename);
+                    marker.setAttribute("secondaryIdentifier", mname);
                     marker.setReference("organism", organism);
-                    markerMap.put(mname, marker);
+                    markerMap.put(muniquename, marker);
                 }
                 qtl.addToCollection("markers", marker);
             }
             rs.close();
 
             // query the featurepos table for marker-linkage group positions
-            query = "SELECT DISTINCT L.name AS lname, mappos, M.name AS mname " +
+            query = "SELECT DISTINCT L.uniquename AS luniquename, L.name AS lname, mappos, " +
+                "M.uniquename AS muniquename, M.name AS mname " +
                 "FROM featurepos, feature L, feature M " +
                 "WHERE L.organism_id="+organism_id+" " +
                 "AND   featurepos.map_feature_id=L.feature_id " +
                 "AND   featurepos.feature_id=M.feature_id";
             rs = stmt.executeQuery(query);
             while (rs.next()) {
+                String luniquename = fixUniqueName(rs.getString("luniquename"));
                 String lname = rs.getString("lname");
+                String muniquename = fixUniqueName(rs.getString("muniquename"));
                 String mname = rs.getString("mname");
                 double mappos = round(rs.getDouble("mappos"),3);
                 Item linkageGroup;
-                if (linkageGroupMap.containsKey(lname)) {
-                    linkageGroup = linkageGroupMap.get(lname);
+                if (linkageGroupMap.containsKey(luniquename)) {
+                    linkageGroup = linkageGroupMap.get(luniquename);
                 } else {
                     linkageGroup = createItem("LinkageGroup");
-                    linkageGroup.setAttribute("primaryIdentifier", lname);
+                    linkageGroup.setAttribute("primaryIdentifier", luniquename);
+                    linkageGroup.setAttribute("secondaryIdentifier", lname);
                     linkageGroup.setReference("organism", organism);
-                    linkageGroupMap.put(lname, linkageGroup);
+                    linkageGroupMap.put(luniquename, linkageGroup);
                 }
                 if (lname.equals(mname)) {
                     // linkage group length is given by lname==mname and mappos>0
@@ -203,13 +213,14 @@ public class GeneticProcessor extends ChadoProcessor {
                     }
                 } else {
                     Item marker;
-                    if (markerMap.containsKey(mname)) {
-                        marker = markerMap.get(mname);
+                    if (markerMap.containsKey(muniquename)) {
+                        marker = markerMap.get(muniquename);
                     } else {
                         marker = createItem("GeneticMarker");
-                        marker.setAttribute("primaryIdentifier", mname);
+                        marker.setAttribute("primaryIdentifier", muniquename);
+                        marker.setAttribute("secondaryIdentifier", mname);
                         marker.setReference("organism", organism);
-                        markerMap.put(mname, marker);
+                        markerMap.put(muniquename, marker);
                     }
                     linkageGroup.addToCollection("markers", marker);
                     // set the linkage group position of the marker
@@ -223,26 +234,26 @@ public class GeneticProcessor extends ChadoProcessor {
             rs.close();
 
             // query the featuremap table for genetic maps that are actually associated with features
-            query = "SELECT DISTINCT featuremap.name, featuremap.description " +
+            query = "SELECT DISTINCT featuremap.name AS gname, featuremap.description " +
                 "FROM featuremap,featurepos,feature " +
                 "WHERE featuremap.featuremap_id=featurepos.featuremap_id " +
                 "AND   featurepos.feature_id=feature.feature_id " +
                 "AND   feature.organism_id="+organism_id;
             rs = stmt.executeQuery(query);
             while (rs.next()) {
-                String name = rs.getString("name");
+                String gname = rs.getString("gname");
                 String description = rs.getString("description");
                 Item geneticMap = createItem("GeneticMap");
-                geneticMap.setAttribute("primaryIdentifier", name);
+                geneticMap.setAttribute("primaryIdentifier", gname);
                 geneticMap.setAttribute("description", description);
                 geneticMap.setAttribute("unit", "cM");
                 geneticMap.setReference("organism", organism);
-                geneticMapMap.put(name, geneticMap);
+                geneticMapMap.put(gname, geneticMap);
             }
             rs.close();
 
             // query the featurepos and featuremap tables to get the genetic maps and their linkage groups
-            query = "SELECT featuremap.name AS geneticmap, feature.name AS linkagegroup " +
+            query = "SELECT featuremap.name AS gname, feature.uniquename AS luniquename, feature.name AS lname " +
                 "FROM feature,featurepos,featuremap " +
                 "WHERE feature.feature_id=featurepos.feature_id " +
                 "AND   featurepos.featuremap_id=featuremap.featuremap_id " +
@@ -251,25 +262,29 @@ public class GeneticProcessor extends ChadoProcessor {
                 "AND   feature.organism_id="+organism_id;
             rs = stmt.executeQuery(query);
             while (rs.next()) {
-                String geneticmap = rs.getString("geneticmap");
-                String linkagegroup = rs.getString("linkagegroup");
-                if (geneticMapMap.containsKey(geneticmap)) {
-                    Item geneticMap = geneticMapMap.get(geneticmap);
+                String gname = rs.getString("gname");
+                String luniquename = fixUniqueName(rs.getString("luniquename"));
+                String lname = rs.getString("lname");
+                if (geneticMapMap.containsKey(gname)) {
+                    Item geneticMap = geneticMapMap.get(gname);
                     Item linkageGroup;
-                    if (linkageGroupMap.containsKey(linkagegroup)) {
-                        linkageGroup = linkageGroupMap.get(linkagegroup);
+                    if (linkageGroupMap.containsKey(luniquename)) {
+                        linkageGroup = linkageGroupMap.get(luniquename);
                     } else {
                         linkageGroup = createItem("LinkageGroup");
-                        linkageGroup.setAttribute("primaryIdentifier", linkagegroup);
+                        linkageGroup.setAttribute("primaryIdentifier", luniquename);
+                        linkageGroup.setAttribute("secondaryIdentifier", lname);
                         linkageGroup.setReference("organism", organism);
-                        linkageGroupMap.put(linkagegroup, linkageGroup);
+                        linkageGroupMap.put(luniquename, linkageGroup);
                     }
                     linkageGroup.setReference("geneticMap", geneticMap);
                 }
             }
 
             // query the featureloc table for QTL ranges on linkage groups, remembering to divide by 100!
-            query = "SELECT L.name AS lname, Q.name AS qname, featureloc.fmin AS begin, featureloc.fmax AS end " +
+            query = "SELECT L.uniquename AS luniquename, L.name AS lname, " +
+                "Q.uniquename AS quniquename, Q.name AS qname, " +
+                "featureloc.fmin AS begin, featureloc.fmax AS end " +
                 "FROM feature L, feature Q, featureloc " +
                 "WHERE Q.feature_id=featureloc.feature_id " +
                 "AND   L.feature_id=featureloc.srcfeature_id " +
@@ -278,20 +293,23 @@ public class GeneticProcessor extends ChadoProcessor {
                 "AND   L.organism_id="+organism_id;
             rs = stmt.executeQuery(query);
             while (rs.next()) {
+                String luniquename = fixUniqueName(rs.getString("luniquename"));
                 String lname = rs.getString("lname");
+                String quniquename = fixUniqueName(rs.getString("quniquename"));
                 String qname = rs.getString("qname");
                 double begin = rs.getDouble("begin")/100.0;
                 double end = rs.getDouble("end")/100.0;
-                if (linkageGroupMap.containsKey(lname)) {
-                    Item linkageGroup = linkageGroupMap.get(lname);
+                if (linkageGroupMap.containsKey(luniquename)) {
+                    Item linkageGroup = linkageGroupMap.get(luniquename);
                     Item qtl;
-                    if (qtlMap.containsKey(qname)) {
-                        qtl = qtlMap.get(qname);
+                    if (qtlMap.containsKey(quniquename)) {
+                        qtl = qtlMap.get(quniquename);
                     } else {
                         qtl = createItem("QTL");
-                        qtl.setAttribute("primaryIdentifier", qname);
+                        qtl.setAttribute("primaryIdentifier", quniquename);
+                        qtl.setAttribute("secondaryIdentifier", qname);
                         qtl.setReference("organism", organism);
-                        qtlMap.put(qname, qtl);
+                        qtlMap.put(quniquename, qtl);
                     }
                     Item linkageGroupRange = createItem("LinkageGroupRange");
                     linkageGroupRange.setAttribute("begin", String.valueOf(round(begin,2)));
@@ -306,7 +324,8 @@ public class GeneticProcessor extends ChadoProcessor {
             rs.close();
 
             // query the pub table to retrieve and link Publications that are referenced by our QTLs via feature_cvterm
-            query = "SELECT feature.name,pub.* FROM feature,feature_cvterm,pub " +
+            query = "SELECT feature.uniquename AS quniquename, feature.name AS qname, pub.* " +
+                "FROM feature,feature_cvterm,pub " +
                 "WHERE feature.type_id="+qtlTypeId+" " +
                 "AND feature.organism_id="+organism_id+" " +
                 "AND feature.feature_id=feature_cvterm.feature_id " +
@@ -314,11 +333,12 @@ public class GeneticProcessor extends ChadoProcessor {
                 "AND volume!='NULL' AND pyear!='submitted'";
             rs = stmt.executeQuery(query);
             while (rs.next()) {
-                String name = rs.getString("name");
+                String quniquename = fixUniqueName(rs.getString("quniquename"));
+                String qname = rs.getString("qname");
                 int pub_id = rs.getInt("pub_id");
                 // only add publications that are associated with the QTLs we've pulled above
-                if (qtlMap.containsKey(name)) {
-                    Item qtl = qtlMap.get(name);
+                if (qtlMap.containsKey(quniquename)) {
+                    Item qtl = qtlMap.get(quniquename);
                     Item publication;
                     if (publicationMap.containsKey(pub_id)) {
                         publication = publicationMap.get(pub_id);
@@ -334,26 +354,31 @@ public class GeneticProcessor extends ChadoProcessor {
             rs.close();
 
             // query the feature_stock table for QTL favorable allele source
-            query = "SELECT feature.name,stock.name AS stockname FROM feature,feature_stock,stock " +
+            query = "SELECT feature.uniquename AS quniquename, feature.name AS qname, " +
+                "stock.uniquename AS stockuniquename, stock.name AS stockname " +
+                "FROM feature,feature_stock,stock " +
                 "WHERE feature.feature_id=feature_stock.feature_id " +
                 "AND feature.organism_id="+organism_id+" " +
                 "AND feature_stock.stock_id=stock.stock_id " +
                 "AND feature_stock.type_id="+favorableAlleleSourceTypeId;
             rs = stmt.executeQuery(query);
             while (rs.next()) {
-                String name = rs.getString("name");
+                String quniquename = fixUniqueName(rs.getString("quniquename"));
+                String qname = rs.getString("qname");
+                String stockuniquename = rs.getString("stockuniquename");
                 String stockname = rs.getString("stockname");
-                if (qtlMap.containsKey(name)) {
-                    Item qtl = qtlMap.get(name);
+                if (qtlMap.containsKey(quniquename)) {
+                    Item qtl = qtlMap.get(quniquename);
                     Item stock;
-                    if (strainMap.containsKey(stockname)) {
-                        stock = strainMap.get(stockname);
+                    if (strainMap.containsKey(stockuniquename)) {
+                        stock = strainMap.get(stockuniquename);
                     } else {
                         stock = createItem("Strain");
-                        stock.setAttribute("primaryIdentifier", stockname);
+                        stock.setAttribute("primaryIdentifier", stockuniquename);
+                        stock.setAttribute("secondaryIdentifier", stockname);
                         stock.setReference("organism", organism);
                         store(stock);
-                        strainMap.put(stockname, stock);
+                        strainMap.put(stockuniquename, stock);
                     }
                     qtl.setReference("favorableAlleleSource", stock);
                 }
@@ -362,16 +387,18 @@ public class GeneticProcessor extends ChadoProcessor {
         }
         
         // query the pub table to retrieve and link Publications that are referenced by our genetic maps in featuremap_pub
-        query = "SELECT featuremap.name,pub.* FROM pub,featuremap_pub,featuremap WHERE pub.pub_id=featuremap_pub.pub_id " +
+        query = "SELECT featuremap.name AS gname, pub.* " +
+            "FROM pub, featuremap_pub, featuremap " +
+            "WHERE pub.pub_id=featuremap_pub.pub_id " +
             "AND featuremap_pub.featuremap_id=featuremap.featuremap_id " +
             "AND volume!='NULL' AND pyear!='submitted'";
         rs = stmt.executeQuery(query);
         while (rs.next()) {
-            String name = rs.getString("name");
+            String gname = rs.getString("gname");
             int pub_id = rs.getInt("pub_id");
             // only add publications that are associated with the genetic maps we've pulled above
-            if (geneticMapMap.containsKey(name)) {
-                Item geneticMap = geneticMapMap.get(name);
+            if (geneticMapMap.containsKey(gname)) {
+                Item geneticMap = geneticMapMap.get(gname);
                 Item publication;
                 if (publicationMap.containsKey(pub_id)) {
                     publication = publicationMap.get(pub_id);
@@ -461,4 +488,13 @@ public class GeneticProcessor extends ChadoProcessor {
             throw new RuntimeException("Could not determine CV term type_id for '"+name+"'.");
         }
      }
+
+    /**
+     * HACK: fix badly-formed chado uniquenames
+     * @param uniquename the chado uniquename
+     * @return a fixed version of it
+     */
+    String fixUniqueName(String uniquename) {
+        return uniquename.replace("phavu.","").replace("-phavu","");
+    }
 }

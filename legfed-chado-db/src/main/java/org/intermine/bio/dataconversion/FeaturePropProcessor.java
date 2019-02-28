@@ -87,19 +87,19 @@ public class FeaturePropProcessor extends ChadoProcessor {
             rs.close();
 
             // load gene attributes
-            Map<Integer,Item> geneMap = generateMap(stmt, organism_id, organism, "Gene", "gene");
+            Map<String,Item> geneMap = generateMap(stmt, organism_id, organism, "Gene", "gene");
             geneMap = loadAttributes(geneMap, stmt, organism_id, "description", "gene", "Note");
             store(geneMap.values());
             LOG.info("Stored "+geneMap.size()+" genes for organism_id="+organism_id);
 
             // load linkage group attributes
-            Map<Integer,Item> linkageGroupMap = generateMap(stmt, organism_id, organism, "LinkageGroup", "linkage_group");
+            Map<String,Item> linkageGroupMap = generateMap(stmt, organism_id, organism, "LinkageGroup", "linkage_group");
             linkageGroupMap = loadAttributes(linkageGroupMap, stmt, organism_id, "assignedLinkageGroup", "linkage_group", "Assigned Linkage Group");
             store(linkageGroupMap.values());
             LOG.info("Stored "+linkageGroupMap.size()+" linkage groups for organism_id="+organism_id);
             
             // load QTL attributes
-            Map<Integer,Item> qtlMap = generateMap(stmt, organism_id, organism, "QTL", "QTL");
+            Map<String,Item> qtlMap = generateMap(stmt, organism_id, organism, "QTL", "QTL");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "description", "QTL", "comment");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "publicationLinkageGroup", "QTL", "Publication Linkage Group");
             qtlMap = loadAttributes(qtlMap, stmt, organism_id, "analysisMethod", "QTL", "QTL Analysis Method");
@@ -111,12 +111,14 @@ public class FeaturePropProcessor extends ChadoProcessor {
             int traitNameTypeId = getTypeId(stmt, "Experiment Trait Name");
             int traitDescriptionTypeId = getTypeId(stmt, "Experiment Trait Description");
             int traitUnitTypeId = getTypeId(stmt, "Trait Unit");
-            for (Integer featureId : qtlMap.keySet()) {
-                Item qtl = qtlMap.get(featureId);
+            for (String uniquename : qtlMap.keySet()) {
+                Item qtl = qtlMap.get(uniquename);
                 String name = null;
                 String description = null;
                 String unit = null;
-                rs = stmt.executeQuery("SELECT * FROM featureprop WHERE feature_id="+featureId+" ORDER BY rank DESC");
+                int qtlTypeId = getTypeId(stmt, "QTL");
+                rs = stmt.executeQuery("SELECT featureprop.* FROM featureprop,feature " +
+                                       "WHERE featureprop.feature_id=feature.feature_id AND feature.type_id="+qtlTypeId+" ORDER BY rank DESC");
                 while (rs.next()) {
                     int type_id = rs.getInt("type_id");
                     if (type_id==traitNameTypeId && name==null) {
@@ -147,7 +149,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
             LOG.info("Stored "+qtlMap.size()+" QTLs for organism_id="+organism_id);
 
             // load genetic marker attributes
-            Map<Integer,Item> geneticMarkerMap = generateMap(stmt, organism_id, organism, "GeneticMarker", "genetic_marker");
+            Map<String,Item> geneticMarkerMap = generateMap(stmt, organism_id, organism, "GeneticMarker", "genetic_marker");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "description", "genetic_marker", "description");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "sourceDescription", "genetic_marker", "Source Description");
             geneticMarkerMap = loadAttributes(geneticMarkerMap, stmt, organism_id, "canonicalMarker", "genetic_marker", "Canonical Marker");
@@ -156,13 +158,13 @@ public class FeaturePropProcessor extends ChadoProcessor {
 
             // load protein attributes
             // NOTE: proteins are stored in chado as "polypeptide"
-            Map<Integer,Item> proteinMap = generateMap(stmt, organism_id, organism, "Protein", "polypeptide");
+            Map<String,Item> proteinMap = generateMap(stmt, organism_id, organism, "Protein", "polypeptide");
             proteinMap = loadAttributes(proteinMap, stmt, organism_id, "note", "polypeptide", "Note");
             store(proteinMap.values());
             LOG.info("Stored "+proteinMap.size()+" proteins for organism_id="+organism_id);
 
             // load protein match attributes
-            Map<Integer,Item> proteinMatchMap = generateMap(stmt, organism_id, organism, "ProteinMatch", "protein_match");
+            Map<String,Item> proteinMatchMap = generateMap(stmt, organism_id, organism, "ProteinMatch", "protein_match");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "signatureDesc", "protein_match", "signature_desc");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "status", "protein_match", "status");
             proteinMatchMap = loadAttributes(proteinMatchMap, stmt, organism_id, "date", "protein_match", "date");
@@ -170,7 +172,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
             LOG.info("Stored "+proteinMatchMap.size()+" protein matches for organism_id="+organism_id);
 
             // load protein HMM match attributes
-            Map<Integer,Item> proteinHmmMatchMap = generateMap(stmt, organism_id, organism, "ProteinHmmMatch", "protein_hmm_match");
+            Map<String,Item> proteinHmmMatchMap = generateMap(stmt, organism_id, organism, "ProteinHmmMatch", "protein_hmm_match");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "signatureDesc", "protein_hmm_match", "signature_desc");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "status", "protein_hmm_match", "status");
             proteinHmmMatchMap = loadAttributes(proteinHmmMatchMap, stmt, organism_id, "date", "protein_hmm_match", "date");
@@ -196,22 +198,23 @@ public class FeaturePropProcessor extends ChadoProcessor {
     /**
      * Create a map, keyed with chado feature_id, with records from the feature table; restrict to feature records which have corresponding records in featureprop.
      */
-    Map<Integer,Item> generateMap(Statement stmt, int organism_id, Item organism, String className, String featureCVTermName) throws SQLException {
+    Map<String,Item> generateMap(Statement stmt, int organism_id, Item organism, String className, String featureCVTermName) throws SQLException {
         int featureTypeId = getTypeId(stmt, featureCVTermName);
-        Map<Integer,Item> map = new HashMap<Integer,Item>();
-        ResultSet rs = stmt.executeQuery("SELECT DISTINCT feature.feature_id,feature.uniquename " +
+        Map<String,Item> map = new HashMap<String,Item>();
+        ResultSet rs = stmt.executeQuery("SELECT DISTINCT feature.feature_id,feature.uniquename,feature.name " +
                                          "FROM feature,featureprop " +
                                          "WHERE feature.feature_id=featureprop.feature_id " +
                                          "AND organism_id="+organism_id+" " +
                                          "AND feature.type_id="+featureTypeId+" " +
                                          "ORDER BY feature_id");
         while (rs.next()) {
-            Integer featureId = new Integer(rs.getInt("feature_id"));
-            String uniquename = rs.getString("uniquename");
+            String uniquename = fixUniqueName(rs.getString("uniquename"));
+            String name = rs.getString("name");
             Item item = createItem(className);
             item.setAttribute("primaryIdentifier", uniquename);
+            item.setAttribute("secondaryIdentifier", name);
             item.setReference("organism", organism);
-            map.put(featureId, item);
+            map.put(uniquename, item);
         }
         rs.close();
         return map;
@@ -220,26 +223,26 @@ public class FeaturePropProcessor extends ChadoProcessor {
     /**
      * Load an attribute into the items in the given map.
      */
-    Map<Integer,Item> loadAttributes(Map<Integer,Item> map, Statement stmt, int organism_id, String attributeName, String featureCVTermName, String propCVTermName) throws SQLException {
+    Map<String,Item> loadAttributes(Map<String,Item> map, Statement stmt, int organism_id, String attributeName, String featureCVTermName, String propCVTermName) throws SQLException {
         int featureTypeId = getTypeId(stmt, featureCVTermName);
         int propTypeId = getTypeId(stmt, propCVTermName);
         // spin through the featureprop records and load the desired property value as the attribute nam
-        ResultSet rs = stmt.executeQuery("SELECT featureprop.* FROM featureprop,feature " +
+        ResultSet rs = stmt.executeQuery("SELECT featureprop.*,feature.uniquename FROM featureprop,feature " +
                                          "WHERE featureprop.feature_id=feature.feature_id " +
                                          "AND featureprop.type_id="+propTypeId+" " +
                                          "AND feature.organism_id="+organism_id+" " +
                                          "AND feature.type_id="+featureTypeId+" " +
                                          "ORDER BY feature_id ASC, rank DESC");
         while (rs.next()) {
-            Integer featureId = new Integer(rs.getInt("feature_id"));
-            if (map.containsKey(featureId)) {
+            String uniquename = fixUniqueName(rs.getString("uniquename"));
+            if (map.containsKey(uniquename)) {
                 String value = rs.getString("value");
                 if (value!=null && value.trim().length()>0) {
-                    Item item = map.get(featureId);
+                    Item item = map.get(uniquename);
                     item.setAttribute(attributeName, value.trim());
                 }
             } else {
-                LOG.error("No feature found for featureprop.feature_id="+featureId+".");
+                LOG.error("No feature found for feature "+uniquename+".");
             }
         }
         rs.close();
@@ -247,4 +250,12 @@ public class FeaturePropProcessor extends ChadoProcessor {
         return map;
     }
 
+    /**
+     * HACK: fix badly-formed chado uniquenames
+     * @param uniquename the chado uniquename
+     * @return a fixed version of it
+     */
+    String fixUniqueName(String uniquename) {
+        return uniquename.replace("phavu.","").replace("-phavu","");
+    }
 }
