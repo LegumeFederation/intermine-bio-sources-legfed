@@ -244,10 +244,10 @@ public class QTLFileConverter extends BioFileConverter {
                     } else {
                         phenotype = createItem("Phenotype");
                         phenotype.setAttribute("primaryIdentifier", phenotypeName);
-                        store(phenotype);
                         phenotypeMap.put(phenotypeName, phenotype);
                     }
                     phenotype.addToCollection("QTLs", qtl);
+                    qtl.setReference("phenotype", phenotype);
                 }
 
                 // add pub and mapping pops to this QTL's collections
@@ -270,5 +270,6 @@ public class QTLFileConverter extends BioFileConverter {
         store(mappingPopulationMap.values());
 	store(genotypingStudyMap.values());
         store(qtlMap.values());
+        store(phenotypeMap.values());
     }
 }
