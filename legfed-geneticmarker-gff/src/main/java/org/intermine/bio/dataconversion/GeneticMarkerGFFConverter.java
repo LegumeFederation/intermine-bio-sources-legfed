@@ -177,9 +177,9 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
                 // populate and store the genetic marker
                 marker.setAttribute("primaryIdentifier", name);
                 marker.setReference("organism", organism);
-		marker.setReference("strain", strain);
                 marker.setAttribute("type", gff.getType());
                 marker.setAttribute("length", String.valueOf(gff.getEnd()-gff.getStart()+1));
+		// in principle, a marker should be able to be mapped to several strains but we're not doing that
                 if (isSupercontig) {
                     marker.setReference("supercontig", sequence);
                     marker.setReference("supercontigLocation", location);

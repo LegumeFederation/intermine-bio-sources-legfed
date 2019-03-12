@@ -119,6 +119,7 @@ public class GeneticProcessor extends ChadoProcessor {
                     chromosome.setAttribute("secondaryIdentifier", cname);
                     chromosome.setReference("organism", organism);
                     chromosome.setReference("strain", strain);
+                    store(chromosome);
                     chromosomeMap.put(cuniquename, chromosome);
                 }
                 Item marker;
@@ -248,6 +249,7 @@ public class GeneticProcessor extends ChadoProcessor {
                 geneticMap.setAttribute("description", description);
                 geneticMap.setAttribute("unit", "cM");
                 geneticMap.setReference("organism", organism);
+                store(geneticMap);
                 geneticMapMap.put(gname, geneticMap);
             }
             rs.close();
@@ -265,20 +267,28 @@ public class GeneticProcessor extends ChadoProcessor {
                 String gname = rs.getString("gname");
                 String luniquename = fixUniqueName(rs.getString("luniquename"));
                 String lname = rs.getString("lname");
+                Item geneticMap;
                 if (geneticMapMap.containsKey(gname)) {
-                    Item geneticMap = geneticMapMap.get(gname);
-                    Item linkageGroup;
-                    if (linkageGroupMap.containsKey(luniquename)) {
-                        linkageGroup = linkageGroupMap.get(luniquename);
-                    } else {
-                        linkageGroup = createItem("LinkageGroup");
-                        linkageGroup.setAttribute("primaryIdentifier", luniquename);
-                        linkageGroup.setAttribute("secondaryIdentifier", lname);
-                        linkageGroup.setReference("organism", organism);
-                        linkageGroupMap.put(luniquename, linkageGroup);
-                    }
-                    linkageGroup.setReference("geneticMap", geneticMap);
+                    geneticMap = geneticMapMap.get(gname);
+                } else {
+                    geneticMap = createItem("GeneticMap");
+                    geneticMap.setAttribute("primaryIdentifier", gname);
+                    geneticMap.setAttribute("unit", "cM");
+                    geneticMap.setReference("organism", organism);
+                    store(geneticMap);
+                    geneticMapMap.put(gname, geneticMap);
                 }
+                Item linkageGroup;
+                if (linkageGroupMap.containsKey(luniquename)) {
+                    linkageGroup = linkageGroupMap.get(luniquename);
+                } else {
+                    linkageGroup = createItem("LinkageGroup");
+                    linkageGroup.setAttribute("primaryIdentifier", luniquename);
+                    linkageGroup.setAttribute("secondaryIdentifier", lname);
+                    linkageGroup.setReference("organism", organism);
+                    linkageGroupMap.put(luniquename, linkageGroup);
+                }
+                linkageGroup.setReference("geneticMap", geneticMap);
             }
 
             // query the featureloc table for QTL ranges on linkage groups, remembering to divide by 100!
@@ -405,29 +415,23 @@ public class GeneticProcessor extends ChadoProcessor {
                 } else {
                     publication = createItem("Publication");
                     setPublicationAttributes(publication, rs);
+                    publication.addToCollection("entities", geneticMap);
                     store(publication);
                     publicationMap.put(pub_id, publication);
                 }
-                geneticMap.addToCollection("publications", publication);
             }
         }
         rs.close();
             
-        // store the maps
-        LOG.info("Storing "+chromosomeMap.size()+" chromosomes...");
-        store(chromosomeMap.values());
-        
+        // store the unstored map items
         LOG.info("Storing "+linkageGroupMap.size()+" linkage groups...");
         store(linkageGroupMap.values());
 
-        LOG.info("Storing "+markerMap.size()+" genetic markers...");
-        store(markerMap.values());
- 
         LOG.info("Storing "+qtlMap.size()+" QTLs...");
         store(qtlMap.values());
 
-        LOG.info("Storing "+geneticMapMap.size()+" genetic maps...");
-        store(geneticMapMap.values());
+        LOG.info("Storing "+markerMap.size()+" genetic markers...");
+        store(markerMap.values());
     }
 
     /**

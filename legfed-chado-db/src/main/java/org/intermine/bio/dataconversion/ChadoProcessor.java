@@ -109,7 +109,6 @@ public abstract class ChadoProcessor {
      */
     protected void store(Collection<Item> items) throws ObjectStoreException {
         for (Item item : items) store(item);
-        return;
     }
 
     /**
