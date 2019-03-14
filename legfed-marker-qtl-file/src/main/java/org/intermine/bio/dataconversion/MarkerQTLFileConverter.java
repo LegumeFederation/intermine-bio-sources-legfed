@@ -24,11 +24,12 @@ import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.xml.full.Item;
 
 /**
- * Store genetic marker / QTL associations
+ * Store GeneticMarker / QTL / Phenotyp associations
  *
- * Marker QTL
+ * TaxonID 3477
+ * Marker QTL Phenotype
  *
- * @author Sam Hokin, NCGR
+ * @author Sam Hokin
  */
 public class MarkerQTLFileConverter extends BioFileConverter {
 	
@@ -37,6 +38,7 @@ public class MarkerQTLFileConverter extends BioFileConverter {
     // store markers and linkage groups in maps for repeated use
     Map<String,Item> markerMap = new HashMap<String,Item>();
     Map<String,Item> qtlMap = new HashMap<String,Item>();
+    Map<String,Item> phenotypeMap = new HashMap<String,Item>();
     Map<String,Item> organismMap = new HashMap<String,Item>();
     
     /**
@@ -61,7 +63,6 @@ public class MarkerQTLFileConverter extends BioFileConverter {
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
         // header constants
-        String taxonId = null;
         Item organism = null;
 
         BufferedReader markerReader = new BufferedReader(reader);
@@ -76,7 +77,7 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                 
             } else if (parts[0].toLowerCase().equals("taxonid")) {
                 
-                taxonId = parts[1];
+                String taxonId = parts[1];
                 if (organismMap.containsKey(taxonId)) {
                     organism = organismMap.get(taxonId);
                 } else {
@@ -91,12 +92,17 @@ public class MarkerQTLFileConverter extends BioFileConverter {
 
                 // bail if organism not set, otherwise merging is nightmare
                 if (organism==null) {
-                    LOG.error("Organism not set: taxonId="+taxonId);
-                    throw new RuntimeException("Organism not set: taxonId="+taxonId);
+                    LOG.error("Organism not set: supply TaxonID in header.");
+                    throw new RuntimeException("Organism not set: supply TaxonID in header.");
                 }
                         
                 String markerID = parts[0];
                 String qtlID = parts[1];
+		// phenotype is optional
+		String phenotypeID = null;
+		if (parts.length>2) {
+		    phenotypeID = parts[2];
+		}
                 
                 // retrieve or create the marker item
                 Item marker = null;
@@ -109,6 +115,20 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                     markerMap.put(markerID, marker);
                     LOG.info("Storing marker "+markerID);
                 }
+
+		// retrieve or create the Phenotype item, if provided
+		Item phenotype = null;
+		if (phenotypeID!=null) {
+		    if (phenotypeMap.containsKey(phenotypeID)) {
+			phenotype = phenotypeMap.get(phenotypeID);
+		    } else {
+			phenotype = createItem("Phenotype");
+			phenotype.setAttribute("primaryIdentifier", phenotypeID);
+			store(phenotype);
+			phenotypeMap.put(phenotypeID, phenotype);
+			LOG.info("Stored phenotype "+phenotypeID);
+		    }
+		}
                 
                 // retrieve or create the QTL item
                 Item qtl = null;
@@ -118,8 +138,9 @@ public class MarkerQTLFileConverter extends BioFileConverter {
                     qtl = createItem("QTL");
                     qtl.setAttribute("primaryIdentifier", qtlID);
                     qtl.setReference("organism", organism);
+		    if (phenotype!=null) qtl.setReference("phenotype", phenotype);
                     qtlMap.put(qtlID, qtl);
-                    LOG.info("Storing QTL "+qtlID);
+                    LOG.info("Added QTL "+qtlID);
                 }
                 
                 // relate the two
@@ -130,7 +151,6 @@ public class MarkerQTLFileConverter extends BioFileConverter {
         }
         
         markerReader.close();
-
     }
 
     /**
@@ -138,13 +158,9 @@ public class MarkerQTLFileConverter extends BioFileConverter {
      */
     @Override
     public void close() throws ObjectStoreException {
-
         LOG.info("Storing "+markerMap.size()+" GeneticMarker items...");
         store(markerMap.values());
-
         LOG.info("Storing "+qtlMap.size()+" QTL items...");
         store(qtlMap.values());
-        
     }
-    
 }

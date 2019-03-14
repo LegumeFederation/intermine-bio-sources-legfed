@@ -1,9 +1,16 @@
 <?xml version="1.0"?>
 <classes>
 
-  <!-- this loader simply loads QTLs and related ontology identifiers, one per line -->
+  <!-- this loader simply loads QTLs and related ontology identifiers, one per line, with optional phenotype -->
 
-  <class name="QTL" extends="Annotatable" is-interface="true"/>
+  <class name="QTL" extends="Annotatable" is-interface="true">
+    <reference name="organism" referenced-type="Organism"/>
+    <reference name="phenotype" referenced-type="Phenotype" reverse-reference="QTLs"/>
+  </class>
+
+  <class name="Phenotype" extends="Annotatable" is-interface="true">
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="phenotype"/>
+  </class>
 
   <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true"/>
   <class name="POAnnotation" extends="OntologyAnnotation" is-interface="true"/>

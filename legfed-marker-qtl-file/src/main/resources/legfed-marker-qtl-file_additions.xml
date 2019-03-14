@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <classes>
 
-  <!-- this loader loads genetic markers and associated QTLs -->
+  <!-- this loader loads genetic markers and associated QTLs and their phenotypes -->
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <collection name="QTLs" referenced-type="QTL" reverse-reference="markers"/>
@@ -9,7 +9,12 @@
 
   <class name="QTL" extends="Annotatable" is-interface="true">
     <reference name="organism" referenced-type="Organism"/>
+    <reference name="phenotype" referenced-type="Phenotype" reverse-reference="QTLs"/>
     <collection name="markers" referenced-type="GeneticMarker" reverse-reference="QTLs"/>
+  </class>
+
+  <class name="Phenotype" extends="Annotatable" is-interface="true">
+    <collection name="QTLs" referenced-type="QTL" reverse-reference="phenotype"/>
   </class>
 
 </classes>

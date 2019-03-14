@@ -27,9 +27,9 @@ import org.intermine.xml.full.Item;
  * Store the QTL-ontology term annotations from tab-delimited files. The file rows contain the QTL name and ontology term.
  *
  * TaxonId     3827
- * #QTL        TOTerm
- * Qpl.zaas-3  TO:0002626
- * Qpl.zaas-3  PO:1234566
+ * #QTL        TOTerm      (Phenotype)
+ * Qpl.zaas-3  TO:0002626  Flowering time
+ * Qpl.zaas-3  PO:1234566  Seed weight
  *
  * @author Sam Hokin, NCGR
  */
@@ -39,6 +39,7 @@ public class QTLOntologyFileConverter extends BioFileConverter {
 
     Map<String,Item> qtlMap = new HashMap<>();
     Map<String,Item> termMap = new HashMap<>();
+    Map<String,Item> phenotypeMap = new HashMap<>();
     Map<String,Item> organismMap = new HashMap<>();
     
     /**
@@ -105,6 +106,23 @@ public class QTLOntologyFileConverter extends BioFileConverter {
 		String qtlName = key;
 		String termID = value;
 		String termType = termID.substring(0,2); // GO, PO, TO, etc.
+		String phenotypeName = null;
+		if (parts.length>2) {
+		    phenotypeName = parts[2];
+		}
+
+		// create the optional phenotype
+		Item phenotype = null;
+		if (phenotypeName!=null) {
+		    if (phenotypeMap.containsKey(phenotypeName)) {
+			phenotype = phenotypeMap.get(phenotypeName);
+		    } else {
+			phenotype = createItem("Phenotype");
+			phenotype.setAttribute("primaryIdentifier", phenotypeName);
+			store(phenotype);
+			phenotypeMap.put(phenotypeName, phenotype);
+		    }
+		}
                 
 		// find the QTL in the map, or add it with qtlName=primaryIdentifier
 		Item qtl = null;
@@ -114,6 +132,7 @@ public class QTLOntologyFileConverter extends BioFileConverter {
 		    qtl = createItem("QTL");
 		    qtl.setAttribute("primaryIdentifier", qtlName);
 		    qtl.setReference("organism", organism);
+		    if (phenotype!=null) qtl.setReference("phenotype", phenotype);
 		    qtlMap.put(qtlName, qtl);
 		}
                 
@@ -134,12 +153,10 @@ public class QTLOntologyFileConverter extends BioFileConverter {
 		annotation.setReference("subject", qtl);
 		store(annotation);
 		LOG.info("Storing annotation for QTL "+qtlName+" and term "+termID);
-		
 	    }
         }
 	
         buffReader.close();
-
     }
 
     /**

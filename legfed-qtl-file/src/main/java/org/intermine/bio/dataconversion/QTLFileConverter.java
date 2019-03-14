@@ -246,7 +246,6 @@ public class QTLFileConverter extends BioFileConverter {
                         phenotype.setAttribute("primaryIdentifier", phenotypeName);
                         phenotypeMap.put(phenotypeName, phenotype);
                     }
-                    phenotype.addToCollection("QTLs", qtl);
                     qtl.setReference("phenotype", phenotype);
                 }
 
