@@ -37,6 +37,11 @@ import org.intermine.xml.full.Reference;
  * @author Sam Hokin, NCGR
  */
 public class FeaturePropProcessor extends ChadoProcessor {
+
+    // maps and sets for storage in close()
+    Map<String,Item> organismMap = new HashMap<>();
+
+
 	
     private static final Logger LOG = Logger.getLogger(FeaturePropProcessor.class);
 
@@ -61,9 +66,6 @@ public class FeaturePropProcessor extends ChadoProcessor {
         // get the desired chado organism_ids
         Set<Integer> organismIds = getChadoDBConverter().getDesiredChadoOrganismIds();
 
-	// put the organism Items into a map, keyed by taxonId, since we may have multiple strains per organism
-	Map<String,Item> organismMap = new HashMap<>();
-
         // now loop over the desired chado organisms
         for (Integer organismId : organismIds) {
             int organism_id = organismId.intValue();
@@ -80,8 +82,8 @@ public class FeaturePropProcessor extends ChadoProcessor {
 		    Item strain = createItem("Strain");
 		    strain.setAttribute("primaryIdentifier", strainName);
                     strain.setAttribute("description", description.trim());
-		    store(strain);
-		    LOG.info("Stored description for strain "+strainName);
+                    store(strain);
+		    LOG.info("Stored strain "+strainName);
                 }
             }
             rs.close();
@@ -208,7 +210,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
                                          "AND feature.type_id="+featureTypeId+" " +
                                          "ORDER BY feature_id");
         while (rs.next()) {
-            String uniquename = fixUniqueName(rs.getString("uniquename"));
+            String uniquename = rs.getString("uniquename");
             String name = rs.getString("name");
             Item item = createItem(className);
             item.setAttribute("primaryIdentifier", uniquename);
@@ -234,7 +236,7 @@ public class FeaturePropProcessor extends ChadoProcessor {
                                          "AND feature.type_id="+featureTypeId+" " +
                                          "ORDER BY feature_id ASC, rank DESC");
         while (rs.next()) {
-            String uniquename = fixUniqueName(rs.getString("uniquename"));
+            String uniquename = rs.getString("uniquename");
             if (map.containsKey(uniquename)) {
                 String value = rs.getString("value");
                 if (value!=null && value.trim().length()>0) {
@@ -248,14 +250,5 @@ public class FeaturePropProcessor extends ChadoProcessor {
         rs.close();
         // return map without storing its items
         return map;
-    }
-
-    /**
-     * HACK: fix badly-formed chado uniquenames
-     * @param uniquename the chado uniquename
-     * @return a fixed version of it
-     */
-    String fixUniqueName(String uniquename) {
-        return uniquename.replace("phavu.","").replace("-phavu","");
     }
 }

@@ -19,7 +19,9 @@ import org.intermine.objectstore.ObjectStoreException;
 import org.intermine.sql.Database;
 import org.intermine.xml.full.Attribute;
 import org.intermine.xml.full.Item;
-
+import org.intermine.xml.full.ItemHelper;
+import org.intermine.xml.full.Reference;
+    
 /**
  * A processor for a chado module.  See http://www.gmod.org/wiki/index.php/Chado#Modules for
  * documentation about the possible modules.
@@ -100,6 +102,36 @@ public abstract class ChadoProcessor {
      */
     protected Integer store(Item item) throws ObjectStoreException {
         return chadoDBConverter.store(item);
+    }
+
+    /**
+     * Store a single XML Reference
+     * @param reference the Reference to store
+     * @param itemId the InterMine ID of the Item that holds this Reference
+     * @throws ObjectStoreException if an error occurs in storing
+     */
+    public void store(Reference reference, Integer itemId) throws ObjectStoreException {
+	chadoDBConverter.store(reference, itemId);
+    }
+
+    /**
+     * Store a single org.intermine.model.fulldata.ReferenceList
+     * @param referenceList the list to store
+     * @param itemId the InterMine ID of the Item that holds this ReferenceList
+     * @throws ObjectStoreException if an error occurs in storing
+     */
+    public void store(org.intermine.model.fulldata.ReferenceList referenceList, Integer itemId) throws ObjectStoreException {
+        chadoDBConverter.getItemWriter().store(referenceList, itemId);
+    }
+
+    /**
+     * Store a single org.intermine.xml.full.ReferenceList
+     * @param referenceList the list to store
+     * @param itemId the InterMine ID of the Item that holds this ReferenceList
+     * @throws ObjectStoreException if an error occurs in storing
+     */
+    public void store(org.intermine.xml.full.ReferenceList referenceList, Integer itemId) throws ObjectStoreException {
+        chadoDBConverter.store(referenceList, itemId);
     }
 
     /**

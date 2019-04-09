@@ -269,16 +269,6 @@ public class ProteinProcessor extends ChadoProcessor {
     }
 
     /**
-     * Store the item.
-     * @param item the Item
-     * @return the database id of the new Item
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected Integer store(Item item) throws ObjectStoreException {
-        return getChadoDBConverter().store(item);
-    }
-
-    /**
      * Get the CVTerm ID for a given CVTerm name.
      * @param stmt the database connection statement, initialized to the chado database
      * @param name the desired CV term name

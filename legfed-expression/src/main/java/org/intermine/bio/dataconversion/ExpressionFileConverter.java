@@ -10,15 +10,12 @@ package org.intermine.bio.dataconversion;
  *
  */
 
-import java.io.File;
-import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.Reader;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Set;
+import java.util.HashSet;
 
 import org.apache.log4j.Logger;
 import org.intermine.dataconversion.ItemWriter;
@@ -56,11 +53,12 @@ public class ExpressionFileConverter extends BioFileConverter {
     
     private static final Logger LOG = Logger.getLogger(ExpressionFileConverter.class);
 
-    // things stored at end
-    Map<String,Item> geneMap = new HashMap<String,Item>();
-    Set<Item> sourceSet = new HashSet<Item>();
-    Set<Item> sampleSet = new HashSet<Item>();
-    Set<Item> valueSet = new HashSet<Item>();
+    // everything is stored in close()
+    Set<Item> publicationSet = new HashSet<>();
+    Map<String,Item> geneMap = new HashMap<>();
+    Set<Item> sourceSet = new HashSet<>();
+    Set<Item> sampleSet = new HashSet<>();
+    Set<Item> valueSet = new HashSet<>();
     
     /**
      * Constructor.
@@ -74,25 +72,28 @@ public class ExpressionFileConverter extends BioFileConverter {
     }
 
     /**
-     * Called for each file found by ant.
+     * Called for each file found.
      *
      * {@inheritDoc}
      */
     public void process(Reader reader) throws Exception {
 
         if (getCurrentFile().getName().contains("README")) return;
-        LOG.info("Processing expression file:"+getCurrentFile().getName()+"...");
         
+	// each file is a source
         Item source = createItem("ExpressionSource");
-        sourceSet.add(source);
+	sourceSet.add(source);
 
-        // quantities held over line reads
-        String geneId = "";
+	// samples per file are carried over line reads
         int numSamples = 0;
-        double[] exprs = null;
         Item[] samples = null;
-        Item[] values = null;
-        
+
+	// gene and value data is carried over line reads in case we're adding transcripts
+	String geneId = ""; // the current gene
+        Item[] values = null; // ExpressionValue per sample
+	double[] exprs = null; // expression values per sample
+
+	// read the file
         BufferedReader br = new BufferedReader(reader);
         String line = null;
 	int lineCount = 0;
@@ -119,8 +120,8 @@ public class ExpressionFileConverter extends BioFileConverter {
                 // create and store the publication shell, just PMID
                 int pmid = Integer.parseInt(parts[1]);
                 Item publication = createItem("Publication");
+		publicationSet.add(publication);
                 publication.setAttribute("pubMedId", String.valueOf(pmid));
-                store(publication);
                 source.setReference("publication", publication);
             } else if (parts[0].equals("Samples")) {
                 // load the samples into an array
@@ -135,7 +136,7 @@ public class ExpressionFileConverter extends BioFileConverter {
                     samples[i].setAttribute("primaryIdentifier", sampleParts[1]);
                     samples[i].setAttribute("description", sampleParts[2]);
                     samples[i].setReference("source", source);
-                    sampleSet.add(samples[i]);
+		    sampleSet.add(samples[i]);
                 }
             } else {
                 // must be an expression line - could be a transcript ID or gene ID
@@ -157,7 +158,7 @@ public class ExpressionFileConverter extends BioFileConverter {
                 boolean newGene = !thisGeneId.equals(geneId);
                 if (newGene) {
                     geneId = thisGeneId;
-                    exprs = new double[numSamples];
+                    exprs = new double[numSamples]; // initialize to zero for addition of values
                     for (int i=0; i<numSamples; i++) {
                         values[i] = createItem("ExpressionValue");
                         valueSet.add(values[i]);
@@ -169,15 +170,12 @@ public class ExpressionFileConverter extends BioFileConverter {
                     gene = geneMap.get(geneId);
                 } else {
                     gene  = createItem("Gene");
+		    gene.setAttribute("primaryIdentifier", geneId);
+		    geneMap.put(geneId, gene);
                 }
-                gene.setAttribute("primaryIdentifier", geneId);
-                geneMap.put(geneId, gene);
-                // add the expression values for this gene
+                // add the expression values for this gene and (re)set the value attributes
                 for (int i=0; i<numSamples; i++) {
                     exprs[i] += Double.parseDouble(parts[i+1]);
-                }
-                // (re)set the values attributes
-                for (int i=0; i<numSamples; i++) {
                     values[i].setAttribute("value", String.valueOf(exprs[i]));
                     values[i].setReference("sample", samples[i]);
                     values[i].setReference("gene", gene);
@@ -187,23 +185,14 @@ public class ExpressionFileConverter extends BioFileConverter {
     }
 
     /**
-     * Store the items we've held in sets or maps.
+     * Store all the stuff.
      */
-    @Override
-    public void close() throws ObjectStoreException {
-
-        LOG.info("Storing "+geneMap.size()+" gene items...");
-        for (Item gene : geneMap.values()) store(gene);
-
-        LOG.info("Storing "+sourceSet.size()+" ExpressionSource items...");
-        for (Item source : sourceSet) store(source);
-        
-        LOG.info("Storing "+sampleSet.size()+" ExpressionSample items...");
-        for (Item sample : sampleSet) store(sample);
-
-        LOG.info("Storing "+valueSet.size()+" ExpressionValue items...");
-        for (Item value : valueSet) store(value);
-
+    public void close() throws java.lang.Exception {
+        store(publicationSet);
+	store(sourceSet);
+	store(sampleSet);
+	store(geneMap.values());
+	store(valueSet);
     }
 
 }

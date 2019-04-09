@@ -334,8 +334,8 @@ public class SequenceProcessor extends ChadoProcessor {
                 Reference chrReference = new Reference();
                 chrReference.setName(SEQUENCE_STRING);
                 chrReference.setRefId(sequence.getIdentifier());
-                getChadoDBConverter().store(chrReference, fdat.getIntermineObjectId());
-                getChadoDBConverter().store(sequence);
+                store(chrReference, fdat.getIntermineObjectId());
+                store(sequence);
                 fdat.setFlag(SEQUENCE_STRING, true);
             }
         }
@@ -351,7 +351,7 @@ public class SequenceProcessor extends ChadoProcessor {
                             if (!fdat.getExistingSynonyms().contains(processedName)) {
                                 Item nameSynonym = createSynonym(fdat, processedName);
                                 if (nameSynonym != null) {
-                                    getChadoDBConverter().store(nameSynonym);
+                                    store(nameSynonym);
                                 }
                             }
                         }
@@ -400,15 +400,15 @@ public class SequenceProcessor extends ChadoProcessor {
      * @return a FeatureData object
      * @throws ObjectStoreException if there is a problem while storing
      */
-    protected FeatureData makeFeatureData(int featureId, String chadoType, String uniqueName, String name, String md5checksum, int seqlen, int organismId) throws ObjectStoreException {
+    protected FeatureData makeFeatureData(int featureId, String chadoType, String uniqueName, String name,
+                                          String md5checksum, int seqlen, int organismId) throws ObjectStoreException {
 
         // convert the chado type to InterMine object name by capitalizing and removing underscores
         String interMineType = TypeUtil.javaiseClassName(fixFeatureType(chadoType));
 
-        // HACK START - Polypeptide -> Protein, PolypeptideDomain -> ProteinDomain
+        // HACK polypeptide -> Protein, polypeptide_domain -> ProteinDomain
         if (chadoType.equals("polypeptide")) interMineType = "Protein";
         if (chadoType.equals("polypeptide_domain")) interMineType = "ProteinDomain";
-        // HACK END
 
         if (DEBUG) debugToLog("makeFeatureData: chadoType="+chadoType+" interMineType="+interMineType);
 
@@ -439,16 +439,6 @@ public class SequenceProcessor extends ChadoProcessor {
         fdat.organismData = organismData;
         fdat.setMd5checksum(md5checksum);
         return fdat;
-    }
-
-    /**
-     * Store the feature Item.
-     * @param feature the Item
-     * @return the database id of the new Item
-     * @throws ObjectStoreException if an error occurs while storing
-     */
-    protected Integer store(Item feature) throws ObjectStoreException {
-        return getChadoDBConverter().store(feature);
     }
 
     /**
@@ -590,7 +580,7 @@ public class SequenceProcessor extends ChadoProcessor {
                     String taxonId = featureData.organismData.getTaxonId();
                     Item location = makeLocation(start, end, strand, srcFeatureData, featureData);
 		    if (location!=null) {
-			getChadoDBConverter().store(location); // location should never be null
+			store(location); // location should never be null
 		    } else {
 			LOG.warn("processLocationTable: NULL location for featureLocId="+featureLocId);
 		    }
@@ -608,12 +598,12 @@ public class SequenceProcessor extends ChadoProcessor {
 			Reference srcReference = new Reference();
 			srcReference.setName(srcFeatureIMReferenceMap.get(srcFeatureData.getInterMineType()));
 			srcReference.setRefId(srcFeatureData.getItemIdentifier());
-			getChadoDBConverter().store(srcReference, featureIntermineObjectId);
+			store(srcReference, featureIntermineObjectId);
 			if (location!=null) {
 			    Reference locReference = new Reference();
 			    locReference.setName(srcFeatureIMLocationMap.get(srcFeatureData.getInterMineType()));
 			    locReference.setRefId(location.getIdentifier());
-			    getChadoDBConverter().store(locReference, featureIntermineObjectId);
+			    store(locReference, featureIntermineObjectId);
 			}
 		    }
 		    // determine length from start and end if not given in chado record
@@ -843,7 +833,7 @@ public class SequenceProcessor extends ChadoProcessor {
                             FeatureData referencedFeatureData = featureDataCollection.get(0);
                             reference.setRefId(referencedFeatureData.getItemIdentifier());
                             // store the Reference
-                            getChadoDBConverter().store(reference, intermineObjectId);
+                            store(reference, intermineObjectId);
                             // special case for 1-1 relations - we need to set the reverse reference
                             ReferenceDescriptor rd = (ReferenceDescriptor) fd;
                             ReferenceDescriptor reverseRD = rd.getReverseReferenceDescriptor();
@@ -854,7 +844,7 @@ public class SequenceProcessor extends ChadoProcessor {
                                 revReference.setRefId(subjectData.getItemIdentifier());
                                 Integer refObjectId = referencedFeatureData.getIntermineObjectId();
 				// store the reverse Reference
-                                getChadoDBConverter().store(revReference, refObjectId);
+                                store(revReference, refObjectId);
                             }
                         }
                         
@@ -881,7 +871,7 @@ public class SequenceProcessor extends ChadoProcessor {
             referenceList.setName(collectionName);
             List<String> idList = entry.getValue();
             referenceList.setRefIds(idList);
-            getChadoDBConverter().store(referenceList, intermineObjectId);
+            store(referenceList, intermineObjectId);
 
             // if there is a field called <classname>Count that matches the name of the collection we just stored, set it
             String countName;
@@ -1005,7 +995,7 @@ public class SequenceProcessor extends ChadoProcessor {
                         }
                         Item synonym = createSynonym(fdat, newFieldValue);
                         if (synonym != null) {
-                            getChadoDBConverter().store(synonym);
+                            store(synonym);
                             count++;
                         }
                     }
@@ -1075,7 +1065,7 @@ public class SequenceProcessor extends ChadoProcessor {
                         }
                         Item synonym = createSynonym(fdat, newFieldValue);
                         if (synonym != null) {
-                            getChadoDBConverter().store(synonym);
+                            store(synonym);
                             count++;
                         }
                     }
@@ -1165,7 +1155,7 @@ public class SequenceProcessor extends ChadoProcessor {
                         }
                         Item synonym = createSynonym(fdat, newFieldValue);
                         if (synonym != null) {
-                            getChadoDBConverter().store(synonym);
+                            store(synonym);
                             count++;
                         }
                     } else {
@@ -1247,7 +1237,7 @@ public class SequenceProcessor extends ChadoProcessor {
                 reference.setName(fd.getName());
                 String itemIdentifier = item.getIdentifier();
                 reference.setRefId(itemIdentifier);
-                getChadoDBConverter().store(reference, intermineObjectId);
+                store(reference, intermineObjectId);
 
                 // XXX FIXME TODO: special case for 1-1 relations - we need to set the reverse
                 // reference
@@ -1258,7 +1248,7 @@ public class SequenceProcessor extends ChadoProcessor {
                 for (Item item: itemList) {
                     referenceList.addRefId(item.getIdentifier());
                 }
-                getChadoDBConverter().store(referenceList, intermineObjectId);
+                store(referenceList, intermineObjectId);
             }
         }
     }
@@ -1343,7 +1333,7 @@ public class SequenceProcessor extends ChadoProcessor {
                         Item synonym =
 			    createSynonym(fdat, newFieldValue);
                         if (synonym != null) {
-                            getChadoDBConverter().store(synonym);
+                            store(synonym);
                             count++;
                         }
                     }
@@ -1443,7 +1433,7 @@ public class SequenceProcessor extends ChadoProcessor {
         }
         Item publication = getChadoDBConverter().createItem("Publication");
         publication.setAttribute("pubMedId", pubMedId.toString());
-        getChadoDBConverter().store(publication); // Stores Publication
+        store(publication); // Stores Publication
         String publicationId = publication.getIdentifier();
         publications.put(pubMedId, publicationId);
         return publicationId;
@@ -1465,7 +1455,7 @@ public class SequenceProcessor extends ChadoProcessor {
         ReferenceList referenceList = new ReferenceList();
         referenceList.setName("publications");
         referenceList.setRefIds(publicationIds);
-        getChadoDBConverter().store(referenceList, fdat.getIntermineObjectId());
+        store(referenceList, fdat.getIntermineObjectId());
     }
 
     /**
