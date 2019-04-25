@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<classes>
+
+  <!-- add Supercontig as standalone sequence features so they don't clutter chromosome space -->
+  <class name="Supercontig"  extends="SequenceFeature" is-interface="true"/>
+
+  <!-- add supercontig and supercontigLocation to all SequenceFeature subclasses -->
+  <class name="SequenceFeature" is-interface="true">
+    <reference name="supercontig" referenced-type="Supercontig" />
+    <reference name="supercontigLocation" referenced-type="Location" />
+  </class>
+
+</classes>
