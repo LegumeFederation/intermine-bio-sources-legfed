@@ -97,7 +97,6 @@
   <class name="Protein" extends="BioEntity" is-interface="true">
     <attribute name="note" type="java.lang.String"/>
     <attribute name="length" type="java.lang.Integer"/>
-    <reference name="strain" referenced-type="Strain"/>
     <reference name="sequence" referenced-type="Sequence"/>
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
     <collection name="consensusRegions" referenced-type="ConsensusRegion"/>
