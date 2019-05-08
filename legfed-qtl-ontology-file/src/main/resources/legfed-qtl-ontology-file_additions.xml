@@ -12,12 +12,10 @@
     <collection name="QTLs" referenced-type="QTL" reverse-reference="phenotype"/>
   </class>
 
-  <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true"/>
   <class name="POAnnotation" extends="OntologyAnnotation" is-interface="true"/>
   <class name="TOAnnotation" extends="OntologyAnnotation" is-interface="true"/>
   <class name="COAnnotation" extends="OntologyAnnotation" is-interface="true"/>
 
-  <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
   <class name="POTerm" extends="OntologyTerm" is-interface="true"/>
   <class name="TOTerm" extends="OntologyTerm" is-interface="true"/>
   <class name="COTerm" extends="OntologyTerm" is-interface="true"/>

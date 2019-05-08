@@ -18,10 +18,9 @@ import org.intermine.xml.full.Item;
  * Handle special cases when converting LegFed GFF3 files.
  *
  * @author Richard Smith
+ * @author Sam Hokin
  */
-
-public class LegfedGFF3RecordHandler extends GFF3RecordHandler
-{
+public class LegfedGFF3RecordHandler extends GFF3RecordHandler {
     /**
      * Create a new LegfedGFF3RecordHandler object.
      * @param tgtModel the target Model
@@ -31,6 +30,7 @@ public class LegfedGFF3RecordHandler extends GFF3RecordHandler
         // refsAndCollections controls references and collections that are set from the
         // Parent= attributes in the GFF3 file.
         refsAndCollections.put("Exon", "transcripts");
+        refsAndCollections.put("Transcript", "gene");
         refsAndCollections.put("MRNA", "gene");
     }
 
@@ -40,5 +40,31 @@ public class LegfedGFF3RecordHandler extends GFF3RecordHandler
     public void process(GFF3Record record) {
         Item feature = getFeature();
         String clsName = feature.getClassName();
+
+        // type             id                                                          name
+        // ---------------- ----------------------------------------------------------- ------------------------
+        // five_prime_UTR   phavu.G19833.gnm2.ann1.Phvul.003G111100.1.five_prime_UTR.3  null
+        // CDS              phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1             null
+        // three_prime_UTR  phavu.G19833.gnm2.ann1.Phvul.003G111100.1.three_prime_UTR.1 null
+        // gene             phavu.G19833.gnm2.ann1.Phvul.003G111200                     phavu.Phvul.003G111200
+        // mRNA             phavu.G19833.gnm2.ann1.Phvul.003G111200.1                   phavu.Phvul.003G111200.1
+
+        String type = record.getType();
+        String id = record.getId();
+        String name = null;
+        if (record.getAttributes().get("Name")!=null) {
+            name = record.getAttributes().get("Name").iterator().next();
+            if (name.charAt(5)=='.') {
+                name = name.substring(6);
+            }
+        } else {
+            // 0     1      2    3    4     5          6 7   8
+            // phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1
+            String[] parts = id.split("\\.");
+            if (parts.length==9) {
+                name = parts[4]+"."+parts[5]+"."+parts[6]+"."+parts[7]+"."+parts[8];
+            }
+        }
+        if (name!=null) feature.setAttribute("secondaryIdentifier", name);
     }
 }

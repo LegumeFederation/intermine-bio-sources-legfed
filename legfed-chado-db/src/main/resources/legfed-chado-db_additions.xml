@@ -177,12 +177,6 @@
     <reference name="supercontigLocation" referenced-type="Location" />
   </class>
 
-  <!-- defined here for post-processor -->
-  <class name="GOTerm" extends="OntologyTerm" is-interface="true"/>
-
-  <!-- defined here for post-processor -->
-  <class name="GOAnnotation" extends="OntologyAnnotation" is-interface="true" />
-
   <!-- loaded from Plant Reactome file -->
   <class name="Pathway" is-interface="true" >
      <attribute name="identifier" type="java.lang.String"/>

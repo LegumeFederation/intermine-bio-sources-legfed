@@ -188,8 +188,8 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         }
         long now = System.currentTimeMillis();
         LOG.info("Finished dataloading " + storeCount + " objects at " + ((60000L * storeCount)
-                / (now - start)) + " objects per minute (" + (now - start)
-                + " ms total) for source " + sourceName);
+                                                                          / (now - start)) + " objects per minute (" + (now - start)
+                 + " ms total) for source " + sourceName);
     }
 
     /**
@@ -241,10 +241,9 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
             LOG.debug("LegfedFastaLoaderTask loading file " + file.getName());
             if ("dna".equalsIgnoreCase(sequenceType)) {
                 FastaReader<DNASequence, NucleotideCompound> aFastaReader
-                        = new FastaReader<DNASequence, NucleotideCompound>(file,
-                        new PlainFastaHeaderParser<DNASequence, NucleotideCompound>(),
-                        new DNASequenceCreator(AmbiguityDNACompoundSet.getDNACompoundSet()));
-
+                    = new FastaReader<DNASequence, NucleotideCompound>(file,
+                                                                       new PlainFastaHeaderParser<DNASequence, NucleotideCompound>(),
+                                                                       new DNASequenceCreator(AmbiguityDNACompoundSet.getDNACompoundSet()));
                 LinkedHashMap<String, DNASequence> b = aFastaReader.process();
                 for (Entry<String, DNASequence> entry : b.entrySet()) {
                     Sequence bioJavaSequence = entry.getValue();
@@ -252,23 +251,22 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
                 }
             } else {
                 LinkedHashMap<String, ProteinSequence> b =
-                        FastaReaderHelper.readFastaProteinSequence(file);
+                    FastaReaderHelper.readFastaProteinSequence(file);
                 for (Entry<String, ProteinSequence> entry : b.entrySet()) {
                     Sequence bioJavaSequence = entry.getValue();
-                    processSequence(getOrganism((ProteinSequence) bioJavaSequence), null, bioJavaSequence);
+                    processSequence(getOrganism((ProteinSequence) bioJavaSequence), getStrain(bioJavaSequence), bioJavaSequence);
                 }
             }
         } catch (ParserException e) {
-            throw new BuildException("sequence not in fasta format or wrong alphabet for: "
-                    + file, e);
+            throw new BuildException("sequence not in fasta format or wrong alphabet for: "+file, e);
         } catch (NoSuchElementException e) {
-            throw new BuildException("no fasta sequences in: " + file, e);
+            throw new BuildException("no fasta sequences in: "+file, e);
         } catch (FileNotFoundException e) {
-            throw new BuildException("problem reading file - file not found: " + file, e);
+            throw new BuildException("problem reading file - file not found: "+file, e);
         } catch (ObjectStoreException e) {
-            throw new BuildException("ObjectStore problem while processing: " + file, e);
+            throw new BuildException("ObjectStore problem while processing: "+file, e);
         } catch (IOException e) {
-            throw new BuildException("error while closing FileReader for: " + file, e);
+            throw new BuildException("error while closing FileReader for: "+file, e);
         }
     }
 
@@ -355,16 +353,13 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         try {
             imo.setFieldValue(classAttribute, attributeValue);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error setting: " + className + "."
-                    + classAttribute + " to: " + attributeValue
-                    + ". Does the attribute exist?");
+            throw new IllegalArgumentException("Error setting: "+className+"."+classAttribute+" to: "+attributeValue+". Does the attribute exist?");
         }
         
         try {
             imo.setFieldValue("sequence", bioSequence);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error setting: " + className + ".sequence to: "
-                    + attributeValue + ". Does the attribute exist?");
+            throw new IllegalArgumentException("Error setting: "+className+".sequence to: "+attributeValue+". Does the attribute exist?");
         }
         
         imo.setOrganism(organism);
@@ -373,8 +368,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         try {
             imo.setFieldValue("length", new Integer(bioSequence.getLength()));
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error setting: " + className + ".length to: "
-                    + bioSequence.getLength() + ". Does the attribute exist?");
+            throw new IllegalArgumentException("Error setting: "+className+".length to: "+bioSequence.getLength()+". Does the attribute exist?");
         }
 
         try {
@@ -421,8 +415,8 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
 
 
     /**
-     * Do any extra processing needed for this record (extra attributes, objects, references etc.)
-     * This method is called before the new objects are stored
+     * Do any extra processing needed for this record (extra attributes, objects, references, etc.).
+     * This method is called before the new objects are stored.
      * @param bioJavaSequence the BioJava Sequence
      * @param imSequence the IntermMine Sequence
      * @param bioEntity the object that references the sequence
@@ -432,8 +426,16 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
      */
     protected void  extraProcessing(Sequence bioJavaSequence, org.intermine.model.bio.Sequence imSequence,
                                     BioEntity bioEntity, Organism organism, Strain strain, DataSet dataSet)
-            throws ObjectStoreException {
-        // default - no extra processing
+        throws ObjectStoreException {
+        // create a trimmed secondaryIdentifier
+        String identifier = getIdentifier(bioJavaSequence);
+        String[] parts = identifier.split("\\.");
+        if (parts.length==7) {
+            // 0     1      2    3    4     5          6
+            // phavu.G19833.gnm2.ann1.Phvul.010G034400.1
+            String secondaryIdentifier = parts[4]+"."+parts[5]+"."+parts[6];
+            bioEntity.setSecondaryIdentifier(secondaryIdentifier);
+        }
     }
 
     /**
@@ -505,7 +507,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
      * @return the new Organism
      */
     protected Organism getOrganism(ProteinSequence bioJavaSequence)
-            throws ObjectStoreException {
+        throws ObjectStoreException {
         if (org == null) {
             org = getDirectDataLoader().createObject(Organism.class);
             org.setTaxonId(fastaTaxonId);
