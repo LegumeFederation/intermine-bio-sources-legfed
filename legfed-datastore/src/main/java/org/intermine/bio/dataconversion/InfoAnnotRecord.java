@@ -11,9 +11,8 @@ package org.intermine.bio.dataconversion;
  */
 
 /**
- * Encapsulates a single tab-delimited LIS data store annot_info file record.
+ * Encapsulates a single tab-delimited LIS datastore info_annot.txt file record.
  *
- * Format:
  * pacId locusName transcriptName peptideName Pfam Panther KOG ec KO GO Best-hit-arabi-name arabi-symbol arabi-defline
  * 37170591 Phvul.001G000400 Phvul.001G000400.1 Phvul.001G000400.1.p PF00504 PTHR21649,PTHR21649:SF24 1.10.3.9 K14172 GO:0016020,GO:0009765 AT1G76570.1	Chlorophyll A-B binding family protein
  *
@@ -21,7 +20,7 @@ package org.intermine.bio.dataconversion;
  *
  * @author Sam Hokin
  */
-public class AnnotInfoRecord {
+public class InfoAnnotRecord {
     
     String pacId;
     String locusName;
@@ -40,7 +39,7 @@ public class AnnotInfoRecord {
     /**
      * Instantiate from a line from an LIS data store annot_nfo file. Do nothing if it's a header line.
      */
-    public AnnotInfoRecord(String line) {
+    public InfoAnnotRecord(String line) {
         if (!line.startsWith("#")) {
             try {
                 // parse line
@@ -61,7 +60,7 @@ public class AnnotInfoRecord {
                 // munge identifiers
                 if (peptideName.endsWith(".p")) peptideName = peptideName.substring(0, peptideName.length()-2);
             } catch (Exception ex) {
-                throw new RuntimeException("Error parsing AnnotInfo line:\n" +
+                throw new RuntimeException("Error parsing info_annot file line:\n" +
                                            line+"\n" +
                                            " pacId="+pacId +
                                            " locusName="+locusName +
@@ -78,6 +77,5 @@ public class AnnotInfoRecord {
                                            " bestHitAtDefline="+bestHitAtDefline);
             }
         }
-
     }
 }

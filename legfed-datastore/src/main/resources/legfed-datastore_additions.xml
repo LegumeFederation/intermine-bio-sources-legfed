@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<classes>
+
+  <class name="Organism" is-interface="true">
+    <attribute name="description" type="java.lang.String"/>
+  </class>
+  
+  <class name="Strain" is-interface="true">
+    <attribute name="accession" type="java.lang.String"/>
+    <attribute name="name" type="java.lang.String"/>
+    <attribute name="origin" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
+  </class>
+
+  <class name="GeneFamily" extends="Annotatable" is-interface="true">
+    <attribute name="identifier" type="java.lang.String"/>
+    <attribute name="description" type="java.lang.String"/>
+    <!-- include version since it's in each gene family record, e.g. "legfed_v1_0" -->
+    <attribute name="version" type="java.lang.String"/>
+    <!-- dataSet has a version like "fam1" -->
+    <reference name="dataSet" referenced-type="DataSet"/>
+    <collection name="proteins" referenced-type="Protein" reverse-reference="geneFamily"/>
+    <collection name="proteinDomains" referenced-type="ProteinDomain" reverse-reference="geneFamilies"/>
+  </class>
+
+  <class name="Protein" is-interface="true">
+    <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="proteins"/>
+  </class>
+
+  <class name="ProteinDomain" is-interface="true">
+    <collection name="geneFamilies" referenced-type="GeneFamily" reverse-reference="proteinDomains"/>
+  </class>
+  
+</classes>

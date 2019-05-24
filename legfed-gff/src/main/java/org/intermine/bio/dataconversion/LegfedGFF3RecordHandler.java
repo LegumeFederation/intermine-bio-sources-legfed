@@ -52,19 +52,35 @@ public class LegfedGFF3RecordHandler extends GFF3RecordHandler {
         String type = record.getType();
         String id = record.getId();
         String name = null;
+        String assemblyVersion = null;
+        String annotationVersion = null;
+        String nameFromId = null;
+        
+        // 0     1      2    3    4     5          6 7   8
+        // phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1
+        String[] parts = id.split("\\.");
+        if (parts.length>2) assemblyVersion = parts[2];
+        if (parts.length>3) annotationVersion = parts[3];
+        if (parts.length>8) {
+            nameFromId = parts[4]+"."+parts[5]+"."+parts[6]+"."+parts[7]+"."+parts[8];
+        } else if (parts.length>6) {
+            nameFromId = parts[4]+"."+parts[5]+"."+parts[6];
+        } else if (parts.length>5) {
+            nameFromId = parts[4]+"."+parts[5];
+        }
+
         if (record.getAttributes().get("Name")!=null) {
             name = record.getAttributes().get("Name").iterator().next();
-            if (name.charAt(5)=='.') {
-                name = name.substring(6);
-            }
-        } else {
-            // 0     1      2    3    4     5          6 7   8
-            // phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1
-            String[] parts = id.split("\\.");
-            if (parts.length==9) {
-                name = parts[4]+"."+parts[5]+"."+parts[6]+"."+parts[7]+"."+parts[8];
-            }
+            if (name.charAt(5)=='.') name = name.substring(6);
         }
-        if (name!=null) feature.setAttribute("secondaryIdentifier", name);
+
+        // set attributes
+        if (name!=null) {
+            feature.setAttribute("secondaryIdentifier", name);
+        } else if (nameFromId!=null) {
+            feature.setAttribute("secondaryIdentifier", nameFromId);
+        }
+        if (assemblyVersion!=null) feature.setAttribute("assemblyVersion", assemblyVersion);
+        if (annotationVersion!=null) feature.setAttribute("annotationVersion", annotationVersion);
     }
 }

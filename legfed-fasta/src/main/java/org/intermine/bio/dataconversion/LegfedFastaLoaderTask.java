@@ -63,12 +63,14 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     private String classAttribute = "primaryIdentifier";
     private Organism org;
     private Strain strain;
+    private String strainName;
+    private String assemblyVersion;
+    private String annotationVersion; // for proteins
     private String className;
     private int storeCount = 0;
     private String dataSourceName = null;
     private DataSource dataSource = null;
     private String fastaTaxonId = null;
-    private String fastaStrain = null;
     private Map<String, String> taxonIds = new HashMap<String, String>();
 
     /**
@@ -90,14 +92,6 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     public void setTaxonId(String fastaTaxonId) {
         this.fastaTaxonId = fastaTaxonId;
         parseTaxonIds();
-    }
-
-    /**
-     * Set the name of the strain we are loading.
-     * @param fastaStrain the strain to set.
-     */
-    public void setStrain(String fastaStrain) {
-        this.fastaStrain = fastaStrain;
     }
 
     /**
@@ -237,9 +231,18 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     @Override
     public void processFile(File file) {
         try {
-            System.err .println("reading " + sequenceType + " sequence from: " + file);
-            LOG.debug("LegfedFastaLoaderTask loading file " + file.getName());
-            if ("dna".equalsIgnoreCase(sequenceType)) {
+            System.out.println("Reading "+sequenceType+" sequences from: "+file);
+            LOG.info("LegfedFastaLoaderTask loading file "+file.getName());
+            // pull the strain and assembly version from the file name
+            // 0     1      2    3    4    5       6
+            // phavu.G19833.gnm2.ann1.PB8d.protein.faa
+            // 0     1      2    3    4           5
+            // phavu.G19833.gnm2.fC0g.genome_main.fna
+            String[] parts = file.getName().split("\\.");
+            strainName = parts[1];
+            assemblyVersion = parts[2];
+            if (parts.length==7) annotationVersion = parts[3];
+            if (sequenceType.equalsIgnoreCase("dna")) {
                 FastaReader<DNASequence, NucleotideCompound> aFastaReader
                     = new FastaReader<DNASequence, NucleotideCompound>(file,
                                                                        new PlainFastaHeaderParser<DNASequence, NucleotideCompound>(),
@@ -258,15 +261,15 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
                 }
             }
         } catch (ParserException e) {
-            throw new BuildException("sequence not in fasta format or wrong alphabet for: "+file, e);
+            throw new BuildException("Sequence not in FASTA format or wrong alphabet for: "+file, e);
         } catch (NoSuchElementException e) {
-            throw new BuildException("no fasta sequences in: "+file, e);
+            throw new BuildException("No FASTA sequences in: "+file, e);
         } catch (FileNotFoundException e) {
-            throw new BuildException("problem reading file - file not found: "+file, e);
+            throw new BuildException("Problem reading file - file not found: "+file, e);
         } catch (ObjectStoreException e) {
             throw new BuildException("ObjectStore problem while processing: "+file, e);
         } catch (IOException e) {
-            throw new BuildException("error while closing FileReader for: "+file, e);
+            throw new BuildException("Error while closing FileReader for: "+file, e);
         }
     }
 
@@ -294,10 +297,8 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     protected Strain getStrain(Sequence bioJavaSequence) throws ObjectStoreException {
         if (strain == null) {
             strain = getDirectDataLoader().createObject(Strain.class);
-            strain.setPrimaryIdentifier(fastaStrain);
-            if (org!=null) {
-                strain.setOrganism(org);
-            }
+            strain.setPrimaryIdentifier(strainName);
+            if (org!=null) strain.setOrganism(org);
             getDirectDataLoader().store(strain);
         }
         return strain;
@@ -364,6 +365,8 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         
         imo.setOrganism(organism);
         if (strain!=null) imo.setStrain(strain);
+        if (assemblyVersion!=null) imo.setAssemblyVersion(assemblyVersion);
+        if (annotationVersion!=null) imo.setAnnotationVersion(annotationVersion);
 
         try {
             imo.setFieldValue("length", new Integer(bioSequence.getLength()));
