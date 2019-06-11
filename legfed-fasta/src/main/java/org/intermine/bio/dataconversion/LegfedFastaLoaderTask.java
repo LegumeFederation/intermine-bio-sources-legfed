@@ -69,9 +69,14 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     private String className;
     private int storeCount = 0;
     private String dataSourceName = null;
+    private String dataSourceUrl = null;
     private DataSource dataSource = null;
+    private String dataSetTitle;
+    private String dataSetUrl;
+    private String dataSetVersion; // from file name
+    private Map<String, DataSet> dataSets = new HashMap<String, DataSet>();
     private String fastaTaxonId = null;
-    private Map<String, String> taxonIds = new HashMap<String, String>();
+    
 
     /**
      * Append this suffix to the identifier of the BioEnitys that are stored.
@@ -81,18 +86,24 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     //Set this if we want to do some testing...
     private File[] files = null;
 
-    private String dataSetTitle;
 
-    private Map<String, DataSet> dataSets = new HashMap<String, DataSet>();
-
-    /**
-     * Set the Taxon Id of the Organism we are loading.  Can be space delimited list of taxonIds
-     * @param fastaTaxonId the taxon id to set.
-     */
-    public void setTaxonId(String fastaTaxonId) {
-        this.fastaTaxonId = fastaTaxonId;
-        parseTaxonIds();
-    }
+    // map gensp to taxon Ids for associating dir/file names with organisms
+    private static Map<String,String> genspTaxonIds = new HashMap<String,String>() {{
+            put("aradu","130453");
+            put("arahy","3818");
+            put("araip","130454");
+            put("cajan","3821");
+            put("cicar","3827");
+            put("glyma","3847");
+            put("lotja","34305");
+            put("lupan","3871");
+            put("medtr","3880");
+            put("phavu","3885");
+            put("tripr","57577 ");
+            put("vigan","3914");
+            put("vigra","157791");
+            put("vigun","3920");
+        }};
 
     /**
      * Set the sequence type to be passed to the FASTA parser.  The default is "dna".
@@ -142,11 +153,19 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     }
 
     /**
-     * Datasource for any bioentities created
+     * DataSource.name for any bioentities created
      * @param dataSourceName name of datasource for items created
      */
     public void setDataSourceName(String dataSourceName) {
         this.dataSourceName = dataSourceName;
+    }
+
+    /**
+     * DataSource.url for any bioentities created
+     * @param dataSourceUrl url of datasource for items created
+     */
+    public void setDataSourceUrl(String dataSourceUrl) {
+        this.dataSourceUrl = dataSourceUrl;
     }
 
     /**
@@ -155,6 +174,14 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
      */
     public void setDataSetTitle(String dataSetTitle) {
         this.dataSetTitle = dataSetTitle;
+    }
+
+    /**
+     * If a value is specified this url will used when a DataSet is created.
+     * @param dataSetUrl the title of the DataSets of any new features
+     */
+    public void setDataSetUrl(String dataSetUrl) {
+        this.dataSetUrl = dataSetUrl;
     }
 
     /**
@@ -205,9 +232,6 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         if (getProject() != null) {
             configureDynamicAttributes(this);
         }
-        if (fastaTaxonId == null) {
-            throw new RuntimeException("fastaTaxonId needs to be set");
-        }
         if (className == null) {
             throw new RuntimeException("className needs to be set");
         }
@@ -231,17 +255,28 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     @Override
     public void processFile(File file) {
         try {
+            System.out.println("####################################################################################################################");
             System.out.println("Reading "+sequenceType+" sequences from: "+file);
+            System.out.println("####################################################################################################################");
             LOG.info("LegfedFastaLoaderTask loading file "+file.getName());
-            // pull the strain and assembly version from the file name
+            // pull the organism, strain, assembly and annotation version (if present) from the file name
             // 0     1      2    3    4    5       6
             // phavu.G19833.gnm2.ann1.PB8d.protein.faa
             // 0     1      2    3    4           5
             // phavu.G19833.gnm2.fC0g.genome_main.fna
             String[] parts = file.getName().split("\\.");
+            String gensp = parts[0];
+            fastaTaxonId = genspTaxonIds.get(gensp);
+            if (fastaTaxonId==null) {
+                throw new RuntimeException("Organism "+gensp+" is not in the genspTaxonIds map.");
+            }
             strainName = parts[1];
             assemblyVersion = parts[2];
-            if (parts.length==7) annotationVersion = parts[3];
+            dataSetVersion = assemblyVersion;
+            if (parts.length==7) {
+                annotationVersion = parts[3];
+                dataSetVersion += "."+annotationVersion;
+            }
             if (sequenceType.equalsIgnoreCase("dna")) {
                 FastaReader<DNASequence, NucleotideCompound> aFastaReader
                     = new FastaReader<DNASequence, NucleotideCompound>(file,
@@ -380,11 +415,11 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
             // Ignore - we don't care if the field doesn't exist.
         }
 
-        extraProcessing(bioJavaSequence, bioSequence, imo, organism, strain, getDataSet());
-
         if (StringUtils.isEmpty(dataSetTitle)) {
-            throw new RuntimeException("DataSet title (fasta.dataSetTitle) not set");
+            throw new RuntimeException("DataSet title (legfed-fasta.dataSetTitle) not set.");
         }
+
+        extraProcessing(bioJavaSequence, bioSequence, imo, organism, strain, getDataSet());
 
         DataSet dataSet = getDataSet();
         imo.addDataSets(dataSet);
@@ -408,9 +443,9 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         }
         DataSet dataSet = getDirectDataLoader().createObject(DataSet.class);
         dataSet.setName(dataSetTitle);
-        if (dataSourceName != null) {
-            dataSet.setDataSource(getDataSource());
-        }
+        if (dataSetUrl!=null) dataSet.setUrl(dataSetUrl);
+        if (dataSetVersion!=null) dataSet.setVersion(dataSetVersion);
+        if (dataSourceName!=null) dataSet.setDataSource(getDataSource());
         getDirectDataLoader().store(dataSet);
         dataSets.put(dataSetTitle, dataSet);
         return dataSet;
@@ -427,8 +462,8 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
      * @param dataSet the DataSet object
      * @throws ObjectStoreException if a store() fails during processing
      */
-    protected void  extraProcessing(Sequence bioJavaSequence, org.intermine.model.bio.Sequence imSequence,
-                                    BioEntity bioEntity, Organism organism, Strain strain, DataSet dataSet)
+    protected void extraProcessing(Sequence bioJavaSequence, org.intermine.model.bio.Sequence imSequence,
+                                   BioEntity bioEntity, Organism organism, Strain strain, DataSet dataSet)
         throws ObjectStoreException {
         // create a trimmed secondaryIdentifier
         String identifier = getIdentifier(bioJavaSequence);
@@ -474,33 +509,11 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         if (dataSource == null) {
             dataSource = getDirectDataLoader().createObject(DataSource.class);
             dataSource.setName(dataSourceName);
+            if (dataSourceUrl!=null) dataSource.setUrl(dataSourceUrl);
             getDirectDataLoader().store(dataSource);
             storeCount += 1;
         }
         return dataSource;
-    }
-
-    /**
-     * @param name eg. Drosophila melanogaster
-     * @return the taxonId
-     */
-    protected String getTaxonId(String name) {
-        return taxonIds.get(name);
-    }
-
-    /**
-     * some fasta files use organism name instead of taxonId, so we need a lookup map
-     * taxons are taken from project.xml.  any entries in the fasta files from organisms not in
-     * this list will be ignored
-     */
-    private void parseTaxonIds() {
-        OrganismRepository repo = OrganismRepository.getOrganismRepository();
-        String[] fastaTaxonIds = fastaTaxonId.split(" ");
-        for (String taxonId : fastaTaxonIds) {
-            OrganismData organismData = repo.getOrganismDataByTaxonInternal(taxonId);
-            String name = organismData.getGenus() + " " + organismData.getSpecies();
-            taxonIds.put(name, taxonId);
-        }
     }
 
     /**

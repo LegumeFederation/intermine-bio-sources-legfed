@@ -69,10 +69,11 @@ public class LegfedGFF3RecordHandler extends GFF3RecordHandler {
             nameFromId = parts[4]+"."+parts[5];
         }
 
-        if (record.getAttributes().get("Name")!=null) {
-            name = record.getAttributes().get("Name").iterator().next();
-            if (name.charAt(5)=='.') name = name.substring(6);
-        }
+        // commented out because currently inconsistent between versions 5/28/19
+        // if (record.getAttributes().get("Name")!=null) {
+        //     name = record.getAttributes().get("Name").iterator().next();
+        //     if (name.charAt(5)=='.') name = name.substring(6);
+        // }
 
         // set attributes
         if (name!=null) {

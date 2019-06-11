@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
 <classes>
 
+  <!-- abbreviation=phavu, etc. -->
   <class name="Organism" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
+    <attribute name="abbreviation" type="java.lang.String"/>
   </class>
   
   <class name="Strain" is-interface="true">
@@ -12,7 +14,7 @@
     <attribute name="description" type="java.lang.String"/>
   </class>
 
-  <class name="GeneFamily" extends="Annotatable" is-interface="true">
+  <class name="GeneFamily" is-interface="true">
     <attribute name="identifier" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
     <!-- include version since it's in each gene family record, e.g. "legfed_v1_0" -->
@@ -29,6 +31,21 @@
 
   <class name="ProteinDomain" is-interface="true">
     <collection name="geneFamilies" referenced-type="GeneFamily" reverse-reference="proteinDomains"/>
+  </class>
+
+  <!-- for post-processors -->
+  <class name="MRNA" extends="Transcript" is-interface="true"/>
+
+  <!-- to be updated with new IM core Homologue model! -->
+  <class name="Gene" is-interface="true">
+    <collection name="homologues" referenced-type="Homologue"/>
+  </class>
+  <class name="Homologue" is-interface="true">
+    <attribute name="type" type="java.lang.String"/>
+    <reference name="geneFamily" referenced-type="GeneFamily"/>
+    <reference name="gene" referenced-type="Gene" reverse-reference="homologues"/>
+    <reference name="homologue" referenced-type="Gene"/>
+    <collection name="dataSets" referenced-type="DataSet"/>
   </class>
   
 </classes>
