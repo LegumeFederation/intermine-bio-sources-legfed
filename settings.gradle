@@ -18,14 +18,14 @@ rootProject.name = 'bio-sources-legfed'
 // 	':bio-source-legfed-qtl-ontology-file',
 // 	':bio-source-legfed-snpmarker-file',
 // 	':bio-source-legfed-snpvcf-file',
-// 	':bio-source-legfed-synteny-gff',
 //  	':bio-source-legfed-trait-ontology',
 // 	':bio-source-legfed-strains-file',
 // 	':bio-source-legfed-phenotypes-file',
 
 include	':bio-source-legfed-gff',
 	':bio-source-legfed-fasta',
-	':bio-source-legfed-datastore'
+	':bio-source-legfed-datastore',
+	':bio-source-legfed-synteny-gff'
 
 // project(':bio-source-legfed-chado-db').projectDir = new File(settingsDir, 'legfed-chado-db')
 // project(':bio-source-legfed-cmap-file').projectDir = new File(settingsDir, 'legfed-cmap-file')
@@ -45,7 +45,6 @@ include	':bio-source-legfed-gff',
 // project(':bio-source-legfed-qtl-ontology-file').projectDir = new File(settingsDir, 'legfed-qtl-ontology-file')
 // project(':bio-source-legfed-snpmarker-file').projectDir = new File(settingsDir, 'legfed-snpmarker-file')
 // project(':bio-source-legfed-snpvcf-file').projectDir = new File(settingsDir, 'legfed-snpvcf-file')
-// project(':bio-source-legfed-synteny-gff').projectDir = new File(settingsDir, 'legfed-synteny-gff')
 // project(':bio-source-legfed-trait-ontology').projectDir = new File(settingsDir, 'legfed-trait-ontology')
 // project(':bio-source-legfed-strains-file').projectDir = new File(settingsDir, 'legfed-strains-file')
 // project(':bio-source-legfed-phenotypes-file').projectDir = new File(settingsDir, 'legfed-phenotypes-file')
@@ -53,3 +52,4 @@ include	':bio-source-legfed-gff',
 project(':bio-source-legfed-gff').projectDir = new File(settingsDir, 'legfed-gff')
 project(':bio-source-legfed-fasta').projectDir = new File(settingsDir, 'legfed-fasta')
 project(':bio-source-legfed-datastore').projectDir = new File(settingsDir, 'legfed-datastore')
+project(':bio-source-legfed-synteny-gff').projectDir = new File(settingsDir, 'legfed-synteny-gff')

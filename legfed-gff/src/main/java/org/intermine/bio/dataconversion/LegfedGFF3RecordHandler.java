@@ -15,7 +15,7 @@ import org.intermine.metadata.Model;
 import org.intermine.xml.full.Item;
 
 /**
- * Handle special cases when converting LegFed GFF3 files.
+ * Handle special cases when converting LIS data store GFF3 files.
  *
  * @author Richard Smith
  * @author Sam Hokin
@@ -52,6 +52,8 @@ public class LegfedGFF3RecordHandler extends GFF3RecordHandler {
         String type = record.getType();
         String id = record.getId();
         String name = null;
+        String gensp = null;
+        String strainName = null;
         String assemblyVersion = null;
         String annotationVersion = null;
         String nameFromId = null;
@@ -59,10 +61,14 @@ public class LegfedGFF3RecordHandler extends GFF3RecordHandler {
         // 0     1      2    3    4     5          6 7   8
         // phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1
         String[] parts = id.split("\\.");
-        if (parts.length>2) assemblyVersion = parts[2];
-        if (parts.length>3) annotationVersion = parts[3];
+        gensp = parts[0];
+        strainName = parts[1];
+        assemblyVersion = parts[2];
+        annotationVersion = parts[3];
         if (parts.length>8) {
             nameFromId = parts[4]+"."+parts[5]+"."+parts[6]+"."+parts[7]+"."+parts[8];
+        } else if (parts.length>7) {
+            nameFromId = parts[4]+"."+parts[5]+"."+parts[6]+"."+parts[7];
         } else if (parts.length>6) {
             nameFromId = parts[4]+"."+parts[5]+"."+parts[6];
         } else if (parts.length>5) {

@@ -49,7 +49,7 @@ import org.intermine.task.FileDirectDataLoaderTask;
  * A task that can read a set of FASTA files and create the corresponding Sequence objects in an
  * ObjectStore.
  *
- * This minor tweak changes the class to Supercontig if the identifier contains "scaffold".
+ * This minor tweak changes the class to Supercontig if the identifier contains "scaffold" or other LIS indicators.
  *
  * @author Kim Rutherford
  * @author Peter Mclaren
@@ -76,7 +76,9 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     private String dataSetVersion; // from file name
     private Map<String, DataSet> dataSets = new HashMap<String, DataSet>();
     private String fastaTaxonId = null;
-    
+   
+    // map gensp to taxonId
+    Map<String,String> genspTaxonId = new HashMap<>();
 
     /**
      * Append this suffix to the identifier of the BioEnitys that are stored.
@@ -85,25 +87,6 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
 
     //Set this if we want to do some testing...
     private File[] files = null;
-
-
-    // map gensp to taxon Ids for associating dir/file names with organisms
-    private static Map<String,String> genspTaxonIds = new HashMap<String,String>() {{
-            put("aradu","130453");
-            put("arahy","3818");
-            put("araip","130454");
-            put("cajan","3821");
-            put("cicar","3827");
-            put("glyma","3847");
-            put("lotja","34305");
-            put("lupan","3871");
-            put("medtr","3880");
-            put("phavu","3885");
-            put("tripr","57577 ");
-            put("vigan","3914");
-            put("vigra","157791");
-            put("vigun","3920");
-        }};
 
     /**
      * Set the sequence type to be passed to the FASTA parser.  The default is "dna".
@@ -198,6 +181,9 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     @Override
     public void process() {
         long start = System.currentTimeMillis();
+        // get the organism data
+        DatastoreUtils dsu = new DatastoreUtils();
+        genspTaxonId = dsu.getGenspTaxonId();
         try {
             storeCount++;
             super.process();
@@ -266,9 +252,9 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
             // phavu.G19833.gnm2.fC0g.genome_main.fna
             String[] parts = file.getName().split("\\.");
             String gensp = parts[0];
-            fastaTaxonId = genspTaxonIds.get(gensp);
+            fastaTaxonId = genspTaxonId.get(gensp);
             if (fastaTaxonId==null) {
-                throw new RuntimeException("Organism "+gensp+" is not in the genspTaxonIds map.");
+                throw new RuntimeException("Organism "+gensp+" is not in the genspTaxonId map.");
             }
             strainName = parts[1];
             assemblyVersion = parts[2];
@@ -365,8 +351,23 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         // the identifier
         String attributeValue = getIdentifier(bioJavaSequence);
 
-        // HACK: change the className to "Supercontig" if identifier contains "scaffold"
-        if (attributeValue.toLowerCase().contains("scaffold")) {
+        // HACK: don't allow spaces or tabs in sequence primary identifiers; set symbol=extra part
+        String symbol = null;
+        String[] spaceChunks = attributeValue.split(" ");
+        if (spaceChunks.length>1) {
+            attributeValue = spaceChunks[0];
+            symbol = spaceChunks[1];
+        }
+        String[] tabChunks = attributeValue.split("\t");
+        if (tabChunks.length>1) {
+            attributeValue = tabChunks[0];
+            symbol = tabChunks[1];
+        }
+
+        // HACK: change the className to "Supercontig" if identifier contains "scaffold" or ends in "sc" etc.
+        String[] dotparts = attributeValue.split("\\.");
+        String lastPart = dotparts[dotparts.length-1];
+        if (attributeValue.toLowerCase().contains("scaffold") || lastPart.contains("sc")) {
             className = "org.intermine.model.bio.Supercontig";
         }
 
@@ -395,9 +396,9 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         try {
             imo.setFieldValue("sequence", bioSequence);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error setting: "+className+".sequence to: "+attributeValue+". Does the attribute exist?");
+            throw new IllegalArgumentException("Error setting: "+className+".sequence to: "+attributeValue+". Does the sequence attribute exist?");
         }
-        
+
         imo.setOrganism(organism);
         if (strain!=null) imo.setStrain(strain);
         if (assemblyVersion!=null) imo.setAssemblyVersion(assemblyVersion);
@@ -414,6 +415,13 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         } catch (Exception e) {
             // Ignore - we don't care if the field doesn't exist.
         }
+
+        try {
+            if (symbol!=null) imo.setFieldValue("symbol", symbol);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error setting: "+className+".symbol to: "+attributeValue+". Does the symbol attribute exist?");
+        }
+
 
         if (StringUtils.isEmpty(dataSetTitle)) {
             throw new RuntimeException("DataSet title (legfed-fasta.dataSetTitle) not set.");
@@ -466,14 +474,18 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
                                    BioEntity bioEntity, Organism organism, Strain strain, DataSet dataSet)
         throws ObjectStoreException {
         // create a trimmed secondaryIdentifier
+        // 0     1      2    3    4     5          6
+        // phavu.G19833.gnm2.ann1.Phvul.010G034400.1
         String identifier = getIdentifier(bioJavaSequence);
         String[] parts = identifier.split("\\.");
-        if (parts.length==7) {
-            // 0     1      2    3    4     5          6
-            // phavu.G19833.gnm2.ann1.Phvul.010G034400.1
-            String secondaryIdentifier = parts[4]+"."+parts[5]+"."+parts[6];
-            bioEntity.setSecondaryIdentifier(secondaryIdentifier);
-        }
+        String secondaryIdentifier = "";
+        if (parts.length>4) secondaryIdentifier = parts[4];
+        if (parts.length>5) secondaryIdentifier += "."+parts[5];
+        if (parts.length>6) secondaryIdentifier += "."+parts[6];
+        if (parts.length>7) secondaryIdentifier += "."+parts[7];
+        if (parts.length>8) secondaryIdentifier += "."+parts[8];
+        if (parts.length>9) secondaryIdentifier += "."+parts[9];
+        if (secondaryIdentifier.length()>0) bioEntity.setSecondaryIdentifier(secondaryIdentifier);
     }
 
     /**

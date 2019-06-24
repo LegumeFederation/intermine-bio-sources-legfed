@@ -15,12 +15,14 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.Reader;
 import java.io.IOException;
+import java.io.InputStream;
 
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Properties;
 
 import org.apache.log4j.Logger;
 
@@ -48,6 +50,9 @@ public class DatastoreFileConverter extends FileConverter {
     Map<String,Item> dataSets = new HashMap<>();
     Map<String,Item> geneFamilies = new HashMap<>();
     Map<String,Item> proteinDomains = new HashMap<>();
+    Map<String,Item> linkageGroups = new HashMap<>();
+    Map<String,Item> geneticMarkers = new HashMap<>();
+    Map<String,Item> chromosomes = new HashMap<>();
     
     Set<String> ontologyAnnotations = new HashSet<>(); // concatenation of subject and term identifiers to avoid dupes
 
@@ -57,8 +62,8 @@ public class DatastoreFileConverter extends FileConverter {
     Map<String,Map<String,Item>> proteins = new HashMap<String,Map<String,Item>>();
     Map<String,Map<String,Item>> mRNAs = new HashMap<String,Map<String,Item>>();
 
-    // Taxon IDs of organisms of interest, set in project.xml
-    Set<String> taxonIds;
+    // Taxon IDs of organisms (probably just one)
+    Set<String> taxonIds = new HashSet<>();
 
     // ontologies created in constructor for random use
     Item geneOntology;
@@ -78,51 +83,9 @@ public class DatastoreFileConverter extends FileConverter {
     String dataSetUrl;
     String dataSetDescription;
 
-    // map gensp to taxon Ids for associating dir/file names with organisms
-    private static Map<String,String> genspTaxonIds = new HashMap<String,String>() {{
-            put("aradu","130453");
-            put("arahy","3818");
-            put("araip","130454");
-            put("cajca","3821");
-            put("cicar","3827");
-            put("glyma","3847");
-            put("lotja","34305");
-            put("lupan","3871");
-            put("medtr","3880");
-            put("phavu","3885");
-            put("tripr","57577 ");
-            put("vigan","3914");
-            put("vigra","157791");
-            put("vigun","3920");
-        }};
-
-    // map Genus_species to taxon Ids for associating dir/file names with organisms
-    private static Map<String,String> genusSpeciesTaxonIds = new HashMap<String,String>() {{
-            put("Arachis_duranensis","130453");
-            put("Arachis_hypogaea","3818");
-            put("Arachis_ipaensis","130454");
-            put("Cajanus_cajan","3821");
-            put("Cicer_arietinum","3827");
-            put("Glycine_max","3847");
-            put("Lotus_japonicus","34305");
-            put("Lupinus angustifolius","3871");
-            put("Medicago_truncatula","3880");
-            put("Phaseolus_vulgaris","3885");
-            put("Trifolium_pratense","57577");
-            put("Vigna_angularis","3914");
-            put("Vigna_radiata","157791");
-            put("Vigna_unguiculata","3920");
-        }};
-
-    /**
-     * Set the list of taxonIds that should be imported in cases where multiple organism data are present (like gene families).
-     *
-     * @param taxonIds a space-separated list of taxonIds
-     */
-    public void setOrganisms(String taxonIdString) {
-        this.taxonIds = new HashSet<String>(Arrays.asList(StringUtil.split(taxonIdString, " ")));
-        System.out.println("Will store for organisms:"+taxonIds);
-    }
+    // map gensp and Genus_species to taxonId
+    Map<String,String> genspTaxonId = new HashMap<>();
+    Map<String,String> genusSpeciesTaxonId = new HashMap<>();
 
     // Set DataSource fields in project.xml
     public void setDataSourceName(String name) {
@@ -180,6 +143,14 @@ public class DatastoreFileConverter extends FileConverter {
         koOntology.setAttribute("name", "KEGG Orthology");
         koOntology.setAttribute("url", "https://www.genome.jp/kegg/ko.html");
         store(koOntology);
+
+        // get the organism data
+        DatastoreUtils dsu = new DatastoreUtils();
+        genspTaxonId = dsu.getGenspTaxonId();
+        genusSpeciesTaxonId = dsu.getGenusSpeciesTaxonId();
+        for (String taxonId : genspTaxonId.values()) {
+            taxonIds.add(taxonId);
+        }
     }
 
     /**
@@ -195,26 +166,41 @@ public class DatastoreFileConverter extends FileConverter {
             if (dataSourceDescription!=null) dataSource.setAttribute("description", dataSourceDescription);
             store(dataSource);
         }
-
         // process the file
         if (getCurrentFile().getName().contains("description_")) {
             // description_Phaseolus_vulgaris.yml
             printInfoBlurb(getCurrentFile().getName());
-            processDescriptionFile(reader);
+            // processDescriptionFile(reader);
         } else if (getCurrentFile().getName().contains("strains_")) {
             // strains_Phaseolus_vulgaris.yml
             printInfoBlurb(getCurrentFile().getName());
-            processStrainsFile(reader);
+            // processStrainsFile(reader);
         } else if (getCurrentFile().getName().endsWith(".info_annot.txt")) {
             // phavu.G19833.gnm2.ann1.PB8d.info_annot.txt
             printInfoBlurb(getCurrentFile().getName());
-            processInfoAnnotFile(reader);
+            // processInfoAnnotFile(reader);
         } else if (getCurrentFile().getName().endsWith(".info_annot_ahrd.tsv")) {
             // legume.genefam.fam1.M65K.info_annot_ahrd.tsv
             String fastaDirname = getCurrentFile().getParent()+"/"+getCurrentFile().getName().replace("info_annot_ahrd.tsv", "family_fasta");
             printInfoBlurb(getCurrentFile().getName());
             printInfoBlurb(fastaDirname);
-            processInfoAnnotAhrdFile(reader);
+            // processInfoAnnotAhrdFile(reader);
+        } else if (getCurrentFile().getName().endsWith(".cmap.txt")) {
+            // phavu.mixed.map1.7PMp.cmap.txt
+            printInfoBlurb(getCurrentFile().getName());
+            processCmapFile(reader);
+        } else if (getCurrentFile().getName().endsWith(".map.gff3")) {
+            // phavu.mixed.map1.7PMp.map.gff3
+            printInfoBlurb(getCurrentFile().getName());
+            processMapGFFFile(reader);
+        } else if (getCurrentFile().getName().endsWith(".flanking_seq.fna")) {
+            // phavu.mixed.map1.7PMp.flanking_seq.fna
+            printInfoBlurb(getCurrentFile().getName());
+            processFlankingSeqFastaFile(reader);
+        } else {
+            System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            System.out.println("NOT PROCESSING "+getCurrentFile().getName());
+            System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         }
     }
 
@@ -231,6 +217,9 @@ public class DatastoreFileConverter extends FileConverter {
         store(dataSets.values());
         store(geneFamilies.values());
         store(proteinDomains.values());
+        store(linkageGroups.values());
+        store(geneticMarkers.values());
+        store(chromosomes.values());
         // maps of maps
         for (Map<String,Item> geneMap : genes.values()) {
             store(geneMap.values());
@@ -293,7 +282,7 @@ public class DatastoreFileConverter extends FileConverter {
     String getTaxonId(String[] dashparts) {
         String genus = dashparts[1];
         String species = dashparts[2];
-        String taxonId = genusSpeciesTaxonIds.get(genus+"_"+species);
+        String taxonId = genusSpeciesTaxonId.get(genus+"_"+species);
         if (taxonId==null) {
             throw new RuntimeException("Taxon ID not available for "+genus+"_"+species);
         }
@@ -304,7 +293,7 @@ public class DatastoreFileConverter extends FileConverter {
      * Get the taxon ID for a gensp string like "phavu".
      */
     String getTaxonId(String gensp) {
-        String taxonId = genspTaxonIds.get(gensp);
+        String taxonId = genspTaxonId.get(gensp);
         if (taxonId==null) {
             throw new RuntimeException("Taxon ID not available for "+gensp);
         }
@@ -362,6 +351,8 @@ public class DatastoreFileConverter extends FileConverter {
         String[] dotparts = getCurrentFile().getName().split("\\.");
         String[] dashparts = dotparts[0].split("_");
         Item organism = getOrganism(getTaxonId(dashparts));
+        String genus = null;   // for forming Organism.name
+        String species = null; // for forming Organism.name
         // now load the attributes
         BufferedReader br = new BufferedReader(reader);
         String line = null;
@@ -371,16 +362,19 @@ public class DatastoreFileConverter extends FileConverter {
             String[] parts = line.split("\t");
             if (parts.length>1) {
                 String attributeName = parts[0].replace("organism.","").replace(":","");
-                // munge
+                     // munge
                 if (attributeName.equals("taxid")) attributeName = "taxonId";
                 if (attributeName.equals("abbrev")) attributeName = "abbreviation";
                 String attributeValue = parts[1].trim();
                 if (attributeValue.length()>0) {
                     organism.setAttribute(attributeName, attributeValue);
+                    if (attributeName.equals("genus")) genus = attributeValue;
+                    if (attributeName.equals("species")) species = attributeValue;
                 }
             }
         }
         br.close();
+        if (genus!=null && species!=null) organism.setAttribute("name", genus+" "+species);
     }
 
     /**
@@ -699,9 +693,9 @@ public class DatastoreFileConverter extends FileConverter {
 
     /**
      * Process an info_annot_ahrd.tsv file which contains gene families and semi-colon separated groups of ontology terms.
-     * 0     1       2    3    4               5
-     * zzzzz.genefam.fam1.M65K.info_annot_ahrd.tsv
-     * zzzzz.genefam.fam1.M65K.family_fasta/          contains individual gene family FASTAs
+     * 0         1       2    3    4               5
+     * z1-legfed.genefam.fam1.M65K.info_annot_ahrd.tsv
+     * z1-legfed.genefam.fam1.M65K.family_fasta
      *
      * legfed_v1_0.L_H6Q7T0-consensus type I inositol-1,4,5-trisphosphate 5-phosphatase;
      *             ^^^^^^^^           IPR005135 (Endonuclease/exonuclease/phosphatase), IPR015943 (WD40/YVTN repeat-like-containing domain);
@@ -721,8 +715,11 @@ public class DatastoreFileConverter extends FileConverter {
     void processInfoAnnotAhrdFile(Reader reader) throws IOException, ObjectStoreException {
         // get the dataSet version from the filename
         String[] dotparts = getCurrentFile().getName().split("\\.");
+        String[] dashparts = getCurrentFile().getName().split("-"); // z1- may be prepended to run after other files
+        String dataSetName = getCurrentFile().getName();
+        if (dashparts.length>1) dataSetName = dashparts[1]; // hopefully no other dashes!
         String dataSetVersion = dotparts[2];
-        Item dataSet = getDataSet();
+        Item dataSet = getDataSet(dataSetName);
         dataSet.setAttribute("version", dataSetVersion);
         // get the FASTA directory
         String fastaDirname = getCurrentFile().getParent()+"/"+getCurrentFile().getName().replace("info_annot_ahrd.tsv", "family_fasta");
@@ -786,7 +783,7 @@ public class DatastoreFileConverter extends FileConverter {
                         String gensp = parts[0];
                         String name = parts[1];
                         for (int i=2; i<parts.length; i++) name += "."+parts[i];
-                        String taxonId = genspTaxonIds.get(gensp);
+                        String taxonId = genspTaxonId.get(gensp);
                         if (taxonId!=null && taxonIds.contains(taxonId)) {
                             if (proteins.containsKey(name)) {
                                 // update proteins we already have (hopefully most of them)
@@ -811,5 +808,208 @@ public class DatastoreFileConverter extends FileConverter {
             }
         }
         br.close();
+    }
+
+    /**
+     * Process a genetic Cmap file.
+     *
+     * 0     1     2    3    4    5
+     * phavu.mixed.map1.7PMp.cmap.txt
+     *
+     * map_acc                map_name map_start map_stop feature_acc                feature_name feature_aliases feature_start feature_stop feature_type_acc is_landmark
+     * PvCookUCDavis2009_Pv09 Pv09     0         66.1     PvCook...Pv09_Pv_TOG913042 Pv_TOG913042 TOG913042       66.1          66.1         SNP              0
+     * PvCookUCDavis2009_Pv09 Pv09     0         66.1     PvCook...Pv09_Pv_TOG899751 Pv_TOG899751 TOG899751       44.4          44.4         SNP              0
+     */
+    void processCmapFile(Reader reader) throws IOException, ObjectStoreException {
+        // get the identifiers from the filename
+        String[] dotparts = getCurrentFile().getName().split("\\.");
+        String dataSetName = getCurrentFile().getName();
+        String gensp = dotparts[0];
+        String parents = dotparts[1];
+        String dataSetVersion = dotparts[2];
+        // create Items
+        Item dataSet = getDataSet(dataSetName);
+        dataSet.setAttribute("version", dataSetVersion);
+        Item organism = getOrganism(getTaxonId(gensp));
+        // spin through the lines
+        BufferedReader br = new BufferedReader(reader);
+        String line = null;
+        while ((line=br.readLine())!=null) {
+            CMapRecord record = new CMapRecord(line);
+            if (!record.hasData()) continue;
+            Item lg = getLinkageGroup(record.map_acc);
+            lg.setAttribute("secondaryIdentifier", record.map_name);
+            lg.setAttribute("length", String.valueOf(record.map_stop));
+            lg.setReference("organism", organism);
+            lg.setReference("dataSet", dataSet);
+            String fullname = record.feature_name;
+            String name = fullname;
+            if (record.feature_aliases!=null) name = record.feature_aliases;
+            Item gm = getGeneticMarker(name);
+            gm.setAttribute("type", String.valueOf(record.feature_type_acc));
+            gm.setReference("organism", organism);
+            gm.addToCollection("dataSets", dataSet);
+            Item lgp = createItem("LinkageGroupPosition");
+            lgp.setAttribute("position", String.valueOf(record.feature_start));
+            lgp.setReference("linkageGroup", lg);
+            store(lgp);
+            gm.addToCollection("linkageGroupPositions", lgp);
+            lg.addToCollection("markers", gm);
+        }
+        br.close();
+    }
+
+    /**
+     * Process a flanking sequence FASTA file -- store the flanking sequence as the genetic marker's "sequence".
+     *
+     * 0     1     2    3    4            5
+     * phavu.mixed.map1.7PMp.flanking_seq.fna
+     *
+     * >TOG905303_749
+     * GACACGTAACTGAAATTTCACYATCCCTTACTGTTTCTCAAATCTTAGGATGAAAATAGATGCAATTGCTGGAAGTTCCCAATATTTTCTTTTRCACCTATGTACTCAGGTAATTTTATAT
+     */
+    void processFlankingSeqFastaFile(Reader reader) throws IOException, ObjectStoreException {
+        // get the identifiers from the filename
+        String[] dotparts = getCurrentFile().getName().split("\\.");
+        String dataSetName = getCurrentFile().getName();
+        String gensp = dotparts[0];
+        String parents = dotparts[1];
+        String dataSetVersion = dotparts[2];
+        // create Items
+        Item dataSet = getDataSet(dataSetName);
+        dataSet.setAttribute("version", dataSetVersion);
+        Item organism = getOrganism(getTaxonId(gensp));
+        // spin through the lines
+        BufferedReader br = new BufferedReader(reader);
+        String line = null;
+        while ((line=br.readLine())!=null) {
+            if (!line.startsWith(">")) continue;
+            String fullname = line.substring(1);
+            String name = fullname;
+            String[] underscoreparts = fullname.split("_");
+            if (underscoreparts.length==3) {
+                // strip front and back of Pv_TOG905303_749
+                name = underscoreparts[1];
+            } else if (underscoreparts.length==2) {
+                // strip back of TOG905303_749
+                name = underscoreparts[0];
+            }
+            Item gm = getGeneticMarker(name);
+            if (!name.equals(fullname)) gm.setAttribute("secondaryIdentifier", fullname);
+            String residues = br.readLine();
+            Item sequence = createItem("Sequence");
+            sequence.setAttribute("residues", residues);
+            sequence.setAttribute("length", String.valueOf(residues.length()));
+            store(sequence);
+            gm.setReference("sequence", sequence);
+        }
+        br.close();
+    }
+
+    /**
+     * Process a genetic map GFF file.
+     *
+     * 0     1     2    3    4   5
+     * phavu.mixed.map1.7PMp.map.gff3
+     *
+     * ##gff-version 3
+     * ##date Sat Jul  8 11:12:08 2017
+     * ##source gbrowse gbgff gff3 dumper, from https://legumeinfo.org/genomes/gbrowse/Pv1.0 with post-processing
+     * phavu.G19833.gnm1.Chr01 blastn  SNP     242423  242423  .       +       .       Name=Pv_TOG905303_749;ID=1;Note=LG01 cM 0.0;alleles=T/G
+     */
+    void processMapGFFFile(Reader reader) throws IOException, ObjectStoreException {
+        // get the identifiers from the filename
+        String[] dotparts = getCurrentFile().getName().split("\\.");
+        String dataSetName = getCurrentFile().getName();
+        String gensp = dotparts[0];
+        String parents = dotparts[1];
+        String dataSetVersion = dotparts[2];
+        // create Items
+        Item dataSet = getDataSet(dataSetName);
+        dataSet.setAttribute("version", dataSetVersion);
+        Item organism = getOrganism(getTaxonId(gensp));
+        // spin through the lines
+        BufferedReader br = new BufferedReader(reader);
+        String line = null;
+        while ((line=br.readLine())!=null) {
+            MapGFFRecord record = new MapGFFRecord(line);
+            if (!record.hasData()) continue;
+            Item chr = getChromosomeOrSupercontig(record.chr);
+            chr.setReference("organism", organism);
+            chr.addToCollection("dataSets", dataSet);
+            Item gm = getGeneticMarker(record.name);
+            gm.setReference("organism", organism);
+            gm.addToCollection("dataSets", dataSet);
+            if (!record.name.equals(record.fullname)) gm.setAttribute("secondaryIdentifier", record.fullname);
+            gm.setAttribute("type", record.type);
+            gm.setAttribute("length", String.valueOf(record.end-record.start+1));
+            if (record.alleles!=null) gm.setAttribute("alleles", record.alleles);
+            Item location = createItem("Location");
+            location.setAttribute("strand", record.strand);
+            location.setAttribute("start", String.valueOf(record.start));
+            location.setAttribute("end", String.valueOf(record.end));
+            location.setReference("feature", gm);
+            location.addToCollection("dataSets", dataSet);
+            location.setReference("locatedOn", chr);
+            store(location);
+            if (chr.getClassName().equals("Supercontig")) {
+                gm.setReference("supercontig", chr);
+                gm.setReference("supercontigLocation", location);
+            } else {
+                gm.setReference("chromosome", chr);
+                gm.setReference("chromosomeLocation", location);
+            }
+        }
+        br.close();
+    }
+
+    /**
+     * Get an old LinkageGroup or create a new one
+     */
+    public Item getLinkageGroup(String primaryIdentifier) {
+        if (linkageGroups.containsKey(primaryIdentifier)) {
+            return linkageGroups.get(primaryIdentifier);
+        } else {
+            Item lg = createItem("LinkageGroup");
+            lg.setAttribute("primaryIdentifier", primaryIdentifier);
+            linkageGroups.put(primaryIdentifier, lg);
+            return lg;
+        }
+    }
+
+    /**
+     * Get an old GeneticMarker or create a new one
+     */
+    public Item getGeneticMarker(String primaryIdentifier) {
+        if (geneticMarkers.containsKey(primaryIdentifier)) {
+            return geneticMarkers.get(primaryIdentifier);
+        } else {
+            Item gm = createItem("GeneticMarker");
+            gm.setAttribute("primaryIdentifier", primaryIdentifier);
+            geneticMarkers.put(primaryIdentifier, gm);
+            return gm;
+        }
+    }
+
+    /**
+     * Get an existing Chromosome/Supercontig record or create a new one.
+     */
+    public Item getChromosomeOrSupercontig(String primaryIdentifier) {
+        if (chromosomes.containsKey(primaryIdentifier)) {
+            return chromosomes.get(primaryIdentifier);
+        } else {
+            Item chr;
+            // HACK: change the className to "Supercontig" if identifier contains "scaffold" or ends in "sc" etc.
+            String[] dotparts = primaryIdentifier.split("\\.");
+            String lastPart = dotparts[dotparts.length-1];
+            if (primaryIdentifier.toLowerCase().contains("scaffold") || lastPart.contains("sc")) {
+                chr = createItem("Supercontig");
+            } else {
+                chr = createItem("Chromosome");
+            }
+            chr.setAttribute("primaryIdentifier", primaryIdentifier);
+            chromosomes.put(primaryIdentifier, chr);
+            return chr;
+        }
     }
 }

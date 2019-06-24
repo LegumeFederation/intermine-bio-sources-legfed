@@ -47,5 +47,25 @@
     <reference name="homologue" referenced-type="Gene"/>
     <collection name="dataSets" referenced-type="DataSet"/>
   </class>
+
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+    <attribute name="type" type="java.lang.String"/>
+    <attribute name="alleles" type="java.lang.String"/>
+    <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
+  </class>
+
+  <class name="LinkageGroup" extends="Annotatable" is-interface="true">
+    <attribute name="secondaryIdentifier" type="java.lang.String"/>
+    <attribute name="length" type="java.lang.Double"/>
+    <reference name="organism" referenced-type="Organism"/>
+    <reference name="dataSet" referenced-type="DataSet"/>
+    <collection name="markers" referenced-type="GeneticMarker"/>
+  </class>
+
+  <!-- encapsulates a position (cM) on a linkage group -->
+  <class name="LinkageGroupPosition" is-interface="true">
+    <attribute name="position" type="java.lang.Double"/>
+    <reference name="linkageGroup" referenced-type="LinkageGroup"/>
+  </class>
   
 </classes>

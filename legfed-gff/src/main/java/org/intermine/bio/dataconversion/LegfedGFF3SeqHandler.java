@@ -28,7 +28,9 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
      * @override
      */
     public Item makeSequenceItem(GFF3Converter converter, String identifier) {
-        if (identifier.contains("scaffold")) {
+        String[] dotParts = identifier.split("\\.");
+        String lastPart = dotParts[dotParts.length-1];
+        if (identifier.contains("scaffold") || lastPart.contains("sc")) {
             Item seq = converter.createItem("Supercontig");
             seq.setAttribute("primaryIdentifier", identifier);
             return seq;

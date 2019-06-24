@@ -10,4 +10,7 @@
     <reference name="supercontigLocation" referenced-type="Location" />
   </class>
 
+  <class name="TRNAPrimaryTranscript" extends="SequenceFeature" is-interface="true"/>
+  <class name="RRNAPrimaryTranscript" extends="SequenceFeature" is-interface="true"/>
+
 </classes>
