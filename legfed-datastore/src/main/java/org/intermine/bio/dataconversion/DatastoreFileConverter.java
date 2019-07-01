@@ -52,7 +52,7 @@ public class DatastoreFileConverter extends FileConverter {
     Map<String,Item> proteinDomains = new HashMap<>();
     Map<String,Item> linkageGroups = new HashMap<>();
     Map<String,Item> geneticMarkers = new HashMap<>();
-    Map<String,Item> chromosomes = new HashMap<>();
+    Map<String,Item> chromosomes = new HashMap<>(); // this is Chromosome and Supercontig Items
     
     Set<String> ontologyAnnotations = new HashSet<>(); // concatenation of subject and term identifiers to avoid dupes
 
@@ -61,9 +61,6 @@ public class DatastoreFileConverter extends FileConverter {
     Map<String,Map<String,Item>> genes = new HashMap<String,Map<String,Item>>();
     Map<String,Map<String,Item>> proteins = new HashMap<String,Map<String,Item>>();
     Map<String,Map<String,Item>> mRNAs = new HashMap<String,Map<String,Item>>();
-
-    // Taxon IDs of organisms (probably just one)
-    Set<String> taxonIds = new HashSet<>();
 
     // ontologies created in constructor for random use
     Item geneOntology;
@@ -85,7 +82,6 @@ public class DatastoreFileConverter extends FileConverter {
 
     // map gensp and Genus_species to taxonId
     Map<String,String> genspTaxonId = new HashMap<>();
-    Map<String,String> genusSpeciesTaxonId = new HashMap<>();
 
     // Set DataSource fields in project.xml
     public void setDataSourceName(String name) {
@@ -144,13 +140,9 @@ public class DatastoreFileConverter extends FileConverter {
         koOntology.setAttribute("url", "https://www.genome.jp/kegg/ko.html");
         store(koOntology);
 
-        // get the organism data
+        // get the gensp to taxonId map
         DatastoreUtils dsu = new DatastoreUtils();
         genspTaxonId = dsu.getGenspTaxonId();
-        genusSpeciesTaxonId = dsu.getGenusSpeciesTaxonId();
-        for (String taxonId : genspTaxonId.values()) {
-            taxonIds.add(taxonId);
-        }
     }
 
     /**
@@ -170,21 +162,21 @@ public class DatastoreFileConverter extends FileConverter {
         if (getCurrentFile().getName().contains("description_")) {
             // description_Phaseolus_vulgaris.yml
             printInfoBlurb(getCurrentFile().getName());
-            // processDescriptionFile(reader);
+            processDescriptionFile(reader);
         } else if (getCurrentFile().getName().contains("strains_")) {
             // strains_Phaseolus_vulgaris.yml
             printInfoBlurb(getCurrentFile().getName());
-            // processStrainsFile(reader);
+            processStrainsFile(reader);
         } else if (getCurrentFile().getName().endsWith(".info_annot.txt")) {
             // phavu.G19833.gnm2.ann1.PB8d.info_annot.txt
             printInfoBlurb(getCurrentFile().getName());
-            // processInfoAnnotFile(reader);
+            processInfoAnnotFile(reader);
         } else if (getCurrentFile().getName().endsWith(".info_annot_ahrd.tsv")) {
             // legume.genefam.fam1.M65K.info_annot_ahrd.tsv
             String fastaDirname = getCurrentFile().getParent()+"/"+getCurrentFile().getName().replace("info_annot_ahrd.tsv", "family_fasta");
             printInfoBlurb(getCurrentFile().getName());
             printInfoBlurb(fastaDirname);
-            // processInfoAnnotAhrdFile(reader);
+            processInfoAnnotAhrdFile(reader);
         } else if (getCurrentFile().getName().endsWith(".cmap.txt")) {
             // phavu.mixed.map1.7PMp.cmap.txt
             printInfoBlurb(getCurrentFile().getName());
@@ -197,10 +189,6 @@ public class DatastoreFileConverter extends FileConverter {
             // phavu.mixed.map1.7PMp.flanking_seq.fna
             printInfoBlurb(getCurrentFile().getName());
             processFlankingSeqFastaFile(reader);
-        } else {
-            System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            System.out.println("NOT PROCESSING "+getCurrentFile().getName());
-            System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         }
     }
 
@@ -277,19 +265,6 @@ public class DatastoreFileConverter extends FileConverter {
     }
 
     /**
-     * Get the taxon ID for a string array like ["something","Phaseolus","vulgaris"]
-     */
-    String getTaxonId(String[] dashparts) {
-        String genus = dashparts[1];
-        String species = dashparts[2];
-        String taxonId = genusSpeciesTaxonId.get(genus+"_"+species);
-        if (taxonId==null) {
-            throw new RuntimeException("Taxon ID not available for "+genus+"_"+species);
-        }
-        return taxonId;
-    }
-
-    /**
      * Get the taxon ID for a gensp string like "phavu".
      */
     String getTaxonId(String gensp) {
@@ -301,18 +276,31 @@ public class DatastoreFileConverter extends FileConverter {
     }
 
     /**
-     * Get/add the organism Item associated with the given taxon ID.
+     * Get/add the organism Item associated with the given gensp value (e.g. "phavu").
+     * Returns null if the gensp isn't resolvable.
      */
-    Item getOrganism(String taxonId) {
-        Item organism;
-        if (organisms.containsKey(taxonId)) {
-            organism = organisms.get(taxonId);
+    Item getOrganism(String gensp) {
+        Item organism = null;
+        if (organisms.containsKey(gensp)) {
+            organism = organisms.get(gensp);
         } else {
+            String taxonId = getTaxonId(gensp);
             organism = createItem("Organism");
+            organism.setAttribute("gensp", gensp);
             organism.setAttribute("taxonId", taxonId);
-            organisms.put(taxonId, organism);
+            organisms.put(gensp, organism);
         }
         return organism;
+    }
+
+    /**
+     * Get the organism Item for a string array like ["something","Genus","species"]
+     */
+    Item getOrganism(String[] threeparts) {
+        String genus = threeparts[1];
+        String species = threeparts[2];
+        String gensp = genus.toLowerCase().substring(0,3) + species.toLowerCase().substring(0,2);
+        return getOrganism(gensp);
     }
 
     /**
@@ -350,7 +338,7 @@ public class DatastoreFileConverter extends FileConverter {
         // get the organism
         String[] dotparts = getCurrentFile().getName().split("\\.");
         String[] dashparts = dotparts[0].split("_");
-        Item organism = getOrganism(getTaxonId(dashparts));
+        Item organism = getOrganism(dashparts);
         String genus = null;   // for forming Organism.name
         String species = null; // for forming Organism.name
         // now load the attributes
@@ -400,7 +388,7 @@ public class DatastoreFileConverter extends FileConverter {
         // get the organism
         String[] dotparts = getCurrentFile().getName().split("\\.");
         String[] dashparts = dotparts[0].split("_");
-        Item organism = getOrganism(getTaxonId(dashparts));
+        Item organism = getOrganism(dashparts);
         // spin through the strain sections
         BufferedReader br = new BufferedReader(reader);
         String strainName = null; // keep track of current strain name
@@ -449,7 +437,7 @@ public class DatastoreFileConverter extends FileConverter {
         // get the dataSet, organism and strain
         Item dataSet = getDataSet();
         dataSet.setAttribute("version", versionKey);
-        Item organism = getOrganism(getTaxonId(gensp));
+        Item organism = getOrganism(gensp);
         Item strain = getStrain(strainName, organism);
         // spin through the file
         BufferedReader br = new BufferedReader(reader);
@@ -464,13 +452,13 @@ public class DatastoreFileConverter extends FileConverter {
             if (record.pacId!=null) {
                 // the gene
                 Item gene = null;
-                String geneIdentifier = record.locusName;
+                String geneIdentifier = gensp+"."+record.locusName;
                 if (genes.containsKey(geneIdentifier)) {
                     Map<String,Item> geneMap = genes.get(geneIdentifier);
                     if (geneMap.containsKey(versionKey)) {
                         gene = geneMap.get(versionKey);
                     } else {
-                        // Phvul.002G040500
+                        // phavu.Phvul.002G040500
                         gene = createItem("Gene");
                         gene.setAttribute("secondaryIdentifier", geneIdentifier);
                         gene.setReference("organism", organism);
@@ -481,7 +469,7 @@ public class DatastoreFileConverter extends FileConverter {
                         geneMap.put(versionKey, gene);
                     }
                 } else {
-                    // Phvul.002G040500
+                    // phavu.Phvul.002G040500
                     gene = createItem("Gene");
                     gene.setAttribute("secondaryIdentifier", geneIdentifier);
                     gene.setReference("organism", organism);
@@ -495,7 +483,7 @@ public class DatastoreFileConverter extends FileConverter {
                 }
                 // the protein
                 Item protein = null;
-                String proteinIdentifier = record.peptideName;
+                String proteinIdentifier = gensp+"."+record.peptideName;
                 if (proteins.containsKey(proteinIdentifier)) {
                     Map<String,Item> proteinMap = proteins.get(proteinIdentifier);
                     if (proteinMap.containsKey(versionKey)) {
@@ -528,7 +516,7 @@ public class DatastoreFileConverter extends FileConverter {
                 }
                 // the transcript = mRNA
                 Item mRNA = null;
-                String mRNAIdentifier = record.transcriptName;
+                String mRNAIdentifier = gensp+"."+record.transcriptName;
                 if (mRNAs.containsKey(mRNAIdentifier)) {
                     Map<String,Item> mRNAMap = mRNAs.get(mRNAIdentifier);
                     if (mRNAMap.containsKey(versionKey)) {
@@ -693,16 +681,15 @@ public class DatastoreFileConverter extends FileConverter {
 
     /**
      * Process an info_annot_ahrd.tsv file which contains gene families and semi-colon separated groups of ontology terms.
-     * 0         1       2    3    4               5
-     * z1-legfed.genefam.fam1.M65K.info_annot_ahrd.tsv
-     * z1-legfed.genefam.fam1.M65K.family_fasta
+     * 0      1       2    3    4               5
+     * legfed.genefam.fam1.M65K.info_annot_ahrd.tsv
      *
      * legfed_v1_0.L_H6Q7T0-consensus type I inositol-1,4,5-trisphosphate 5-phosphatase;
      *             ^^^^^^^^           IPR005135 (Endonuclease/exonuclease/phosphatase), IPR015943 (WD40/YVTN repeat-like-containing domain);
      *                                GO:0005515 (protein binding), GO:0046856 (phosphatidylinositol dephosphorylation)
      *
-     * zzzzz.genefam.fam1.M65K.family_fasta/L_H6Q7T0
-     *                                      ^^^^^^^^
+     * legfed.genefam.fam1.M65K.family_fasta/L_H6Q7T0
+     *                                       ^^^^^^^^
      * >lupan.Lup015831.1
      * ----CASFAKLT--TLSPHWIGNNSFSSRRGGSSPLTATRRVSLPIRASSYSDELVQTAK
      * TIASPGRGILAIDESNATCGKRLASIGLDNTEVNRQAYRQLLLTTPGLGEYISGAILFEE
@@ -715,9 +702,7 @@ public class DatastoreFileConverter extends FileConverter {
     void processInfoAnnotAhrdFile(Reader reader) throws IOException, ObjectStoreException {
         // get the dataSet version from the filename
         String[] dotparts = getCurrentFile().getName().split("\\.");
-        String[] dashparts = getCurrentFile().getName().split("-"); // z1- may be prepended to run after other files
         String dataSetName = getCurrentFile().getName();
-        if (dashparts.length>1) dataSetName = dashparts[1]; // hopefully no other dashes!
         String dataSetVersion = dotparts[2];
         Item dataSet = getDataSet(dataSetName);
         dataSet.setAttribute("version", dataSetVersion);
@@ -770,7 +755,7 @@ public class DatastoreFileConverter extends FileConverter {
                 }
                 proteinDomain.addToCollection("geneFamilies", geneFamily);
             }
-            // load the gene family FASTA if present to link proteins of the desired organism
+            // load the gene family FASTA if present to link proteins of the desired organisms
             String fastaFilename = fastaDirname+"/"+record.identifier;
             File fastaFile = new File(fastaFilename);
             if (fastaFile.exists()) {
@@ -778,13 +763,11 @@ public class DatastoreFileConverter extends FileConverter {
                 String fline = null;
                 while ((fline=fbr.readLine())!=null) {
                     if (fline.startsWith(">")) {
-                        String genspName = fline.substring(1);
-                        String[] parts = genspName.split("\\.");
+                        String name = fline.substring(1);
+                        String[] parts = name.split("\\.");
                         String gensp = parts[0];
-                        String name = parts[1];
-                        for (int i=2; i<parts.length; i++) name += "."+parts[i];
-                        String taxonId = genspTaxonId.get(gensp);
-                        if (taxonId!=null && taxonIds.contains(taxonId)) {
+                        Item organism = getOrganism(gensp);
+                        if (organism!=null) {
                             if (proteins.containsKey(name)) {
                                 // update proteins we already have (hopefully most of them)
                                 for (Item protein : proteins.get(name).values()) {
@@ -795,6 +778,7 @@ public class DatastoreFileConverter extends FileConverter {
                                 // create protein without assemblyVersion, annotationVersion if not already loaded (boo)
                                 Item protein = createItem("Protein");
                                 protein.setAttribute("secondaryIdentifier", name);
+                                protein.setReference("organism", organism);
                                 protein.setReference("geneFamily", geneFamily);
                                 protein.addToCollection("dataSets", dataSet);
                                 Map<String,Item> proteinMap = new HashMap<>();
@@ -830,7 +814,7 @@ public class DatastoreFileConverter extends FileConverter {
         // create Items
         Item dataSet = getDataSet(dataSetName);
         dataSet.setAttribute("version", dataSetVersion);
-        Item organism = getOrganism(getTaxonId(gensp));
+        Item organism = getOrganism(gensp);
         // spin through the lines
         BufferedReader br = new BufferedReader(reader);
         String line = null;
@@ -878,7 +862,7 @@ public class DatastoreFileConverter extends FileConverter {
         // create Items
         Item dataSet = getDataSet(dataSetName);
         dataSet.setAttribute("version", dataSetVersion);
-        Item organism = getOrganism(getTaxonId(gensp));
+        Item organism = getOrganism(gensp);
         // spin through the lines
         BufferedReader br = new BufferedReader(reader);
         String line = null;
@@ -927,15 +911,14 @@ public class DatastoreFileConverter extends FileConverter {
         // create Items
         Item dataSet = getDataSet(dataSetName);
         dataSet.setAttribute("version", dataSetVersion);
-        Item organism = getOrganism(getTaxonId(gensp));
+        Item organism = getOrganism(gensp);
         // spin through the lines
         BufferedReader br = new BufferedReader(reader);
         String line = null;
         while ((line=br.readLine())!=null) {
             MapGFFRecord record = new MapGFFRecord(line);
             if (!record.hasData()) continue;
-            Item chr = getChromosomeOrSupercontig(record.chr);
-            chr.setReference("organism", organism);
+            Item chr = getChromosomeOrSupercontig(record.chr, organism);
             chr.addToCollection("dataSets", dataSet);
             Item gm = getGeneticMarker(record.name);
             gm.setReference("organism", organism);
@@ -994,7 +977,7 @@ public class DatastoreFileConverter extends FileConverter {
     /**
      * Get an existing Chromosome/Supercontig record or create a new one.
      */
-    public Item getChromosomeOrSupercontig(String primaryIdentifier) {
+    public Item getChromosomeOrSupercontig(String primaryIdentifier, Item organism) {
         if (chromosomes.containsKey(primaryIdentifier)) {
             return chromosomes.get(primaryIdentifier);
         } else {
@@ -1004,10 +987,15 @@ public class DatastoreFileConverter extends FileConverter {
             String lastPart = dotparts[dotparts.length-1];
             if (primaryIdentifier.toLowerCase().contains("scaffold") || lastPart.contains("sc")) {
                 chr = createItem("Supercontig");
+                // DEBUG
+                System.out.println("Adding Supercontig "+primaryIdentifier);
             } else {
                 chr = createItem("Chromosome");
+                // DEBUG
+                System.out.println("Adding Chromosome "+primaryIdentifier);
             }
             chr.setAttribute("primaryIdentifier", primaryIdentifier);
+            chr.setReference("organism", organism);
             chromosomes.put(primaryIdentifier, chr);
             return chr;
         }

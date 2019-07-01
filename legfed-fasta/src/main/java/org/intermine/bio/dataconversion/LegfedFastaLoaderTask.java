@@ -76,6 +76,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     private String dataSetVersion; // from file name
     private Map<String, DataSet> dataSets = new HashMap<String, DataSet>();
     private String fastaTaxonId = null;
+    private String fastaGensp = null;
    
     // map gensp to taxonId
     Map<String,String> genspTaxonId = new HashMap<>();
@@ -101,8 +102,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     }
 
     /**
-     * Set the suffix to add to identifiers from the FASTA file when creating
-     * BioEnitys.
+     * Set the suffix to add to identifiers from the FASTA file when creating BioEntities.
      * @param idSuffix the suffix
      */
     public void setIdSuffix(String idSuffix) {
@@ -241,9 +241,9 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     @Override
     public void processFile(File file) {
         try {
-            System.out.println("####################################################################################################################");
+            System.out.println("##############################################################################################################################");
             System.out.println("Reading "+sequenceType+" sequences from: "+file);
-            System.out.println("####################################################################################################################");
+            System.out.println("##############################################################################################################################");
             LOG.info("LegfedFastaLoaderTask loading file "+file.getName());
             // pull the organism, strain, assembly and annotation version (if present) from the file name
             // 0     1      2    3    4    5       6
@@ -251,10 +251,10 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
             // 0     1      2    3    4           5
             // phavu.G19833.gnm2.fC0g.genome_main.fna
             String[] parts = file.getName().split("\\.");
-            String gensp = parts[0];
-            fastaTaxonId = genspTaxonId.get(gensp);
+            fastaGensp = parts[0];
+            fastaTaxonId = genspTaxonId.get(fastaGensp);
             if (fastaTaxonId==null) {
-                throw new RuntimeException("Organism "+gensp+" is not in the genspTaxonId map.");
+                throw new RuntimeException("Organism "+fastaGensp+" is not in the genspTaxonId map.");
             }
             strainName = parts[1];
             assemblyVersion = parts[2];
@@ -304,6 +304,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         if (org == null) {
             org = getDirectDataLoader().createObject(Organism.class);
             org.setTaxonId(fastaTaxonId);
+            org.setGensp(fastaGensp);
             getDirectDataLoader().store(org);
         }
         return org;
@@ -367,7 +368,10 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         // HACK: change the className to "Supercontig" if identifier contains "scaffold" or ends in "sc" etc.
         String[] dotparts = attributeValue.split("\\.");
         String lastPart = dotparts[dotparts.length-1];
-        if (attributeValue.toLowerCase().contains("scaffold") || lastPart.contains("sc")) {
+        if (attributeValue.toLowerCase().contains("scaffold")
+            || lastPart.contains("sc")
+            || lastPart.contains("pilon")
+            ) {
             className = "org.intermine.model.bio.Supercontig";
         }
 
@@ -473,19 +477,19 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     protected void extraProcessing(Sequence bioJavaSequence, org.intermine.model.bio.Sequence imSequence,
                                    BioEntity bioEntity, Organism organism, Strain strain, DataSet dataSet)
         throws ObjectStoreException {
-        // create a trimmed secondaryIdentifier
+        // create a secondaryIdentifier omitting the strain, assembly version and annotation version (1, 2, 3 below).
         // 0     1      2    3    4     5          6
         // phavu.G19833.gnm2.ann1.Phvul.010G034400.1
         String identifier = getIdentifier(bioJavaSequence);
         String[] parts = identifier.split("\\.");
-        String secondaryIdentifier = "";
-        if (parts.length>4) secondaryIdentifier = parts[4];
-        if (parts.length>5) secondaryIdentifier += "."+parts[5];
-        if (parts.length>6) secondaryIdentifier += "."+parts[6];
-        if (parts.length>7) secondaryIdentifier += "."+parts[7];
-        if (parts.length>8) secondaryIdentifier += "."+parts[8];
-        if (parts.length>9) secondaryIdentifier += "."+parts[9];
-        if (secondaryIdentifier.length()>0) bioEntity.setSecondaryIdentifier(secondaryIdentifier);
+        String secondaryIdentifier = parts[0];                   // phavu
+        if (parts.length>4) secondaryIdentifier += "."+parts[4]; // phavu.Phvul
+        if (parts.length>5) secondaryIdentifier += "."+parts[5]; // phavu.Phvul.010G034400
+        if (parts.length>6) secondaryIdentifier += "."+parts[6]; // phavu.Phvul.010G034400.1
+        if (parts.length>7) secondaryIdentifier += "."+parts[7]; // phavu.Phvul.010G034400.1.other
+        if (parts.length>8) secondaryIdentifier += "."+parts[8]; // phavu.Phvul.010G034400.1.other.stuff
+        if (parts.length>9) secondaryIdentifier += "."+parts[9]; // phavu.Phvul.010G034400.1.other.stuff.here
+        bioEntity.setSecondaryIdentifier(secondaryIdentifier);
     }
 
     /**
@@ -539,6 +543,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         if (org == null) {
             org = getDirectDataLoader().createObject(Organism.class);
             org.setTaxonId(fastaTaxonId);
+            org.setGensp(fastaGensp);
             getDirectDataLoader().store(org);
         }
         return org;

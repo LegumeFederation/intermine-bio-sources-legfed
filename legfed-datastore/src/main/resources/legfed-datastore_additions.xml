@@ -5,6 +5,7 @@
   <class name="Organism" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
     <attribute name="abbreviation" type="java.lang.String"/>
+    <attribute name="gensp" type="java.lang.String"/>
   </class>
   
   <class name="Strain" is-interface="true">

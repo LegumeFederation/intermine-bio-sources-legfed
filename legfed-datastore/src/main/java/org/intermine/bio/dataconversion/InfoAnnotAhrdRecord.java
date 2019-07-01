@@ -17,7 +17,7 @@ import java.util.HashMap;
  * Encapsulates a single tab-delimited LIS data store annot_info_ahrd file record.
  *
  * legfed_v1_0.L_QQS5LC-consensus  glucan endo-1,3-beta-glucosidase 14-like [Glycine max];
- *                                 IPR000490 (Glycoside hydrolase, family 17), IPR017853 (Glycoside hydrolase, superfamily);
+ *             ^^^^^^^^            IPR000490 (Glycoside hydrolase, family 17), IPR017853 (Glycoside hydrolase, superfamily);
  *                                 GO:0005975 (carbohydrate metabolic process)
  *
  * legfed_v1_0 = GeneFamily.version
@@ -53,10 +53,9 @@ public class InfoAnnotAhrdRecord {
                 identifier = identifierParts[1].replace("-consensus","");
                 
                 String[] valueParts = valueString.split("; ");
-                description = valueParts[0];
+                description = valueParts[0];                // glucan endo-1,3-beta-glucosidase 14-like [Glycine max]
                 if (valueParts.length>1) {
-                    // IPR000490 (Glycoside hydrolase, family 17), IPR017853 (Glycoside hydrolase, superfamily)
-                    String interproString = valueParts[1];
+                    String interproString = valueParts[1];  // IPR000490 (Glycoside hydrolase, family 17), IPR017853 (Glycoside hydrolase, superfamily)
                     int index = 0;
                     while ((index=interproString.indexOf("IPR", index))>-1) {
                         String identifier = interproString.substring(index, index+9);
@@ -67,8 +66,7 @@ public class InfoAnnotAhrdRecord {
                     }
                 }
                 if (valueParts.length>2) {
-                    // GO:0005975 (carbohydrate metabolic process, foobar), GO:0005976 (carbohydrate metabolic process, barfoo)
-                    String goString = valueParts[2];
+                    String goString = valueParts[2];        // GO:0005975 (carbohydrate metabolic process, foobar), GO:0005976 (carbohydrate metabolic process, barfoo)
                     int index = 0;
                     while ((index=goString.indexOf("GO:", index))>-1) {
                         String identifier = goString.substring(index, index+10);

@@ -43,7 +43,7 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
 
     /**
      * For the given GFF3Converter and sequence identifier, make a new sequence object.
-     * This implementation creates Chromosome items by default and Supercontig items if the identifier contains "scaffold".
+     * This implementation creates Chromosome items by default and Supercontig items if the identifier contains "scaffold", etc.
      * @param converter the current GFF3Converter
      * @param record record from the GFF file
      * @param identifier the identifier of the sequence from the GFF file
@@ -51,7 +51,12 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
      * @override
      */
     public Item makeSequenceItem(GFF3Converter converter, String identifier, GFF3Record record) {
-        if (identifier.contains("scaffold")) {
+        String[] dotParts = identifier.split("\\.");
+        String lastPart = dotParts[dotParts.length-1];
+        if (identifier.toLowerCase().contains("scaffold")
+            || lastPart.contains("sc")
+            || lastPart.contains("pilon")
+            ) {
             Item seq = converter.createItem("Supercontig");
             seq.setAttribute("primaryIdentifier", identifier);
             return seq;
