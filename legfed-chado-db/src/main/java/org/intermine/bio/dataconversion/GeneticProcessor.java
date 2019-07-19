@@ -385,7 +385,6 @@ public class GeneticProcessor extends ChadoProcessor {
                     } else {
                         stock = createItem("Strain");
                         stock.setAttribute("primaryIdentifier", stockuniquename);
-                        stock.setAttribute("secondaryIdentifier", stockname);
                         stock.setReference("organism", organism);
                         store(stock);
                         strainMap.put(stockuniquename, stock);

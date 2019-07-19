@@ -110,8 +110,8 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     }
 
     /**
-     * The class name to use for objects created during load.  Generally this is
-     * "org.intermine.model.bio.LocatedSequenceFeature" or "org.intermine.model.bio.Protein"
+     * The default class name to use for objects created during load.  Generally this is
+     * "org.intermine.model.bio.Chromosome" or "org.intermine.model.bio.Protein"
      * @param className the class name
      */
     public void setClassName(String className) {
@@ -304,7 +304,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         if (org == null) {
             org = getDirectDataLoader().createObject(Organism.class);
             org.setTaxonId(fastaTaxonId);
-            org.setGensp(fastaGensp);
+            org.setAbbreviation(fastaGensp);
             getDirectDataLoader().store(org);
         }
         return org;
@@ -365,14 +365,13 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
             symbol = tabChunks[1];
         }
 
-        // HACK: change the className to "Supercontig" if identifier contains "scaffold" or ends in "sc" etc.
-        String[] dotparts = attributeValue.split("\\.");
-        String lastPart = dotparts[dotparts.length-1];
-        if (attributeValue.toLowerCase().contains("scaffold")
-            || lastPart.contains("sc")
-            || lastPart.contains("pilon")
-            ) {
-            className = "org.intermine.model.bio.Supercontig";
+        // HACK: toggle the className between "Chromosome" and "Supercontig" based on attribute content.
+        if (className.equals("org.intermine.model.bio.Chromosome") || className.equals("org.intermine.model.bio.Supercontig")) {
+            if (isScaffold(attributeValue))  {
+                className = "org.intermine.model.bio.Supercontig";
+            } else {
+                className = "org.intermine.model.bio.Chromosome";
+            }
         }
 
         Class<? extends InterMineObject> imClass;
@@ -543,10 +542,22 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         if (org == null) {
             org = getDirectDataLoader().createObject(Organism.class);
             org.setTaxonId(fastaTaxonId);
-            org.setGensp(fastaGensp);
+            org.setAbbreviation(fastaGensp);
             getDirectDataLoader().store(org);
         }
         return org;
     }
-}
 
+    /**
+     * Return true if this identifier identifies a scaffold rather than chromosome.
+     */
+    boolean isScaffold(String identifier) {
+        String[] dotParts = identifier.split("\\.");
+        String lastPart = dotParts[dotParts.length-1];
+        boolean scaffold = false;
+        scaffold = scaffold || identifier.contains("scaffold");
+        scaffold = scaffold || identifier.contains("Chr0c");
+        scaffold = scaffold || lastPart.contains("sc");
+        return scaffold;
+    }
+}

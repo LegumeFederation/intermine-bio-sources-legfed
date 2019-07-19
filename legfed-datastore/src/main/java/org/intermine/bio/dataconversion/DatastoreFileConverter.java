@@ -52,15 +52,13 @@ public class DatastoreFileConverter extends FileConverter {
     Map<String,Item> proteinDomains = new HashMap<>();
     Map<String,Item> linkageGroups = new HashMap<>();
     Map<String,Item> geneticMarkers = new HashMap<>();
-    Map<String,Item> chromosomes = new HashMap<>(); // this is Chromosome and Supercontig Items
+    Map<String,Item> chromosomes = new HashMap<>(); // contains both Chromosome and Supercontig Items
+    Map<String,Item> genes = new HashMap<>();
+    Map<String,Item> proteins = new HashMap<>();
+    Map<String,Item> mRNAs = new HashMap<>();
     
     Set<String> ontologyAnnotations = new HashSet<>(); // concatenation of subject and term identifiers to avoid dupes
 
-    // these are in maps of maps since we can have the same secondaryIdentifier from multiple assembly/annotation versions
-    // these are merged on secondaryIdentifier,assemblyVersion,annotationVersion
-    Map<String,Map<String,Item>> genes = new HashMap<String,Map<String,Item>>();
-    Map<String,Map<String,Item>> proteins = new HashMap<String,Map<String,Item>>();
-    Map<String,Map<String,Item>> mRNAs = new HashMap<String,Map<String,Item>>();
 
     // ontologies created in constructor for random use
     Item geneOntology;
@@ -80,8 +78,10 @@ public class DatastoreFileConverter extends FileConverter {
     String dataSetUrl;
     String dataSetDescription;
 
-    // map gensp and Genus_species to taxonId
+    // map gensp and Genus_species to taxonId, etc.
     Map<String,String> genspTaxonId = new HashMap<>();
+    Map<String,String> taxonIdGenus = new HashMap<>();
+    Map<String,String> taxonIdSpecies = new HashMap<>();
 
     // Set DataSource fields in project.xml
     public void setDataSourceName(String name) {
@@ -140,9 +140,11 @@ public class DatastoreFileConverter extends FileConverter {
         koOntology.setAttribute("url", "https://www.genome.jp/kegg/ko.html");
         store(koOntology);
 
-        // get the gensp to taxonId map
+        // get the gensp to taxonId map and other organism deets
         DatastoreUtils dsu = new DatastoreUtils();
         genspTaxonId = dsu.getGenspTaxonId();
+        taxonIdGenus = dsu.getTaxonIdGenus();
+        taxonIdSpecies = dsu.getTaxonIdSpecies();
     }
 
     /**
@@ -189,6 +191,10 @@ public class DatastoreFileConverter extends FileConverter {
             // phavu.mixed.map1.7PMp.flanking_seq.fna
             printInfoBlurb(getCurrentFile().getName());
             processFlankingSeqFastaFile(reader);
+        } else if (getCurrentFile().getName().endsWith(".info_descriptors.txt")) {
+            // arahy.Tifrunner.gnm1.ann1.CCJH.info_descriptors.txt
+            printInfoBlurb(getCurrentFile().getName());
+            processInfoDescriptorsFile(reader);
         }
     }
 
@@ -208,16 +214,9 @@ public class DatastoreFileConverter extends FileConverter {
         store(linkageGroups.values());
         store(geneticMarkers.values());
         store(chromosomes.values());
-        // maps of maps
-        for (Map<String,Item> geneMap : genes.values()) {
-            store(geneMap.values());
-        }
-        for (Map<String,Item> proteinMap : proteins.values()) {
-            store(proteinMap.values());
-        }
-        for (Map<String,Item> mRNAMap : mRNAs.values()) {
-            store(mRNAMap.values());
-        }
+        store(genes.values());
+        store(proteins.values());
+        store(mRNAs.values());
     }
 
     /**
@@ -276,6 +275,30 @@ public class DatastoreFileConverter extends FileConverter {
     }
 
     /**
+     * Get the Genus for a gensp string like "phavu".
+     */
+    String getGenus(String gensp) {
+        String taxonId = getTaxonId(gensp);
+        if (taxonIdGenus.containsKey(taxonId)) {
+            return taxonIdGenus.get(taxonId);
+        } else {
+            throw new RuntimeException("Genus not available for taxon ID "+taxonId);
+        }
+    }
+    
+    /**
+     * Get the species for a gensp string like "phavu".
+     */
+    String getSpecies(String gensp) {
+        String taxonId = genspTaxonId.get(gensp);
+        if (taxonIdSpecies.containsKey(taxonId)) {
+            return taxonIdSpecies.get(taxonId);
+        } else {
+            throw new RuntimeException("Species not available for taxon ID "+taxonId);
+        }
+    }
+
+    /**
      * Get/add the organism Item associated with the given gensp value (e.g. "phavu").
      * Returns null if the gensp isn't resolvable.
      */
@@ -285,9 +308,14 @@ public class DatastoreFileConverter extends FileConverter {
             organism = organisms.get(gensp);
         } else {
             String taxonId = getTaxonId(gensp);
+            String genus = getGenus(gensp);
+            String species = getSpecies(gensp);
             organism = createItem("Organism");
-            organism.setAttribute("gensp", gensp);
+            organism.setAttribute("abbreviation", gensp);
             organism.setAttribute("taxonId", taxonId);
+            organism.setAttribute("genus", genus);
+            organism.setAttribute("species", species);
+            organism.setAttribute("name", genus+" "+species);
             organisms.put(gensp, organism);
         }
         return organism;
@@ -319,6 +347,160 @@ public class DatastoreFileConverter extends FileConverter {
         }
         return strain;
     }
+
+    /**
+     * Get/add a Gene Item, keyed by secondaryIdentifier (!)
+     */
+    public Item getGene(String secondaryIdentifier) {
+        if (secondaryIdentifier==null || secondaryIdentifier.trim().length()==0) {
+            throw new RuntimeException("secondaryIdentifier is null or empty in getGene.");
+        }
+        Item gene;
+        if (genes.containsKey(secondaryIdentifier)) {
+            gene = genes.get(secondaryIdentifier);
+        } else {
+            // phavu.Phvul.002G040500
+            gene = createItem("Gene");
+            gene.setAttribute("secondaryIdentifier", secondaryIdentifier);
+            genes.put(secondaryIdentifier, gene);
+        }
+        return gene;
+    }
+
+    /**
+     * Get/add a Protein Item, keyed by secondaryIdentifier (!)
+     */
+    public Item getProtein(String secondaryIdentifier) {
+        Item protein;
+        if (proteins.containsKey(secondaryIdentifier)) {
+            protein = proteins.get(secondaryIdentifier);
+        } else {
+            // Phvul.002G040500.1.p --> Phvul.002G040500.1
+            protein = createItem("Protein");
+            protein.setAttribute("secondaryIdentifier", secondaryIdentifier);
+            proteins.put(secondaryIdentifier, protein);
+        }
+        return protein;
+    }
+
+    /**
+     * Get/add a ProteinDomain Item.
+     */
+    public Item getProteinDomain(String identifier) {
+        Item proteinDomain;
+        if (proteinDomains.containsKey(identifier)) {
+            proteinDomain = proteinDomains.get(identifier);
+        } else {
+            proteinDomain = createItem("ProteinDomain");
+            proteinDomain.setAttribute("primaryIdentifier", identifier);
+        }
+        return proteinDomain;
+    }
+
+    /**
+     * Get/add an OntologyTerm Item, keyed by identifier
+     */
+    public Item getOntologyTerm(String identifier) {
+        Item ontologyTerm;
+        if (ontologyTerms.containsKey(identifier)) {
+            ontologyTerm = ontologyTerms.get(identifier);
+        } else {
+            ontologyTerm = createItem("OntologyTerm");
+            ontologyTerm.setAttribute("identifier", identifier);
+            ontologyTerms.put(identifier, ontologyTerm);
+        }
+        return ontologyTerm;
+    }
+
+    /**
+     * Get/add an MRNA Item, keyed by secondaryIdentifier (!)
+     */
+    public Item getMRNA(String secondaryIdentifier) {
+        Item mRNA;
+        if (mRNAs.containsKey(secondaryIdentifier)) {
+            mRNA = mRNAs.get(secondaryIdentifier);
+        } else {
+            // Phvul.002G040500.1
+            mRNA = createItem("MRNA");
+            mRNA.setAttribute("secondaryIdentifier", secondaryIdentifier);
+            mRNAs.put(secondaryIdentifier, mRNA);
+        }
+        return mRNA;
+    }
+
+    /**
+     * Get/add a GeneFamily Item.
+     */
+    public Item getGeneFamily(String identifier) {
+        Item geneFamily;
+        if (geneFamilies.containsKey(identifier)) {
+            geneFamily = geneFamilies.get(identifier);
+        } else {
+            geneFamily = createItem("GeneFamily");
+            geneFamily.setAttribute("identifier", identifier);
+            geneFamilies.put(identifier, geneFamily);
+        }
+        return geneFamily;
+    }
+    
+    /**
+     * Get/add a LinkageGroup Item
+     */
+    public Item getLinkageGroup(String primaryIdentifier) {
+        if (linkageGroups.containsKey(primaryIdentifier)) {
+            return linkageGroups.get(primaryIdentifier);
+        } else {
+            Item lg = createItem("LinkageGroup");
+            lg.setAttribute("primaryIdentifier", primaryIdentifier);
+            linkageGroups.put(primaryIdentifier, lg);
+            return lg;
+        }
+    }
+
+    /**
+     * Get/add a GeneticMarker Item
+     */
+    public Item getGeneticMarker(String primaryIdentifier) {
+        if (geneticMarkers.containsKey(primaryIdentifier)) {
+            return geneticMarkers.get(primaryIdentifier);
+        } else {
+            Item gm = createItem("GeneticMarker");
+            gm.setAttribute("primaryIdentifier", primaryIdentifier);
+            geneticMarkers.put(primaryIdentifier, gm);
+            return gm;
+        }
+    }
+
+    /**
+     * Get/add a Chromosome/Supercontig Item
+     */
+    public Item getChromosomeOrSupercontig(String primaryIdentifier, Item organism) {
+        if (chromosomes.containsKey(primaryIdentifier)) {
+            return chromosomes.get(primaryIdentifier);
+        } else {
+            Item chr;
+            // HACK: change the className to "Supercontig" if identifier contains "scaffold" or ends in "sc" etc.
+            String[] dotparts = primaryIdentifier.split("\\.");
+            String lastPart = dotparts[dotparts.length-1];
+            if (primaryIdentifier.toLowerCase().contains("scaffold") || lastPart.contains("sc")) {
+                chr = createItem("Supercontig");
+                // DEBUG
+                System.out.println("Adding Supercontig "+primaryIdentifier);
+            } else {
+                chr = createItem("Chromosome");
+                // DEBUG
+                System.out.println("Adding Chromosome "+primaryIdentifier);
+            }
+            chr.setAttribute("primaryIdentifier", primaryIdentifier);
+            chr.setReference("organism", organism);
+            chromosomes.put(primaryIdentifier, chr);
+            return chr;
+        }
+    }
+
+    ////////////////////////////////////////////////////////
+    //////////////////// FILE PROCESSORS ///////////////////
+    ////////////////////////////////////////////////////////
 
     /**
      * Process an organism description file, which is in YAML format:
@@ -451,115 +633,36 @@ public class DatastoreFileConverter extends FileConverter {
             InfoAnnotRecord record = new InfoAnnotRecord(line);
             if (record.pacId!=null) {
                 // the gene
-                Item gene = null;
                 String geneIdentifier = gensp+"."+record.locusName;
-                if (genes.containsKey(geneIdentifier)) {
-                    Map<String,Item> geneMap = genes.get(geneIdentifier);
-                    if (geneMap.containsKey(versionKey)) {
-                        gene = geneMap.get(versionKey);
-                    } else {
-                        // phavu.Phvul.002G040500
-                        gene = createItem("Gene");
-                        gene.setAttribute("secondaryIdentifier", geneIdentifier);
-                        gene.setReference("organism", organism);
-                        gene.setReference("strain", strain);
-                        gene.addToCollection("dataSets", dataSet);
-                        gene.setAttribute("assemblyVersion", assemblyVersion);
-                        gene.setAttribute("annotationVersion", annotationVersion);
-                        geneMap.put(versionKey, gene);
-                    }
-                } else {
-                    // phavu.Phvul.002G040500
-                    gene = createItem("Gene");
-                    gene.setAttribute("secondaryIdentifier", geneIdentifier);
-                    gene.setReference("organism", organism);
-                    gene.setReference("strain", strain);
-                    gene.addToCollection("dataSets", dataSet);
-                    gene.setAttribute("assemblyVersion", assemblyVersion);
-                    gene.setAttribute("annotationVersion", annotationVersion);
-                    Map<String,Item> geneMap = new HashMap<>();
-                    geneMap.put(versionKey, gene);
-                    genes.put(geneIdentifier, geneMap);
-                }
+                Item gene = getGene(geneIdentifier);
+                gene.setAttribute("assemblyVersion", assemblyVersion);
+                gene.setAttribute("annotationVersion", annotationVersion);
+                gene.setReference("organism", organism);
+                gene.setReference("strain", strain);
+                gene.addToCollection("dataSets", dataSet);
                 // the protein
-                Item protein = null;
                 String proteinIdentifier = gensp+"."+record.peptideName;
-                if (proteins.containsKey(proteinIdentifier)) {
-                    Map<String,Item> proteinMap = proteins.get(proteinIdentifier);
-                    if (proteinMap.containsKey(versionKey)) {
-                        protein = proteinMap.get(versionKey);
-                    } else {
-                        // Phvul.002G040500.1.p --> Phvul.002G040500.1
-                        protein = createItem("Protein");
-                        protein.setAttribute("secondaryIdentifier", proteinIdentifier);
-                        protein.setReference("organism", organism);
-                        protein.setReference("strain", strain);
-                        protein.addToCollection("dataSets", dataSet);
-                        protein.setAttribute("assemblyVersion", assemblyVersion);
-                        protein.setAttribute("annotationVersion", annotationVersion);
-                        protein.addToCollection("genes", gene);
-                        proteinMap.put(versionKey, protein);
-                    }
-                } else {
-                    // Phvul.002G040500.1.p --> Phvul.002G040500.1
-                    protein = createItem("Protein");
-                    protein.setAttribute("secondaryIdentifier", proteinIdentifier);
-                    protein.setReference("organism", organism);
-                    protein.setReference("strain", strain);
-                    protein.addToCollection("dataSets", dataSet);
-                    protein.setAttribute("assemblyVersion", assemblyVersion);
-                    protein.setAttribute("annotationVersion", annotationVersion);
-                    protein.addToCollection("genes", gene);
-                    Map<String,Item> proteinMap = new HashMap<>();
-                    proteinMap.put(versionKey, protein);
-                    proteins.put(proteinIdentifier, proteinMap);
-                }
+                Item protein = getProtein(proteinIdentifier);
+                protein.setAttribute("assemblyVersion", assemblyVersion);
+                protein.setAttribute("annotationVersion", annotationVersion);
+                protein.setReference("organism", organism);
+                protein.setReference("strain", strain);
+                protein.addToCollection("genes", gene);
+                protein.addToCollection("dataSets", dataSet);
                 // the transcript = mRNA
-                Item mRNA = null;
                 String mRNAIdentifier = gensp+"."+record.transcriptName;
-                if (mRNAs.containsKey(mRNAIdentifier)) {
-                    Map<String,Item> mRNAMap = mRNAs.get(mRNAIdentifier);
-                    if (mRNAMap.containsKey(versionKey)) {
-                        mRNA = mRNAMap.get(versionKey);
-                    } else {
-                        // Phvul.002G040500.1
-                        mRNA = createItem("MRNA");
-                        mRNA.setAttribute("secondaryIdentifier", mRNAIdentifier);
-                        mRNA.setReference("organism", organism);
-                        mRNA.setReference("strain", strain);
-                        mRNA.addToCollection("dataSets", dataSet);
-                        mRNA.setAttribute("assemblyVersion", assemblyVersion);
-                        mRNA.setAttribute("annotationVersion", annotationVersion);
-                        mRNA.setReference("gene", gene);
-                        mRNA.setReference("protein", protein);
-                        mRNAMap.put(versionKey, mRNA);
-                    }
-                } else {
-                    // Phvul.002G040500.1
-                    mRNA = createItem("MRNA");
-                    mRNA.setAttribute("secondaryIdentifier", mRNAIdentifier);
-                    mRNA.setReference("organism", organism);
-                    mRNA.setReference("strain", strain);
-                    mRNA.addToCollection("dataSets", dataSet);
-                    mRNA.setAttribute("assemblyVersion", assemblyVersion);
-                    mRNA.setAttribute("annotationVersion", annotationVersion);
-                    mRNA.setReference("gene", gene);
-                    mRNA.setReference("protein", protein);
-                    Map<String,Item> mRNAMap = new HashMap<>();
-                    mRNAMap.put(versionKey, mRNA);
-                    mRNAs.put(mRNAIdentifier, mRNAMap);
-                }
+                Item mRNA = getMRNA(mRNAIdentifier);
+                mRNA.setAttribute("assemblyVersion", assemblyVersion);
+                mRNA.setAttribute("annotationVersion", annotationVersion);
+                mRNA.setReference("gene", gene); 
+                mRNA.setReference("organism", organism);
+                mRNA.setReference("strain", strain);
+                mRNA.addToCollection("dataSets", dataSet);
+                mRNA.setReference("protein", protein);
                 // GO terms
                 for (String identifier : record.GO) {
-                    Item goTerm = null;
-                    if (ontologyTerms.containsKey(identifier)) {
-                        goTerm = ontologyTerms.get(identifier);
-                    } else {
-                        goTerm = createItem("OntologyTerm");
-                        goTerm.setAttribute("identifier", identifier);
-                        goTerm.setReference("ontology", geneOntology);
-                        ontologyTerms.put(identifier, goTerm);
-                    }
+                    Item goTerm = getOntologyTerm(identifier);
+                    goTerm.setReference("ontology", geneOntology);
                     String annotKey = identifier+"_"+versionKey+"_"+geneIdentifier;
                     if (!ontologyAnnotations.contains(annotKey)) {
                         Item goAnnotation = createItem("OntologyAnnotation");
@@ -572,15 +675,8 @@ public class DatastoreFileConverter extends FileConverter {
                 }
                 // Pfam terms
                 for (String identifier : record.Pfam) {
-                    Item pfamTerm = null;
-                    if (ontologyTerms.containsKey(identifier)) {
-                        pfamTerm = ontologyTerms.get(identifier);
-                    } else {
-                        pfamTerm = createItem("OntologyTerm");
-                        pfamTerm.setAttribute("identifier", identifier);
-                        pfamTerm.setReference("ontology", pfamOntology);
-                        ontologyTerms.put(identifier, pfamTerm);
-                    }
+                    Item pfamTerm = getOntologyTerm(identifier);
+                    pfamTerm.setReference("ontology", pfamOntology);
                     String annotKey = identifier+"_"+versionKey+"_"+proteinIdentifier;
                     if (!ontologyAnnotations.contains(annotKey)) {
                         Item pfamAnnotation = createItem("OntologyAnnotation");
@@ -593,15 +689,8 @@ public class DatastoreFileConverter extends FileConverter {
                 }
                 // Panther terms
                 for (String identifier : record.Panther) {
-                    Item pantherTerm = null;
-                    if (ontologyTerms.containsKey(identifier)) {
-                        pantherTerm = ontologyTerms.get(identifier);
-                    } else {
-                        pantherTerm = createItem("OntologyTerm");
-                        pantherTerm.setAttribute("identifier", identifier);
-                        pantherTerm.setReference("ontology", pantherOntology);
-                        ontologyTerms.put(identifier, pantherTerm);
-                    }
+                    Item pantherTerm = getOntologyTerm(identifier);
+                    pantherTerm.setReference("ontology", pantherOntology);
                     String annotKey = identifier+"_"+versionKey+"_"+proteinIdentifier;
                     if (!ontologyAnnotations.contains(annotKey)) {
                         Item pantherAnnotation = createItem("OntologyAnnotation");
@@ -613,15 +702,8 @@ public class DatastoreFileConverter extends FileConverter {
                     }                }
                 // KOG terms
                 for (String identifier : record.KOG) {
-                    Item kogTerm = null;
-                    if (ontologyTerms.containsKey(identifier)) {
-                        kogTerm = ontologyTerms.get(identifier);
-                    } else {
-                        kogTerm = createItem("OntologyTerm");
-                        kogTerm.setAttribute("identifier", identifier);
-                        kogTerm.setReference("ontology", kogOntology);
-                        ontologyTerms.put(identifier, kogTerm);
-                    }
+                    Item kogTerm = getOntologyTerm(identifier);
+                    kogTerm.setReference("ontology", kogOntology);
                     String annotKey = identifier+"_"+versionKey+"_"+proteinIdentifier;
                     if (!ontologyAnnotations.contains(annotKey)) {
                         Item kogAnnotation = createItem("OntologyAnnotation");
@@ -634,15 +716,8 @@ public class DatastoreFileConverter extends FileConverter {
                 }
                 // ec terms
                 for (String identifier : record.ec) {
-                    Item ecTerm = null;
-                    if (ontologyTerms.containsKey(identifier)) {
-                        ecTerm = ontologyTerms.get(identifier);
-                    } else {
-                        ecTerm = createItem("OntologyTerm");
-                        ecTerm.setAttribute("identifier", identifier);
-                        ecTerm.setReference("ontology", ecOntology);
-                        ontologyTerms.put(identifier, ecTerm);
-                    }
+                    Item ecTerm = getOntologyTerm(identifier);
+                    ecTerm.setReference("ontology", ecOntology);
                     String annotKey = identifier+"_"+versionKey+"_"+proteinIdentifier;
                     if (!ontologyAnnotations.contains(annotKey)) {
                         Item ecAnnotation = createItem("OntologyAnnotation");
@@ -655,15 +730,8 @@ public class DatastoreFileConverter extends FileConverter {
                 }
                 // KO terms
                 for (String identifier : record.KO) {
-                    Item koTerm = null;
-                    if (ontologyTerms.containsKey(identifier)) {
-                        koTerm = ontologyTerms.get(identifier);
-                    } else {
-                        koTerm = createItem("OntologyTerm");
-                        koTerm.setAttribute("identifier", identifier);
-                        koTerm.setReference("ontology", koOntology);
-                        ontologyTerms.put(identifier, koTerm);
-                    }
+                    Item koTerm = getOntologyTerm(identifier);
+                    koTerm.setReference("ontology", koOntology);
                     String annotKey = identifier+"_"+versionKey+"_"+geneIdentifier;
                     if (!ontologyAnnotations.contains(annotKey)) {
                         Item koAnnotation = createItem("OntologyAnnotation");
@@ -716,25 +784,16 @@ public class DatastoreFileConverter extends FileConverter {
             if (line.startsWith("#")) continue;
             // parse record and create items
             InfoAnnotAhrdRecord record = new InfoAnnotAhrdRecord(line);
-            Item geneFamily = createItem("GeneFamily");
-            geneFamily.setAttribute("identifier", record.identifier);
+            Item geneFamily = getGeneFamily(record.identifier);
             geneFamily.setAttribute("version", record.version);
             geneFamily.setAttribute("description", record.description);
             geneFamily.setReference("dataSet", dataSet);
-            geneFamilies.put(record.identifier, geneFamily);
             // GO terms
             for (String identifier : record.go.keySet()) {
                 String description = record.go.get(identifier);
-                Item goTerm = null;
-                if (ontologyTerms.containsKey(identifier)) {
-                    goTerm = ontologyTerms.get(identifier);
-                } else {
-                    goTerm = createItem("OntologyTerm");
-                    goTerm.setAttribute("identifier", identifier);
-                    goTerm.setAttribute("description", description);
-                    goTerm.setReference("ontology", geneOntology);
-                    ontologyTerms.put(identifier, goTerm);
-                }
+                Item goTerm = getOntologyTerm(identifier);
+                goTerm.setAttribute("description", description);
+                goTerm.setReference("ontology", geneOntology);
                 Item goAnnotation = createItem("OntologyAnnotation");
                 goAnnotation.setReference("subject", geneFamily);
                 goAnnotation.setReference("ontologyTerm", goTerm);
@@ -743,19 +802,12 @@ public class DatastoreFileConverter extends FileConverter {
             }
             // interpro domains
             for (String identifier : record.interpro.keySet()) {
+                Item proteinDomain = getProteinDomain(identifier);
                 String description = record.interpro.get(identifier);
-                Item proteinDomain = null;
-                if (proteinDomains.containsKey(identifier)) {
-                    proteinDomain = proteinDomains.get(identifier);
-                } else {
-                    proteinDomain = createItem("ProteinDomain");
-                    proteinDomain.setAttribute("primaryIdentifier", identifier);
-                    proteinDomain.setAttribute("description", description);
-                    proteinDomains.put(identifier, proteinDomain);
-                }
+                proteinDomain.setAttribute("description", description);
                 proteinDomain.addToCollection("geneFamilies", geneFamily);
             }
-            // load the gene family FASTA if present to link proteins of the desired organisms
+            // load the gene family FASTA if present to link proteins
             String fastaFilename = fastaDirname+"/"+record.identifier;
             File fastaFile = new File(fastaFilename);
             if (fastaFile.exists()) {
@@ -767,25 +819,9 @@ public class DatastoreFileConverter extends FileConverter {
                         String[] parts = name.split("\\.");
                         String gensp = parts[0];
                         Item organism = getOrganism(gensp);
-                        if (organism!=null) {
-                            if (proteins.containsKey(name)) {
-                                // update proteins we already have (hopefully most of them)
-                                for (Item protein : proteins.get(name).values()) {
-                                    protein.setReference("geneFamily", geneFamily);
-                                    protein.addToCollection("dataSets", dataSet);
-                                }
-                            } else {
-                                // create protein without assemblyVersion, annotationVersion if not already loaded (boo)
-                                Item protein = createItem("Protein");
-                                protein.setAttribute("secondaryIdentifier", name);
-                                protein.setReference("organism", organism);
-                                protein.setReference("geneFamily", geneFamily);
-                                protein.addToCollection("dataSets", dataSet);
-                                Map<String,Item> proteinMap = new HashMap<>();
-                                proteinMap.put(dataSetVersion, protein);
-                                proteins.put(name, proteinMap);
-                            }
-                        }
+                        Item protein = getProtein(name);
+                        protein.setReference("geneFamily", geneFamily);
+                        protein.addToCollection("dataSets", dataSet);
                     }
                 }
                 fbr.close();
@@ -947,57 +983,55 @@ public class DatastoreFileConverter extends FileConverter {
     }
 
     /**
-     * Get an old LinkageGroup or create a new one
+     * Get the gene descriptions and ontology annotations from an info_descriptors.txt file.
+     *
+     * 0     1         2    3    4    5                6
+     * arahy.Tifrunner.gnm1.ann1.CCJH.info_descriptors.txt
+     * arahy.Tifrunner.gnm1.ann1.GU6A2U RING finger protein 5-like [Glycine max]; IPR013083 (Zinc finger, RING...); GO:0005515 (protein binding), GO:0008270 (zinc ion binding)
      */
-    public Item getLinkageGroup(String primaryIdentifier) {
-        if (linkageGroups.containsKey(primaryIdentifier)) {
-            return linkageGroups.get(primaryIdentifier);
-        } else {
-            Item lg = createItem("LinkageGroup");
-            lg.setAttribute("primaryIdentifier", primaryIdentifier);
-            linkageGroups.put(primaryIdentifier, lg);
-            return lg;
-        }
-    }
-
-    /**
-     * Get an old GeneticMarker or create a new one
-     */
-    public Item getGeneticMarker(String primaryIdentifier) {
-        if (geneticMarkers.containsKey(primaryIdentifier)) {
-            return geneticMarkers.get(primaryIdentifier);
-        } else {
-            Item gm = createItem("GeneticMarker");
-            gm.setAttribute("primaryIdentifier", primaryIdentifier);
-            geneticMarkers.put(primaryIdentifier, gm);
-            return gm;
-        }
-    }
-
-    /**
-     * Get an existing Chromosome/Supercontig record or create a new one.
-     */
-    public Item getChromosomeOrSupercontig(String primaryIdentifier, Item organism) {
-        if (chromosomes.containsKey(primaryIdentifier)) {
-            return chromosomes.get(primaryIdentifier);
-        } else {
-            Item chr;
-            // HACK: change the className to "Supercontig" if identifier contains "scaffold" or ends in "sc" etc.
-            String[] dotparts = primaryIdentifier.split("\\.");
-            String lastPart = dotparts[dotparts.length-1];
-            if (primaryIdentifier.toLowerCase().contains("scaffold") || lastPart.contains("sc")) {
-                chr = createItem("Supercontig");
-                // DEBUG
-                System.out.println("Adding Supercontig "+primaryIdentifier);
-            } else {
-                chr = createItem("Chromosome");
-                // DEBUG
-                System.out.println("Adding Chromosome "+primaryIdentifier);
+    void processInfoDescriptorsFile(Reader reader) throws IOException, ObjectStoreException {
+        // get the dot-separated file information
+        String[] dotparts = getCurrentFile().getName().split("\\.");
+        String gensp = dotparts[0];
+        String strainName = dotparts[1];
+        String assemblyVersion = dotparts[2];
+        String annotationVersion = dotparts[3];
+        String versionKey = assemblyVersion+"."+annotationVersion;
+        // get the dataSet, organism and strain
+        Item dataSet = getDataSet();
+        dataSet.setAttribute("version", versionKey);
+        Item organism = getOrganism(gensp);
+        Item strain = getStrain(strainName, organism);
+        // spin through the file
+        BufferedReader br = new BufferedReader(reader);
+        String line = null;
+        while ((line=br.readLine())!=null) {
+            // comment line
+            if (line.startsWith("#")) continue;
+            // parse record and update items
+            InfoDescriptorsRecord record = new InfoDescriptorsRecord(line);
+            Item gene = getGene(record.identifier);
+            gene.setAttribute("description", record.description);
+            gene.addToCollection("dataSets", dataSet);
+            // GO terms
+            for (String identifier : record.go.keySet()) {
+                String description = record.go.get(identifier);
+                Item goTerm = getOntologyTerm(identifier);
+                goTerm.setAttribute("description", description);
+                goTerm.setReference("ontology", geneOntology);
+                Item goAnnotation = createItem("OntologyAnnotation");
+                goAnnotation.setReference("subject", gene);
+                goAnnotation.setReference("ontologyTerm", goTerm);
+                goAnnotation.addToCollection("dataSets", dataSet);
+                store(goAnnotation);
             }
-            chr.setAttribute("primaryIdentifier", primaryIdentifier);
-            chr.setReference("organism", organism);
-            chromosomes.put(primaryIdentifier, chr);
-            return chr;
+            // ON HOLD: genes don't have proteinDomains collection and we don't have gene family IDs here!
+            // // interpro domains
+            // for (String identifier : record.interpro.keySet()) {
+            //     String description = record.interpro.get(identifier);
+            //     Item proteinDomain = getProteinDomain(identifier);
+            //     proteinDomain.setAttribute("description", description);
+            // }
         }
     }
 }

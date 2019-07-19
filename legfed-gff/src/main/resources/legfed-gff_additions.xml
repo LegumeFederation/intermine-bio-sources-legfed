@@ -10,7 +10,22 @@
     <reference name="supercontigLocation" referenced-type="Location" />
   </class>
 
+  <!-- boatloads of extra stuff appear in GFFs -->
+  <class name="RepeatRegion"          extends="SequenceFeature" is-interface="true"/>
+  <class name="PreMiRNA"              extends="SequenceFeature" is-interface="true"/>
+  <class name="TargetSiteDuplication" extends="SequenceFeature" is-interface="true"/>
+  <class name="TerminalInvertedRepeatElement" extends="SequenceFeature" is-interface="true"/>
+  <class name="TerminalInvertedRepeat" extends="SequenceFeature" is-interface="true"/>
+  <class name="TRIMRetrotransposon"   extends="SequenceFeature" is-interface="true"/>
+  <class name="LongTerminalRepeat"    extends="SequenceFeature" is-interface="true"/>
+  <class name="RRTract"               extends="SequenceFeature" is-interface="true"/>
+  <class name="InvertedRepeat"        extends="SequenceFeature" is-interface="true"/>
+  <class name="PrimerBindingSite"     extends="SequenceFeature" is-interface="true"/>
+  <class name="ProteinMatch"          extends="SequenceFeature" is-interface="true"/>
+  <class name="Helitron"              extends="SequenceFeature" is-interface="true"/>
+  <class name="LTRRetrotransposon"    extends="SequenceFeature" is-interface="true"/>
+  <class name="NonLTRRetrotransposon" extends="SequenceFeature" is-interface="true"/>
   <class name="TRNAPrimaryTranscript" extends="SequenceFeature" is-interface="true"/>
   <class name="RRNAPrimaryTranscript" extends="SequenceFeature" is-interface="true"/>
-
+  
 </classes>

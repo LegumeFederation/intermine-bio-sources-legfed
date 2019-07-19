@@ -41,53 +41,43 @@ public class LegfedGFF3RecordHandler extends GFF3RecordHandler {
         Item feature = getFeature();
         String clsName = feature.getClassName();
 
-        // type             id                                                          name
-        // ---------------- ----------------------------------------------------------- ------------------------
-        // five_prime_UTR   phavu.G19833.gnm2.ann1.Phvul.003G111100.1.five_prime_UTR.3  null
-        // CDS              phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1             null
-        // three_prime_UTR  phavu.G19833.gnm2.ann1.Phvul.003G111100.1.three_prime_UTR.1 null
-        // gene             phavu.G19833.gnm2.ann1.Phvul.003G111200                     phavu.Phvul.003G111200
-        // mRNA             phavu.G19833.gnm2.ann1.Phvul.003G111200.1                   phavu.Phvul.003G111200.1
+        // type             id                                                         
+        // ---------------- -----------------------------------------------------------
+        // five_prime_UTR   phavu.G19833.gnm2.ann1.Phvul.003G111100.1.five_prime_UTR.3 
+        // CDS              phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1            
+        // three_prime_UTR  phavu.G19833.gnm2.ann1.Phvul.003G111100.1.three_prime_UTR.1
+        // gene             phavu.G19833.gnm2.ann1.Phvul.003G111200                    
+        // mRNA             phavu.G19833.gnm2.ann1.Phvul.003G111200.1                  
 
         String type = record.getType();
         String id = record.getId();
-        String name = null;
-        String gensp = null;
-        String strainName = null;
-        String assemblyVersion = null;
-        String annotationVersion = null;
-        String nameFromId = null;
-        
-        // 0     1      2    3    4     5          6 7   8
-        // phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1
-        String[] parts = id.split("\\.");
-        gensp = parts[0];
-        strainName = parts[1];
-        assemblyVersion = parts[2];
-        annotationVersion = parts[3];
-        if (parts.length>8) {
-            nameFromId = parts[4]+"."+parts[5]+"."+parts[6]+"."+parts[7]+"."+parts[8];
-        } else if (parts.length>7) {
-            nameFromId = parts[4]+"."+parts[5]+"."+parts[6]+"."+parts[7];
-        } else if (parts.length>6) {
-            nameFromId = parts[4]+"."+parts[5]+"."+parts[6];
-        } else if (parts.length>5) {
-            nameFromId = parts[4]+"."+parts[5];
-        }
 
-        // commented out because currently inconsistent between versions 5/28/19
-        // if (record.getAttributes().get("Name")!=null) {
-        //     name = record.getAttributes().get("Name").iterator().next();
-        //     if (name.charAt(5)=='.') name = name.substring(6);
-        // }
-
-        // set attributes
-        if (name!=null) {
-            feature.setAttribute("secondaryIdentifier", name);
-        } else if (nameFromId!=null) {
+        // only update feature if ID is present
+        if (id!=null) {
+            // 0     1      2    3    4     5          6 7   8
+            // phavu.G19833.gnm2.ann1.Phvul.003G111100.1.CDS.1
+            // 0     1            2    3      4                         5
+            // medtr.jemalong_A17.gnm5.ann1_6.exon:MtrunA17Chr1g0187771.1
+            // 0     1            2    3      4
+            // medtr.jemalong_A17.gnm5.ann1_6.gene:MtrunA17CPg0492171
+            String[] parts = id.split("\\.");
+            if (parts.length<5) {
+                throw new RuntimeException("ID has too few dot-separated parts:"+id);
+            }
+            String gensp = parts[0];
+            String strainName = parts[1];
+            String assemblyVersion = parts[2];
+            String annotationVersion = parts[3];
+            String nameFromId = gensp+"."+parts[4];
+            if (parts.length>5) nameFromId += "."+parts[5];
+            if (parts.length>6) nameFromId += "."+parts[6];
+            if (parts.length>7) nameFromId += "."+parts[7];
+            if (parts.length>8) nameFromId += "."+parts[8];
+            
+            // set attributes
             feature.setAttribute("secondaryIdentifier", nameFromId);
+            feature.setAttribute("assemblyVersion", assemblyVersion);
+            feature.setAttribute("annotationVersion", annotationVersion);
         }
-        if (assemblyVersion!=null) feature.setAttribute("assemblyVersion", assemblyVersion);
-        if (annotationVersion!=null) feature.setAttribute("annotationVersion", annotationVersion);
     }
 }

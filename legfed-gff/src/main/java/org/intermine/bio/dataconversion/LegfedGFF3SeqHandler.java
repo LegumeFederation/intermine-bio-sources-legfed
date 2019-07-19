@@ -14,7 +14,7 @@ import org.intermine.bio.io.gff3.GFF3Record;
 import org.intermine.xml.full.Item;
 
 /**
- * This implementation creates Chromosome items by default and Supercontig items if the identifier contains "scaffold".
+ * This implementation creates Chromosome items by default and Supercontig items if the identifier contains appropriate text.
  *
  * @author Sam Hokin
  */
@@ -28,9 +28,7 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
      * @override
      */
     public Item makeSequenceItem(GFF3Converter converter, String identifier) {
-        String[] dotParts = identifier.split("\\.");
-        String lastPart = dotParts[dotParts.length-1];
-        if (identifier.contains("scaffold") || lastPart.contains("sc")) {
+        if (isScaffold(identifier)) {
             Item seq = converter.createItem("Supercontig");
             seq.setAttribute("primaryIdentifier", identifier);
             return seq;
@@ -51,12 +49,7 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
      * @override
      */
     public Item makeSequenceItem(GFF3Converter converter, String identifier, GFF3Record record) {
-        String[] dotParts = identifier.split("\\.");
-        String lastPart = dotParts[dotParts.length-1];
-        if (identifier.toLowerCase().contains("scaffold")
-            || lastPart.contains("sc")
-            || lastPart.contains("pilon")
-            ) {
+        if (isScaffold(identifier)) {
             Item seq = converter.createItem("Supercontig");
             seq.setAttribute("primaryIdentifier", identifier);
             return seq;
@@ -65,5 +58,18 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
             seq.setAttribute("primaryIdentifier", identifier);
             return seq;
         }
+    }
+
+    /**
+     * Return true if this identifier identifies a scaffold rather than chromosome.
+     */
+    boolean isScaffold(String identifier) {
+        String[] dotParts = identifier.split("\\.");
+        String lastPart = dotParts[dotParts.length-1];
+        boolean scaffold = false;
+        scaffold = scaffold || identifier.contains("scaffold");
+        scaffold = scaffold || identifier.contains("Chr0c");
+        scaffold = scaffold || lastPart.contains("sc");
+        return scaffold;
     }
 }

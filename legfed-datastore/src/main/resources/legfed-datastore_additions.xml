@@ -5,7 +5,6 @@
   <class name="Organism" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
     <attribute name="abbreviation" type="java.lang.String"/>
-    <attribute name="gensp" type="java.lang.String"/>
   </class>
   
   <class name="Strain" is-interface="true">
@@ -36,18 +35,6 @@
 
   <!-- for post-processors -->
   <class name="MRNA" extends="Transcript" is-interface="true"/>
-
-  <!-- to be updated with new IM core Homologue model! -->
-  <class name="Gene" is-interface="true">
-    <collection name="homologues" referenced-type="Homologue"/>
-  </class>
-  <class name="Homologue" is-interface="true">
-    <attribute name="type" type="java.lang.String"/>
-    <reference name="geneFamily" referenced-type="GeneFamily"/>
-    <reference name="gene" referenced-type="Gene" reverse-reference="homologues"/>
-    <reference name="homologue" referenced-type="Gene"/>
-    <collection name="dataSets" referenced-type="DataSet"/>
-  </class>
 
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <attribute name="type" type="java.lang.String"/>

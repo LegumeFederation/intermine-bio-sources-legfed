@@ -1,53 +1,53 @@
 rootProject.name = 'bio-sources-legfed'
 
-// include ':bio-source-legfed-chado-db',
-// 	':bio-source-legfed-cmap-file',
-// 	':bio-source-legfed-crop-ontology',
-// 	':bio-source-legfed-expression',
-// 	':bio-source-legfed-geneticmap-file',
-// 	':bio-source-legfed-geneticmarker-gff',
-// 	':bio-source-legfed-germplasm-file',
-// 	':bio-source-legfed-gt-file',
-// 	':bio-source-legfed-gwas-file',
-// 	':bio-source-legfed-linkagegroup-file',
-// 	':bio-source-legfed-marker-chromosome-file',
-// 	':bio-source-legfed-marker-linkagegroup-file',
-// 	':bio-source-legfed-marker-qtl-file',
-// 	':bio-source-legfed-plant-ontology',
-// 	':bio-source-legfed-qtl-file',
-// 	':bio-source-legfed-qtl-ontology-file',
-// 	':bio-source-legfed-snpmarker-file',
-// 	':bio-source-legfed-snpvcf-file',
-//  	':bio-source-legfed-trait-ontology',
-// 	':bio-source-legfed-strains-file',
-// 	':bio-source-legfed-phenotypes-file',
+include ':bio-source-legfed-chado-db',
+	':bio-source-legfed-cmap-file',
+	':bio-source-legfed-crop-ontology',
+	':bio-source-legfed-expression',
+	':bio-source-legfed-geneticmap-file',
+	':bio-source-legfed-geneticmarker-gff',
+	':bio-source-legfed-germplasm-file',
+	':bio-source-legfed-gt-file',
+	':bio-source-legfed-gwas-file',
+	':bio-source-legfed-linkagegroup-file',
+	':bio-source-legfed-marker-chromosome-file',
+	':bio-source-legfed-marker-linkagegroup-file',
+	':bio-source-legfed-marker-qtl-file',
+	':bio-source-legfed-plant-ontology',
+	':bio-source-legfed-qtl-file',
+	':bio-source-legfed-qtl-ontology-file',
+	':bio-source-legfed-snpmarker-file',
+	':bio-source-legfed-snpvcf-file',
+ 	':bio-source-legfed-trait-ontology',
+	':bio-source-legfed-strains-file',
+	':bio-source-legfed-phenotypes-file',
 
-include	':bio-source-legfed-gff',
+	':bio-source-legfed-gff',
 	':bio-source-legfed-fasta',
 	':bio-source-legfed-datastore',
 	':bio-source-legfed-synteny-gff'
 
-// project(':bio-source-legfed-chado-db').projectDir = new File(settingsDir, 'legfed-chado-db')
-// project(':bio-source-legfed-cmap-file').projectDir = new File(settingsDir, 'legfed-cmap-file')
-// project(':bio-source-legfed-crop-ontology').projectDir = new File(settingsDir, 'legfed-crop-ontology')
-// project(':bio-source-legfed-expression').projectDir = new File(settingsDir, 'legfed-expression')
-// project(':bio-source-legfed-geneticmap-file').projectDir = new File(settingsDir, 'legfed-geneticmap-file')
-// project(':bio-source-legfed-geneticmarker-gff').projectDir = new File(settingsDir, 'legfed-geneticmarker-gff')
-// project(':bio-source-legfed-germplasm-file').projectDir = new File(settingsDir, 'legfed-germplasm-file')
-// project(':bio-source-legfed-gt-file').projectDir = new File(settingsDir, 'legfed-gt-file')
-// project(':bio-source-legfed-gwas-file').projectDir = new File(settingsDir, 'legfed-gwas-file')
-// project(':bio-source-legfed-linkagegroup-file').projectDir = new File(settingsDir, 'legfed-linkagegroup-file')
-// project(':bio-source-legfed-marker-chromosome-file').projectDir = new File(settingsDir, 'legfed-marker-chromosome-file')
-// project(':bio-source-legfed-marker-linkagegroup-file').projectDir = new File(settingsDir, 'legfed-marker-linkagegroup-file')
-// project(':bio-source-legfed-marker-qtl-file').projectDir = new File(settingsDir, 'legfed-marker-qtl-file')
-// project(':bio-source-legfed-plant-ontology').projectDir = new File(settingsDir, 'legfed-plant-ontology')
-// project(':bio-source-legfed-qtl-file').projectDir = new File(settingsDir, 'legfed-qtl-file')
-// project(':bio-source-legfed-qtl-ontology-file').projectDir = new File(settingsDir, 'legfed-qtl-ontology-file')
-// project(':bio-source-legfed-snpmarker-file').projectDir = new File(settingsDir, 'legfed-snpmarker-file')
-// project(':bio-source-legfed-snpvcf-file').projectDir = new File(settingsDir, 'legfed-snpvcf-file')
-// project(':bio-source-legfed-trait-ontology').projectDir = new File(settingsDir, 'legfed-trait-ontology')
-// project(':bio-source-legfed-strains-file').projectDir = new File(settingsDir, 'legfed-strains-file')
-// project(':bio-source-legfed-phenotypes-file').projectDir = new File(settingsDir, 'legfed-phenotypes-file')
+project(':bio-source-legfed-chado-db').projectDir = new File(settingsDir, 'legfed-chado-db')
+project(':bio-source-legfed-cmap-file').projectDir = new File(settingsDir, 'legfed-cmap-file')
+project(':bio-source-legfed-crop-ontology').projectDir = new File(settingsDir, 'legfed-crop-ontology')
+project(':bio-source-legfed-expression').projectDir = new File(settingsDir, 'legfed-expression')
+project(':bio-source-legfed-geneticmap-file').projectDir = new File(settingsDir, 'legfed-geneticmap-file')
+project(':bio-source-legfed-geneticmarker-gff').projectDir = new File(settingsDir, 'legfed-geneticmarker-gff')
+project(':bio-source-legfed-germplasm-file').projectDir = new File(settingsDir, 'legfed-germplasm-file')
+project(':bio-source-legfed-gt-file').projectDir = new File(settingsDir, 'legfed-gt-file')
+project(':bio-source-legfed-gwas-file').projectDir = new File(settingsDir, 'legfed-gwas-file')
+project(':bio-source-legfed-linkagegroup-file').projectDir = new File(settingsDir, 'legfed-linkagegroup-file')
+project(':bio-source-legfed-marker-chromosome-file').projectDir = new File(settingsDir, 'legfed-marker-chromosome-file')
+project(':bio-source-legfed-marker-linkagegroup-file').projectDir = new File(settingsDir, 'legfed-marker-linkagegroup-file')
+project(':bio-source-legfed-marker-qtl-file').projectDir = new File(settingsDir, 'legfed-marker-qtl-file')
+project(':bio-source-legfed-plant-ontology').projectDir = new File(settingsDir, 'legfed-plant-ontology')
+project(':bio-source-legfed-qtl-file').projectDir = new File(settingsDir, 'legfed-qtl-file')
+project(':bio-source-legfed-qtl-ontology-file').projectDir = new File(settingsDir, 'legfed-qtl-ontology-file')
+project(':bio-source-legfed-snpmarker-file').projectDir = new File(settingsDir, 'legfed-snpmarker-file')
+project(':bio-source-legfed-snpvcf-file').projectDir = new File(settingsDir, 'legfed-snpvcf-file')
+project(':bio-source-legfed-trait-ontology').projectDir = new File(settingsDir, 'legfed-trait-ontology')
+project(':bio-source-legfed-strains-file').projectDir = new File(settingsDir, 'legfed-strains-file')
+project(':bio-source-legfed-phenotypes-file').projectDir = new File(settingsDir, 'legfed-phenotypes-file')
 
 project(':bio-source-legfed-gff').projectDir = new File(settingsDir, 'legfed-gff')
 project(':bio-source-legfed-fasta').projectDir = new File(settingsDir, 'legfed-fasta')
