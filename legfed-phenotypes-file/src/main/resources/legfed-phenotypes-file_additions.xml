@@ -3,6 +3,7 @@
 
   <!-- this loader loads phenotypes for given strains -->
   <class name="Strain" is-interface="true">
+    <attribute name="name" type="java.lang.String"/>
     <collection name="phenotypeValues" referenced-type="PhenotypeValue" reverse-reference="strain"/>
   </class>
 
