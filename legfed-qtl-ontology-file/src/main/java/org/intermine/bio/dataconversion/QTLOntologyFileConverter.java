@@ -153,7 +153,7 @@ public class QTLOntologyFileConverter extends BioFileConverter {
                 // NOTE: could have duplicates, so we'll check for that using a List
                 String annotationKey = identifier+"|"+qtlName;
                 if (annotationList.contains(annotationKey)) {
-                    System.out.println(annotationKey+" has already been stored; ignoring.");
+                    LOG.info(annotationKey+" has already been stored; ignoring.");
                 } else {
                     Item annotation = createItem("OntologyAnnotation");
                     annotation.setReference("ontologyTerm", term);

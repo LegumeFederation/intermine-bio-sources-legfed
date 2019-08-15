@@ -188,6 +188,7 @@ public class ExpressionFileConverter extends BioFileConverter {
      * Store all the stuff.
      */
     public void close() throws java.lang.Exception {
+        System.out.println("ExpressionFileConverter: geneMap.size()="+geneMap.size());
         store(publicationSet);
 	store(sourceSet);
 	store(sampleSet);
