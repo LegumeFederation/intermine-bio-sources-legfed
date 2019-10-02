@@ -28,7 +28,7 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
      * @override
      */
     public Item makeSequenceItem(GFF3Converter converter, String identifier) {
-        if (isScaffold(identifier)) {
+        if (DatastoreUtils.isSupercontig(identifier)) {
             Item seq = converter.createItem("Supercontig");
             seq.setAttribute("primaryIdentifier", identifier);
             return seq;
@@ -49,7 +49,7 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
      * @override
      */
     public Item makeSequenceItem(GFF3Converter converter, String identifier, GFF3Record record) {
-        if (isScaffold(identifier)) {
+        if (DatastoreUtils.isSupercontig(identifier)) {
             Item seq = converter.createItem("Supercontig");
             seq.setAttribute("primaryIdentifier", identifier);
             return seq;
@@ -60,16 +60,4 @@ public class LegfedGFF3SeqHandler extends GFF3SeqHandler {
         }
     }
 
-    /**
-     * Return true if this identifier identifies a scaffold rather than chromosome.
-     */
-    boolean isScaffold(String identifier) {
-        String[] dotParts = identifier.split("\\.");
-        String lastPart = dotParts[dotParts.length-1];
-        boolean scaffold = false;
-        scaffold = scaffold || identifier.contains("scaffold");
-        scaffold = scaffold || identifier.contains("Chr0c");
-        scaffold = scaffold || lastPart.contains("sc");
-        return scaffold;
-    }
 }

@@ -124,8 +124,7 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
                     if (rec.type.length()>0) marker.setAttribute("type", rec.type);
                     if (rec.motif!=null && rec.motif.length()>0) marker.setAttribute("motif", rec.motif);
                     // set the chromosome or supercontig reference
-                    // HACK: assume supercontig has "scaffold" or "contig" in the name
-                    boolean isSupercontig = (rec.chromosome.toLowerCase().contains("scaffold") || rec.chromosome.toLowerCase().contains("contig"));
+                    boolean isSupercontig = DatastoreUtils.isSupercontig(rec.chromosome);
                     Item chromosome = null;
                     if (chromosomeMap.containsKey(rec.chromosome)) {
                         chromosome = chromosomeMap.get(rec.chromosome);

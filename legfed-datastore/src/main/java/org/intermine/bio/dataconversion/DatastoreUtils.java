@@ -68,22 +68,54 @@ public class DatastoreUtils {
     public Map<String,String> getTaxonIdGenus() {
         return taxonIdGenus;
     }
+
     /**
      * get the taxonId -> species map
      */
     public Map<String,String> getTaxonIdSpecies() {
         return taxonIdSpecies;
     }
+
     /**
      * get the gensp -> taxonId map
      */
     public Map<String,String> getGenspTaxonId() {
         return genspTaxonId;
     }
+
     /**
      * get the genus_species -> taxonId map
      */
     public Map<String,String> getGenusSpeciesTaxonId() {
         return genusSpeciesTaxonId;
+    }
+
+    /**
+     * Determine whether the given primaryIdentifier is for a Supercontig (based on some string content).
+     */
+    static public boolean isSupercontig(String primaryIdentifier) {
+        String lc = primaryIdentifier.toLowerCase();
+	if (lc.contains("scaffold")
+            || lc.contains("contig")
+            || lc.contains("pilon")
+            || primaryIdentifier.contains("Aipa")
+            || primaryIdentifier.contains("Adur"))
+	    return true;
+	// tricky ones
+	String[] parts = primaryIdentifier.split("\\.");
+	// 0     1           2    3
+	// cicar.CDCFrontier.gnm1.C11044140
+	if (parts[3].length()==9 && parts[3].charAt(0)=='C') return true;
+	// 0     1   2    3
+	// glyma.Lee.gnm1.sc119
+	if (parts[1].equals("Lee") && parts[3].startsWith("sc")) return true;
+	// 0     1        2    3
+	// glyso.PI483463.gnm1.sc255
+	if (parts[0].equals("glyso") && parts[3].startsWith("sc")) return true;
+	// 0     1            2    3
+	// medtr.jemalong_A17.gnm5.MtrunA17Chr0c01
+	if (parts[3].contains("Chr0c")) return true;
+	// it's a chromosome!
+	return false;
     }
 }

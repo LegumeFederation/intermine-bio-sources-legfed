@@ -128,6 +128,11 @@ subprojects {
   }
 
   tasks.compileTestJava.dependsOn ':bio-model:copyMineProperties'
+
+  if (it.name != 'bio-source-legfed-datastore') {
+      dependencies {compile project(':bio-source-legfed-datastore')}
+  }
+
 }
 
 task testReport(type: TestReport) {

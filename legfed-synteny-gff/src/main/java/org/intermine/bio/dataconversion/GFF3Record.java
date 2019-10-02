@@ -366,12 +366,14 @@ public class GFF3Record
     }
 
     /**
-     * Return the first value of the Target field from the attributes of this record.
+     * Return the first value of the "Target" or "matches" field from the attributes of this record.
      * @return the Target from the attributes of this record or null of there isn't a value
      */
     public String getTarget() {
         if (getAttributes().containsKey("Target")) {
             return getAttributes().get("Target").get(0);
+        } else if (getAttributes().containsKey("matches")) {
+            return getAttributes().get("matches").get(0);
         }
         return null;
     }

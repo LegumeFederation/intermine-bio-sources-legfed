@@ -49,8 +49,6 @@ import org.intermine.task.FileDirectDataLoaderTask;
  * A task that can read a set of FASTA files and create the corresponding Sequence objects in an
  * ObjectStore.
  *
- * This minor tweak changes the class to Supercontig if the identifier contains "scaffold" or other LIS indicators.
- *
  * @author Kim Rutherford
  * @author Peter Mclaren
  * @author Sam Hokin
@@ -367,7 +365,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
 
         // HACK: toggle the className between "Chromosome" and "Supercontig" based on attribute content.
         if (className.equals("org.intermine.model.bio.Chromosome") || className.equals("org.intermine.model.bio.Supercontig")) {
-            if (isScaffold(attributeValue))  {
+            if (DatastoreUtils.isSupercontig(attributeValue))  {
                 className = "org.intermine.model.bio.Supercontig";
             } else {
                 className = "org.intermine.model.bio.Chromosome";
@@ -546,18 +544,5 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
             getDirectDataLoader().store(org);
         }
         return org;
-    }
-
-    /**
-     * Return true if this identifier identifies a scaffold rather than chromosome.
-     */
-    boolean isScaffold(String identifier) {
-        String[] dotParts = identifier.split("\\.");
-        String lastPart = dotParts[dotParts.length-1];
-        boolean scaffold = false;
-        scaffold = scaffold || identifier.contains("scaffold");
-        scaffold = scaffold || identifier.contains("Chr0c");
-        scaffold = scaffold || lastPart.contains("sc");
-        return scaffold;
     }
 }

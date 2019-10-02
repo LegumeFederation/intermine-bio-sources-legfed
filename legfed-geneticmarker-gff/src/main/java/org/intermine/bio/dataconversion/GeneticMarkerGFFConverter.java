@@ -145,7 +145,7 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
 		
                 Item sequence;
                 String sequenceName = gff.getSequenceID();
-                boolean isSupercontig = sequenceName.toLowerCase().contains("scaffold");
+                boolean isSupercontig = DatastoreUtils.isSupercontig(sequenceName);
                 if (isSupercontig) sequenceName = sequenceName.toLowerCase();
                 if (sequenceMap.containsKey(sequenceName)) {
                     sequence = sequenceMap.get(sequenceName);

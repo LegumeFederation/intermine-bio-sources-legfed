@@ -193,8 +193,7 @@ public class GWASFileConverter extends BioFileConverter {
                     marker.setAttribute("primaryIdentifier", rec.marker);
                     marker.setAttribute("type", rec.type);
                     // set the chromosome or supercontig reference
-                    // HACK: assume supercontig has "scaffold" or "contig" in the name
-                    boolean isSupercontig = (rec.chromosome.toLowerCase().contains("scaffold") || rec.chromosome.toLowerCase().contains("contig"));
+                    boolean isSupercontig = DatastoreUtils.isSupercontig(rec.chromosome);
                     Item chromosome = null;
                     if (chromosomeMap.containsKey(rec.chromosome)) {
                         chromosome = chromosomeMap.get(rec.chromosome);
