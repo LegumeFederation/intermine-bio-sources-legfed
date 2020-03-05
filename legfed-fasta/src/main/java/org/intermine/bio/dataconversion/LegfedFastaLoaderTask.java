@@ -61,23 +61,27 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     private String classAttribute = "primaryIdentifier";
     private Organism org;
     private Strain strain;
-    private String strainName;
+    private String strainIdentifier;
     private String assemblyVersion;
     private String annotationVersion; // for proteins
     private String className;
     private int storeCount = 0;
     private String dataSourceName = null;
     private String dataSourceUrl = null;
+    private String dataSourceDescription = null;
     private DataSource dataSource = null;
     private String dataSetTitle;
     private String dataSetUrl;
+    private String dataSetDescription; 
     private String dataSetVersion; // from file name
-    private Map<String, DataSet> dataSets = new HashMap<String, DataSet>();
     private String fastaTaxonId = null;
     private String fastaGensp = null;
-   
-    // map gensp to taxonId
-    Map<String,String> genspTaxonId = new HashMap<>();
+    private boolean primaryTranscript = false;
+
+    private Map<String, DataSet> dataSets = new HashMap<String, DataSet>();
+
+    // for non-static utility methods
+    DatastoreUtils dsu;
 
     /**
      * Append this suffix to the identifier of the BioEnitys that are stored.
@@ -150,6 +154,14 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     }
 
     /**
+     * DataSource.description for any bioentities created
+     * @param dataSourceDescription description of datasource for items created
+     */
+    public void setDataSourceDescription(String dataSourceDescription) {
+        this.dataSourceDescription = dataSourceDescription;
+    }
+
+    /**
      * If a value is specified this title will used when a DataSet is created.
      * @param dataSetTitle the title of the DataSets of any new features
      */
@@ -166,6 +178,14 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     }
 
     /**
+     * If a value is specified this description will used when a DataSet is created.
+     * @param dataSetDescription the description of the DataSets of any new features
+     */
+    public void setDataSetDescription(String dataSetDescription) {
+        this.dataSetDescription = dataSetDescription;
+    }
+
+    /**
      * Directly set the array of files to read from.  Use this for testing with junit.
      * @param files the File objects
      */
@@ -179,9 +199,8 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     @Override
     public void process() {
         long start = System.currentTimeMillis();
-        // get the organism data
-        DatastoreUtils dsu = new DatastoreUtils();
-        genspTaxonId = dsu.getGenspTaxonId();
+        // instantiate for non-static utility methods
+        dsu = new DatastoreUtils();
         try {
             storeCount++;
             super.process();
@@ -243,18 +262,16 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
             System.out.println("Reading "+sequenceType+" sequences from: "+file);
             System.out.println("##############################################################################################################################");
             LOG.info("LegfedFastaLoaderTask loading file "+file.getName());
-            // pull the organism, strain, assembly and annotation version (if present) from the file name
-            // 0     1      2    3    4    5       6
-            // phavu.G19833.gnm2.ann1.PB8d.protein.faa
+            // pull the organism, strain, assembly and annotation version (if present) from the file name, as well as if primaryTranscript or not
+            // 0     1    2    3    4    5                         6
+            // glyma.Wm82.gnm2.ann1.RVB6.protein_primaryTranscript.faa
             // 0     1      2    3    4           5
             // phavu.G19833.gnm2.fC0g.genome_main.fna
             String[] parts = file.getName().split("\\.");
+            primaryTranscript = file.getName().contains("primaryTranscript");
             fastaGensp = parts[0];
-            fastaTaxonId = genspTaxonId.get(fastaGensp);
-            if (fastaTaxonId==null) {
-                throw new RuntimeException("Organism "+fastaGensp+" is not in the genspTaxonId map.");
-            }
-            strainName = parts[1];
+            fastaTaxonId = dsu.getTaxonId(fastaGensp);
+            strainIdentifier = parts[1];
             assemblyVersion = parts[2];
             dataSetVersion = assemblyVersion;
             if (parts.length==7) {
@@ -317,7 +334,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     protected Strain getStrain(Sequence bioJavaSequence) throws ObjectStoreException {
         if (strain == null) {
             strain = getDirectDataLoader().createObject(Strain.class);
-            strain.setPrimaryIdentifier(strainName);
+            strain.setIdentifier(strainIdentifier);
             if (org!=null) strain.setOrganism(org);
             getDirectDataLoader().store(strain);
         }
@@ -401,9 +418,11 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         }
 
         imo.setOrganism(organism);
+        imo.setPrimaryTranscript(primaryTranscript);
         if (strain!=null) imo.setStrain(strain);
         if (assemblyVersion!=null) imo.setAssemblyVersion(assemblyVersion);
         if (annotationVersion!=null) imo.setAnnotationVersion(annotationVersion);
+        
 
         try {
             imo.setFieldValue("length", new Integer(bioSequence.getLength()));
@@ -453,6 +472,7 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         DataSet dataSet = getDirectDataLoader().createObject(DataSet.class);
         dataSet.setName(dataSetTitle);
         if (dataSetUrl!=null) dataSet.setUrl(dataSetUrl);
+        if (dataSetDescription!=null) dataSet.setDescription(dataSetDescription);
         if (dataSetVersion!=null) dataSet.setVersion(dataSetVersion);
         if (dataSourceName!=null) dataSet.setDataSource(getDataSource());
         getDirectDataLoader().store(dataSet);
@@ -474,19 +494,29 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
     protected void extraProcessing(Sequence bioJavaSequence, org.intermine.model.bio.Sequence imSequence,
                                    BioEntity bioEntity, Organism organism, Strain strain, DataSet dataSet)
         throws ObjectStoreException {
-        // create a secondaryIdentifier omitting the strain, assembly version and annotation version (1, 2, 3 below).
-        // 0     1      2    3    4     5          6
-        // phavu.G19833.gnm2.ann1.Phvul.010G034400.1
         String identifier = getIdentifier(bioJavaSequence);
         String[] parts = identifier.split("\\.");
-        String secondaryIdentifier = parts[0];                   // phavu
-        if (parts.length>4) secondaryIdentifier += "."+parts[4]; // phavu.Phvul
-        if (parts.length>5) secondaryIdentifier += "."+parts[5]; // phavu.Phvul.010G034400
-        if (parts.length>6) secondaryIdentifier += "."+parts[6]; // phavu.Phvul.010G034400.1
-        if (parts.length>7) secondaryIdentifier += "."+parts[7]; // phavu.Phvul.010G034400.1.other
-        if (parts.length>8) secondaryIdentifier += "."+parts[8]; // phavu.Phvul.010G034400.1.other.stuff
-        if (parts.length>9) secondaryIdentifier += "."+parts[9]; // phavu.Phvul.010G034400.1.other.stuff.here
-        bioEntity.setSecondaryIdentifier(secondaryIdentifier);
+        if (parts.length<4) {
+            // unknown
+            bioEntity.setSecondaryIdentifier(identifier);
+        } else if (parts.length==4) {
+            // Chromosome (no assembly version, no trailing .1)
+            // 0     1    2    3
+            // glyma.Wm82.gnm2.Gm03
+            bioEntity.setSecondaryIdentifier(parts[0]+"."+parts[3]);
+        } else {
+            // Protein, etc. (has assembly version)
+            // 0     1      2    3    4     5          6
+            // phavu.G19833.gnm2.ann1.Phvul.010G034400.1
+            String secondaryIdentifier = parts[0];                   // phavu
+            if (parts.length>4) secondaryIdentifier += "."+parts[4]; // phavu.Phvul
+            if (parts.length>5) secondaryIdentifier += "."+parts[5]; // phavu.Phvul.010G034400
+            if (parts.length>6) secondaryIdentifier += "."+parts[6]; // phavu.Phvul.010G034400.1
+            if (parts.length>7) secondaryIdentifier += "."+parts[7]; // phavu.Phvul.010G034400.1.other
+            if (parts.length>8) secondaryIdentifier += "."+parts[8]; // phavu.Phvul.010G034400.1.other.stuff
+            if (parts.length>9) secondaryIdentifier += "."+parts[9]; // phavu.Phvul.010G034400.1.other.stuff.here
+            bioEntity.setSecondaryIdentifier(secondaryIdentifier);
+        }
     }
 
     /**
@@ -515,14 +545,18 @@ public class LegfedFastaLoaderTask extends FileDirectDataLoaderTask {
         return name;
     }
 
+    /**
+     * Store and/or return the DataSource set in project.xml.
+     */
     private DataSource getDataSource() throws ObjectStoreException {
         if (StringUtils.isEmpty(dataSourceName)) {
             throw new RuntimeException("dataSourceName not set");
         }
-        if (dataSource == null) {
+        if (dataSource==null) {
             dataSource = getDirectDataLoader().createObject(DataSource.class);
             dataSource.setName(dataSourceName);
             if (dataSourceUrl!=null) dataSource.setUrl(dataSourceUrl);
+            if (dataSourceDescription!=null) dataSource.setDescription(dataSourceDescription);
             getDirectDataLoader().store(dataSource);
             storeCount += 1;
         }

@@ -27,7 +27,7 @@ import org.intermine.xml.full.Item;
 /**
  * Loads genotyping lines from a tab-delimited file containing:
  *
- * primaryIdentifier  origin  comment
+ * identifier  origin  comment
  *
  * @author Sam Hokin
  */
@@ -85,20 +85,20 @@ public class StrainFileConverter extends BioFileConverter {
 		    organismMap.put(taxonId, organism);
 		}
 	    } else {
-		String primaryIdentifier = parts[0];
+		String identifier = parts[0];
 		String origin = null;
 		if (parts.length>1) origin = parts[1];
 		String comment = null;
 		if (parts.length>2) comment = parts[2];
 		// only load fresh records
-		if (!strains.contains(primaryIdentifier)) {
+		if (!strains.contains(identifier)) {
 		    Item strain = createItem("Strain");
-		    strain.setAttribute("primaryIdentifier", primaryIdentifier);
+		    strain.setAttribute("identifier", identifier);
 		    strain.setReference("organism", organism);
 		    if (origin!=null) strain.setAttribute("origin", origin);
 		    if (comment!=null) strain.setAttribute("comment", comment);
 		    store(strain);
-		    strains.add(primaryIdentifier);
+		    strains.add(identifier);
 		}
 	    }
 	}

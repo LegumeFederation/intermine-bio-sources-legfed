@@ -88,19 +88,19 @@ public class PhenotypeFileConverter extends BioFileConverter {
                 }
 
             } else {
-                String strainName = parts[0];
+                String strainIdentifier = parts[0];
                 String phenotypeName = parts[1];
                 String value = parts[2];
 
                 // retrieve or create the Strain item
                 Item strain = null;
-                if (strainMap.containsKey(strainName)) {
-                    strain = strainMap.get(strainName);
+                if (strainMap.containsKey(strainIdentifier)) {
+                    strain = strainMap.get(strainIdentifier);
                 } else {
                     strain = createItem("Strain");
-                    strain.setAttribute("primaryIdentifier", strainName);
+                    strain.setAttribute("identifier", strainIdentifier);
                     strain.setReference("organism", organism);
-                    strainMap.put(strainName, strain);
+                    strainMap.put(strainIdentifier, strain);
                 }
             
                 // retrieve or create the Phenotype item
@@ -109,7 +109,7 @@ public class PhenotypeFileConverter extends BioFileConverter {
                     phenotype = phenotypeMap.get(phenotypeName);
                 } else {
                     phenotype = createItem("Phenotype");
-                    phenotype.setAttribute("primaryIdentifier", phenotypeName);
+                    phenotype.setAttribute("name", phenotypeName);
                     phenotypeMap.put(phenotypeName, phenotype);
                 }
             

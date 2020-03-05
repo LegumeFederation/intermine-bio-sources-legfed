@@ -37,7 +37,6 @@ import org.intermine.xml.full.Reference;
  * @author Sam Hokin, NCGR
  */
 public class ProteinProcessor extends ChadoProcessor {
-	
     private static final Logger LOG = Logger.getLogger(ProteinProcessor.class);
 
     /**
@@ -100,23 +99,25 @@ public class ProteinProcessor extends ChadoProcessor {
                 int proteinLength = rs1.getInt("seqlen");
                 String proteinMd5Checksum = rs1.getString("md5checksum");
                 Item protein = getChadoDBConverter().createItem("Protein");
+                protein.setAttribute("chadoId", String.valueOf(proteinId));
                 protein.setAttribute("primaryIdentifier", proteinUniqueName);
                 protein.setAttribute("secondaryIdentifier", proteinName);
                 protein.setAttribute("length", String.valueOf(proteinLength));
-                protein.setAttribute("chadoFeatureId", String.valueOf(proteinId));
                 protein.setAttribute("chadoUniqueName", proteinUniqueName);
                 protein.setAttribute("chadoName", proteinName);
                 if (proteinMd5Checksum!=null) protein.setAttribute("md5checksum", proteinMd5Checksum);
                 protein.setReference("organism", organism);
                 if (strain!=null) protein.setReference("strain", strain);
 
-                // create and store the protein Sequence item
-                Item proteinSequence = getChadoDBConverter().createItem("Sequence");
-                proteinSequence.setAttribute("length", String.valueOf(proteinLength));
-                if (proteinMd5Checksum!=null) proteinSequence.setAttribute("md5checksum", proteinMd5Checksum);
-                proteinSequence.setAttribute("residues", proteinResidues);
-                store(proteinSequence);
-                protein.setReference("sequence", proteinSequence);
+                // create and store the protein Sequence item IF residues exist
+                if (proteinResidues!=null && proteinResidues.length()>0) {
+                    Item proteinSequence = getChadoDBConverter().createItem("Sequence");
+                    proteinSequence.setAttribute("length", String.valueOf(proteinLength));
+                    if (proteinMd5Checksum!=null) proteinSequence.setAttribute("md5checksum", proteinMd5Checksum);
+                    proteinSequence.setAttribute("residues", proteinResidues);
+                    store(proteinSequence);
+                    protein.setReference("sequence", proteinSequence);
+                }
 
                 // query, create and store the consensus region(s) (without their sequences, which we'll add in GeneFamilyProcessor)
                 rs2 = stmt2.executeQuery("SELECT feature.* FROM feature,featureloc WHERE type_id="+consensusRegionTypeId+
@@ -133,20 +134,22 @@ public class ProteinProcessor extends ChadoProcessor {
                         cr = crMap.get(crId);
                     } else {
                         cr = getChadoDBConverter().createItem("ConsensusRegion");
+                        cr.setAttribute("chadoId", String.valueOf(crId));
                         cr.setAttribute("primaryIdentifier", crUniqueName);
                         cr.setAttribute("secondaryIdentifier", crName);
                         cr.setAttribute("length", String.valueOf(crLength));
-                        cr.setAttribute("chadoFeatureId", String.valueOf(crId));
                         cr.setAttribute("chadoUniqueName", crUniqueName);
                         cr.setAttribute("chadoName", crName);
                         if (crMd5Checksum!=null) cr.setAttribute("md5checksum", crMd5Checksum);
-                        // create and store the consensus region Sequence item
-                        Item crSequence = getChadoDBConverter().createItem("Sequence");
-                        crSequence.setAttribute("length", String.valueOf(crLength));
-                        if (crMd5Checksum!=null) crSequence.setAttribute("md5checksum", crMd5Checksum);
-                        crSequence.setAttribute("residues", crResidues);
-                        store(crSequence);
-                        cr.setReference("sequence", crSequence);
+                        // create and store the consensus region Sequence item IF residues exist
+                        if (crResidues!=null && crResidues.length()>0) {
+                            Item crSequence = getChadoDBConverter().createItem("Sequence");
+                            crSequence.setAttribute("length", String.valueOf(crLength));
+                            if (crMd5Checksum!=null) crSequence.setAttribute("md5checksum", crMd5Checksum);
+                            crSequence.setAttribute("residues", crResidues);
+                            store(crSequence);
+                            cr.setReference("sequence", crSequence);
+                        }
                         store(cr);
                         crMap.put(crId, cr);
                     }
@@ -164,9 +167,9 @@ public class ProteinProcessor extends ChadoProcessor {
                     int start = rs2.getInt("fmin") + 1; // zero-based
                     int end = rs2.getInt("fmax");
                     Item proteinMatch = getChadoDBConverter().createItem("ProteinMatch");
+                    proteinMatch.setAttribute("chadoId", String.valueOf(proteinMatchId));
                     proteinMatch.setAttribute("primaryIdentifier", proteinMatchUniqueName);
                     proteinMatch.setAttribute("secondaryIdentifier", proteinMatchName);
-                    proteinMatch.setAttribute("chadoFeatureId", String.valueOf(proteinMatchId));
                     proteinMatch.setAttribute("chadoUniqueName", proteinMatchUniqueName);
                     proteinMatch.setAttribute("chadoName", proteinMatchName);
                     proteinMatch.setReference("organism", organism);
@@ -192,9 +195,9 @@ public class ProteinProcessor extends ChadoProcessor {
                     int pStart = rs2.getInt("fmin") + 1; // zero-based
                     int pEnd = rs2.getInt("fmax");
                     Item proteinHmmMatch = getChadoDBConverter().createItem("ProteinHmmMatch");
+                    proteinHmmMatch.setAttribute("chadoId", String.valueOf(proteinHmmMatchId));
                     proteinHmmMatch.setAttribute("primaryIdentifier", proteinHmmMatchUniqueName);
                     proteinHmmMatch.setAttribute("secondaryIdentifier", proteinHmmMatchName);
-                    proteinHmmMatch.setAttribute("chadoFeatureId", String.valueOf(proteinHmmMatchId));
                     proteinHmmMatch.setAttribute("chadoUniqueName", proteinHmmMatchUniqueName);
                     proteinHmmMatch.setAttribute("chadoName", proteinHmmMatchName);
                     proteinHmmMatch.setReference("organism", organism);
@@ -221,9 +224,9 @@ public class ProteinProcessor extends ChadoProcessor {
                             proteinDomain = proteinDomainMap.get(proteinDomainId);
                         } else {
                             proteinDomain = getChadoDBConverter().createItem("ProteinDomain");
+                            proteinDomain.setAttribute("chadoId", String.valueOf(proteinDomainId));
                             proteinDomain.setAttribute("primaryIdentifier", proteinDomainUniqueName);
                             proteinDomain.setAttribute("secondaryIdentifier", proteinDomainName);
-                            proteinDomain.setAttribute("chadoFeatureId", String.valueOf(proteinDomainId));
                             proteinDomain.setAttribute("chadoUniqueName", proteinDomainUniqueName);
                             proteinDomain.setAttribute("chadoName", proteinDomainName);
                             store(proteinDomain);
@@ -253,6 +256,7 @@ public class ProteinProcessor extends ChadoProcessor {
                     String mRNAUniqueName = rs2.getString("uniquename");
                     String mRNAName = rs2.getString("name");
                     Item mRNA = getChadoDBConverter().createItem("MRNA");
+                    mRNA.setAttribute("chadoId", String.valueOf(mRNAId));
                     mRNA.setAttribute("primaryIdentifier", mRNAUniqueName);
                     mRNA.setReference("protein", protein);
                     store(mRNA);

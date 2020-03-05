@@ -66,7 +66,6 @@ public class ReactomeProcessor extends ChadoProcessor {
      */
     @Override
     public void process(Connection connection) throws Exception {
-        
         // Items stored in maps to avoid dupe stores
         Map<Integer,Item> geneMap = new HashMap<Integer,Item>();  // keyed by feature_id
         Map<String,Item> pathwayMap = new HashMap<String,Item>();    // keyed by identifier
@@ -84,7 +83,7 @@ public class ReactomeProcessor extends ChadoProcessor {
             OrganismData od = getChadoDBConverter().getChadoIdToOrgDataMap().get(organismId);
             String species = od.getGenus()+" "+od.getSpecies();
             speciesSet.add(species);
-            Item organism = getChadoDBConverter().getOrganismItem(od.getTaxonId());
+            Item organism = getChadoDBConverter().getOrganismItem(organismId);
             organismMap.put(species, organism);
         }
 
@@ -142,6 +141,7 @@ public class ReactomeProcessor extends ChadoProcessor {
                                 gene = geneMap.get(feature_id);
                             } else {
                                 gene = getChadoDBConverter().createItem("Gene");
+                                gene.setAttribute("chadoId", String.valueOf(feature_id));
                                 gene.setAttribute("primaryIdentifier", rs.getString("uniquename"));
                                 gene.setAttribute("secondaryIdentifier", rs.getString("name"));
                                 gene.setReference("organism", organism);
@@ -172,7 +172,5 @@ public class ReactomeProcessor extends ChadoProcessor {
         // store the maps here so that the collection get stored
         store(geneMap.values());
         store(pathwayMap.values());
-        
     }
-
 }

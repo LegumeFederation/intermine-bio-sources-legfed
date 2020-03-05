@@ -1,15 +1,6 @@
 <?xml version="1.0"?>
 <classes>
 
-  <!-- add Supercontig as standalone sequence features so they don't clutter chromosome space -->
-  <class name="Supercontig"  extends="SequenceFeature" is-interface="true"/>
-
-  <!-- add supercontig and supercontigLocation to all SequenceFeature subclasses -->
-  <class name="SequenceFeature" is-interface="true">
-    <reference name="supercontig" referenced-type="Supercontig" />
-    <reference name="supercontigLocation" referenced-type="Location" />
-  </class>
-
   <!-- boatloads of extra stuff appear in GFFs -->
   <class name="RepeatRegion"          extends="SequenceFeature" is-interface="true"/>
   <class name="PreMiRNA"              extends="SequenceFeature" is-interface="true"/>
@@ -27,5 +18,35 @@
   <class name="NonLTRRetrotransposon" extends="SequenceFeature" is-interface="true"/>
   <class name="TRNAPrimaryTranscript" extends="SequenceFeature" is-interface="true"/>
   <class name="RRNAPrimaryTranscript" extends="SequenceFeature" is-interface="true"/>
+
+  <!-- set type="SNP" if it's a single-base marker -->
+  <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
+    <attribute name="type" type="java.lang.String"/>
+  </class>
+
+  <!-- GFF files have Interpro domains associated with genes -->
+  <class name="Gene" is-interface="true">
+    <collection name="proteinDomains" referenced-type="ProteinDomain" reverse-reference="genes"/>
+  </class>
+  <class name="ProteinDomain" is-interface="true">
+    <collection name="genes" referenced-type="Gene" reverse-reference="proteinDomains"/>
+  </class>
+
+  <!-- shouldn't need this here! -->
+  <class name="MRNA" extends="Transcript" is-interface="true" term="http://purl.obolibrary.org/obo/SO:0000234"></class>
+
+  <!-- parent relationships -->
+  <class name="CDS" is-interface="true">
+    <reference name="transcript" referenced-type="Transcript"/>
+  </class>
+  <class name="FivePrimeUTR" is-interface="true">
+    <reference name="transcript" referenced-type="Transcript"/>
+  </class>
+  <class name="ThreePrimeUTR" is-interface="true">
+    <reference name="transcript" referenced-type="Transcript"/>
+  </class>
+  <class name="Exon" is-interface="true">
+    <reference name="transcript" referenced-type="Transcript"/>
+  </class>
   
 </classes>

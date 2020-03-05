@@ -120,7 +120,7 @@ public class QTLOntologyFileConverter extends BioFileConverter {
 			phenotype = phenotypeMap.get(phenotypeName);
 		    } else {
 			phenotype = createItem("Phenotype");
-			phenotype.setAttribute("primaryIdentifier", phenotypeName);
+			phenotype.setAttribute("name", phenotypeName);
 			store(phenotype);
 			phenotypeMap.put(phenotypeName, phenotype);
 		    }

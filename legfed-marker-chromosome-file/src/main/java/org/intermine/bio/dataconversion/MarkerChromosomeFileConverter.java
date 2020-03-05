@@ -89,16 +89,16 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
                     }
                     
                 } else if (key.toLowerCase().equals("strain")) {
-                    String strainName = parts[1];
-                    if (strainMap.containsKey(strainName)) {
-                        strain = strainMap.get(strainName);
+                    String strainIdentifier = parts[1];
+                    if (strainMap.containsKey(strainIdentifier)) {
+                        strain = strainMap.get(strainIdentifier);
                     } else {
                         strain = createItem("Strain");
-                        strain.setAttribute("primaryIdentifier", strainName);
+                        strain.setAttribute("identifier", strainIdentifier);
                         strain.setReference("organism", organism);
                         store(strain);
-                        LOG.info("Stored strain:"+strainName);
-                        strainMap.put(strainName, strain);
+                        LOG.info("Stored strain:"+strainIdentifier);
+                        strainMap.put(strainIdentifier, strain);
                     }
 
                 } else {

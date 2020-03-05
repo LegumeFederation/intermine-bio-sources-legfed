@@ -49,8 +49,8 @@ public class SNPMarkerFileConverter extends BioFileConverter {
     Map<String,Item> publicationMap = new HashMap<String,Item>();       // keyed by pubMedId
     Map<String,Item> authorMap = new HashMap<String,Item>();            // keyed by name
     Map<String,Item> geneMap = new HashMap<String,Item>();              // keyed by primaryIdentifier
-    Map<String,Item> organismMap = new HashMap<String,Item>();          // keyed by TaxonID
-    Map<String,Item> strainMap = new HashMap<String,Item>();            // keyed by primaryIdentifier
+    Map<String,Item> organismMap = new HashMap<String,Item>();          // keyed by taxonId
+    Map<String,Item> strainMap = new HashMap<String,Item>();            // keyed by name
 
     /**
      * Create a new SNPMarkerFileConverter

@@ -1,6 +1,13 @@
 <?xml version="1.0"?>
 <classes>
 
+  <!-- add chadoId, chadoUniqueName and chadoName to all BioEntity subclasses, including SequenceFeature -->
+  <class name="BioEntity" is-interface="true">
+    <attribute name="chadoId" type="java.lang.Integer"/>
+    <attribute name="chadoUniqueName" type="java.lang.String"/>
+    <attribute name="chadoName" type="java.lang.String"/>
+  </class>
+
   <!-- extend Annotatable for ontology and publication support -->
   <class name="QTL" extends="Annotatable" is-interface="true">
     <attribute name="secondaryIdentifier" type="java.lang.String"/>
@@ -11,19 +18,20 @@
     <collection name="linkageGroupRanges" referenced-type="LinkageGroupRange"/>
     <collection name="spannedGenes" referenced-type="Gene" reverse-reference="spanningQTLs"/>
     <!-- LIS attributes -->
+    <attribute name="chadoId" type="java.lang.Integer"/>
     <attribute name="publicationLinkageGroup" type="java.lang.String"/>
     <attribute name="analysisMethod" type="java.lang.String"/>
     <attribute name="identifier" type="java.lang.String"/>
     <attribute name="peak" type="java.lang.Double"/>
     <attribute name="studyTreatment" type="java.lang.String"/>
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
     <attribute name="chadoUniqueName" type="java.lang.String"/>
     <attribute name="chadoName" type="java.lang.String"/>
-    <reference name="favorableAlleleSource" referenced-type="Strain" reverse-reference="favorableAlleleQTLs"/>
+    <reference name="favorableAlleleSource" referenced-type="Strain" />
   </class>
 
-  <!-- associate a phenotype with its measured values and ontology annotation -->
-  <class name="Phenotype" extends="Annotatable" is-interface="true">
+  <!-- associate a phenotype with its measured values and QTLs -->
+  <class name="Phenotype" extends="Annotatable" is-interface="true" term="http://semanticscience.org/resource/SIO_010056">
+    <attribute name="name" type="java.lang.String" term="http://edamontology.org/data_3275"/>
     <attribute name="description" type="java.lang.String"/>
     <attribute name="unit" type="java.lang.String"/>
     <collection name="QTLs" referenced-type="QTL" reverse-reference="phenotype"/>
@@ -39,12 +47,13 @@
     <attribute name="booleanValue" type="java.lang.Boolean"/>
   </class>
 
+  <!-- linkage groups are stored, oddly, in feature table -->
   <class name="LinkageGroup" extends="Annotatable" is-interface="true">
     <attribute name="number" type="java.lang.Integer"/>
     <attribute name="secondaryIdentifier" type="java.lang.String"/>
     <attribute name="length" type="java.lang.Double"/>
     <attribute name="assignedLinkageGroup" type="java.lang.String"/>
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
+    <attribute name="chadoId" type="java.lang.Integer"/>
     <attribute name="chadoUniqueName" type="java.lang.String"/>
     <attribute name="chadoName" type="java.lang.String"/>
     <reference name="organism" referenced-type="Organism"/>
@@ -71,11 +80,13 @@
   <class name="GeneticMap" extends="Annotatable" is-interface="true">
     <attribute name="description" type="java.lang.String"/>
     <attribute name="unit" type="java.lang.String"/>
+    <attribute name="chadoId" type="java.lang.Integer"/>
     <reference name="organism" referenced-type="Organism"/>
     <collection name="linkageGroups" referenced-type="LinkageGroup" reverse-reference="geneticMap"/>
     <collection name="markers" referenced-type="GeneticMarker"/>
   </class>
 
+  <!-- gene families are found in the featureprop table but are not unique there, pointing to many genes per family-->
   <class name="GeneFamily" is-interface="true">
     <attribute name="primaryIdentifier" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
@@ -84,7 +95,6 @@
   </class>
   
   <!-- GeneticMarker genomics from SequenceProcessor, plus feature properties from FeaturePropProcessor -->
-
   <class name="GeneticMarker" extends="SequenceFeature" is-interface="true">
     <attribute name="type" type="java.lang.String"/>
     <attribute name="description" type="java.lang.String"/>
@@ -94,6 +104,7 @@
     <collection name="linkageGroupPositions" referenced-type="LinkageGroupPosition"/>
   </class>
 
+  <!-- proteins are stored in feature table -->
   <class name="Protein" extends="BioEntity" is-interface="true">
     <attribute name="note" type="java.lang.String"/>
     <attribute name="length" type="java.lang.Integer"/>
@@ -104,6 +115,7 @@
     <collection name="proteinDomains" referenced-type="ProteinDomain" reverse-reference="proteins"/>
   </class>
 
+  <!-- protein_match records are in feature table -->
   <class name="ProteinMatch" extends="BioEntity" is-interface="true">
     <attribute name="signatureDesc" type="java.lang.String"/>
     <attribute name="status" type="java.lang.String"/>
@@ -113,11 +125,13 @@
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
+  <!-- protein_hmm_match are in feature table -->
   <class name="ProteinHmmMatch" extends="ProteinMatch" is-interface="true">
     <reference name="proteinDomain" referenced-type="ProteinDomain" reverse-reference="proteinHmmMatches"/>
     <reference name="proteinDomainLocation" referenced-type="Location"/>
   </class>
 
+<!-- protein domains are in feature table -->
   <class name="ProteinDomain" extends="BioEntity" is-interface="true">
     <attribute name="interproId" type="java.lang.String"/>
     <attribute name="interproName" type="java.lang.String"/>
@@ -127,6 +141,7 @@
     <collection name="proteins" referenced-type="Protein" reverse-reference="proteinDomains"/>
   </class>
 
+  <!-- consensus regions are stored in feature table -->
   <class name="ConsensusRegion" extends="BioEntity" is-interface="true">
     <attribute name="length" type="java.lang.Double"/>
     <reference name="geneFamily" referenced-type="GeneFamily" reverse-reference="consensusRegion"/>
@@ -134,12 +149,9 @@
     <reference name="sequenceOntologyTerm" referenced-type="SOTerm"/>
   </class>
 
-  <!-- add supercontigs/scaffolds as standalone sequence features so they don't clutter chromosome space -->
-  <class name="Supercontig"  extends="SequenceFeature" is-interface="true"/>
-
   <!-- add gene reference to Transcript -->
   <class name="Transcript" is-interface="true">
-	  <reference name="gene" referenced-type="Gene" reverse-reference="transcripts"/>
+    <reference name="gene" referenced-type="Gene" reverse-reference="transcripts"/>
   </class>
 
   <class name="MRNA" extends="Transcript" is-interface="true"/>
@@ -156,27 +168,8 @@
     <collection name="transcripts" referenced-type="Transcript" reverse-reference="gene"/> 
     <collection name="spanningQTLs" referenced-type="QTL" reverse-reference="spannedGenes"/>
     <collection name="pathways" referenced-type="Pathway" reverse-reference="genes"/>
-    <collection name="homologues" referenced-type="Homologue" reverse-reference="gene"/>
-  </class>
-
-  <class name="Organism" is-interface="true">
-    <attribute name="chadoId" type="java.lang.Integer"/>
-    <attribute name="description" type="java.lang.String"/>
-  </class>
-
-  <!-- add chadoFeatureId, chadoUniqueName and chadoName to all BioEntity subclasses -->
-  <class name="BioEntity" is-interface="true">
-    <attribute name="chadoFeatureId" type="java.lang.Integer"/>
-    <attribute name="chadoUniqueName" type="java.lang.String"/>
-    <attribute name="chadoName" type="java.lang.String"/>
   </class>
   
-  <!-- supercontig and supercontigLocation to all SequenceFeature subclasses -->
-  <class name="SequenceFeature" is-interface="true">
-    <reference name="supercontig" referenced-type="Supercontig" />
-    <reference name="supercontigLocation" referenced-type="Location" />
-  </class>
-
   <!-- loaded from Plant Reactome file -->
   <class name="Pathway" is-interface="true" >
      <attribute name="identifier" type="java.lang.String"/>
@@ -186,19 +179,4 @@
      <collection name="dataSets" referenced-type="DataSet"/>
   </class>
 
-  <!-- to be updated with new IM core Homologue model! -->
-  <class name="Homologue" is-interface="true">
-    <attribute name="type" type="java.lang.String"/>
-    <reference name="geneFamily" referenced-type="GeneFamily"/>
-    <reference name="gene" referenced-type="Gene" reverse-reference="homologues"/>
-    <reference name="homologue" referenced-type="Gene"/>
-    <collection name="dataSets" referenced-type="DataSet"/>
-  </class>
-
-  <!-- need to describe the strains -->
-  <class name="Strain" is-interface="true">
-    <attribute name="description" type="java.lang.String"/>
-    <collection name="favorableAlleleQTLs" referenced-type="QTL" reverse-reference="favorableAlleleSource"/>
-  </class>
-  
 </classes>

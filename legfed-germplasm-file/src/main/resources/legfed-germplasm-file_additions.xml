@@ -3,11 +3,11 @@
 
   <!-- extend Strain to handle some extra germplasm-related attributes -->
   <class name="Strain" is-interface="true">
-    <attribute name="name" type="java.lang.String"/>      
-    <attribute name="description" type="java.lang.String"/>
+    <attribute name="alternateName" type="java.lang.String"/>
     <attribute name="patentNumber" type="java.lang.String"/>
     <attribute name="url" type="java.lang.String"/>
     <attribute name="country" type="java.lang.String"/>
+    <collection name="publications" referenced-type="Publication"/>
   </class>
 
 </classes>

@@ -10,7 +10,8 @@
   </class>
 
   <!-- associate a phenotype with its associated QTLs (and ontology annotation) -->
-  <class name="Phenotype" extends="Annotatable" is-interface="true">
+  <class name="Phenotype" extends="Annotatable" is-interface="true" term="http://semanticscience.org/resource/SIO_010056">
+    <attribute name="name" type="java.lang.String" term="http://edamontology.org/data_3275"/>
     <collection name="QTLs" referenced-type="QTL" reverse-reference="phenotype"/>
   </class>
 

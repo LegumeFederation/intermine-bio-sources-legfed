@@ -22,7 +22,7 @@ include ':bio-source-legfed-chado-db',
 	':bio-source-legfed-strains-file',
 	':bio-source-legfed-phenotypes-file',
 	':bio-source-legfed-organism-file',
-
+	':bio-source-legfed-soy-ontology',
 	':bio-source-legfed-gff',
 	':bio-source-legfed-fasta',
 	':bio-source-legfed-datastore',
@@ -50,7 +50,7 @@ project(':bio-source-legfed-trait-ontology').projectDir = new File(settingsDir, 
 project(':bio-source-legfed-strains-file').projectDir = new File(settingsDir, 'legfed-strains-file')
 project(':bio-source-legfed-phenotypes-file').projectDir = new File(settingsDir, 'legfed-phenotypes-file')
 project(':bio-source-legfed-organism-file').projectDir = new File(settingsDir, 'legfed-organism-file')
-
+project(':bio-source-legfed-soy-ontology').projectDir = new File(settingsDir, 'legfed-soy-ontology')
 project(':bio-source-legfed-gff').projectDir = new File(settingsDir, 'legfed-gff')
 project(':bio-source-legfed-fasta').projectDir = new File(settingsDir, 'legfed-fasta')
 project(':bio-source-legfed-datastore').projectDir = new File(settingsDir, 'legfed-datastore')

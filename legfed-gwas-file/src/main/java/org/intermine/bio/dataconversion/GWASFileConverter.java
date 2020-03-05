@@ -108,16 +108,16 @@ public class GWASFileConverter extends BioFileConverter {
                 }
 
             } else if (key.toLowerCase().equals("strain")) {
-                String strainName = value;
-                if (strainMap.containsKey(strainName)) {
-                    strain = strainMap.get(strainName);
+                String strainIdentifier = value;
+                if (strainMap.containsKey(strainIdentifier)) {
+                    strain = strainMap.get(strainIdentifier);
                 } else {
                     strain = createItem("Strain");
-                    strain.setAttribute("primaryIdentifier", strainName);
+                    strain.setAttribute("identifier", strainIdentifier);
                     strain.setReference("organism", organism);
                     store(strain);
-                    LOG.info("Stored strain:"+strainName);
-                    strainMap.put(strainName, strain);
+                    LOG.info("Stored strain:"+strainIdentifier);
+                    strainMap.put(strainIdentifier, strain);
                 }
 
             } else if (key.toLowerCase().equals("name")) {
@@ -242,7 +242,7 @@ public class GWASFileConverter extends BioFileConverter {
                     phenotype = phenotypeMap.get(rec.phenotype);
                 } else {
                     phenotype = createItem("Phenotype");
-                    phenotype.setAttribute("primaryIdentifier", rec.phenotype);
+                    phenotype.setAttribute("name", rec.phenotype);
                     phenotypeMap.put(rec.phenotype, phenotype);
                 }
                 if (publication!=null) phenotype.addToCollection("publications", publication);

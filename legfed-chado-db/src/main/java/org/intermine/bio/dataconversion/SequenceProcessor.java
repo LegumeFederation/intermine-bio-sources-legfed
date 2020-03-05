@@ -379,8 +379,7 @@ public class SequenceProcessor extends ChadoProcessor {
      * Set the given attribute if the FeatureData says it's not set, then set the flag in
      * FeatureData to say it's set.
      */
-    private void setAttributeIfNotSet(FeatureData fdat, final String attributeName,
-				      final String value) throws ObjectStoreException {
+    private void setAttributeIfNotSet(FeatureData fdat, final String attributeName, final String value) throws ObjectStoreException {
         if (!fdat.getFlag(attributeName)) {
             setAttribute(fdat.getIntermineObjectId(), attributeName, value);
             fdat.setFlag(attributeName, true);
@@ -402,7 +401,6 @@ public class SequenceProcessor extends ChadoProcessor {
      */
     protected FeatureData makeFeatureData(int featureId, String chadoType, String uniqueName, String name,
                                           String md5checksum, int seqlen, int organismId) throws ObjectStoreException {
-
         // convert the chado type to InterMine object name by capitalizing and removing underscores
         String interMineType = TypeUtil.javaiseClassName(fixFeatureType(chadoType));
 
@@ -413,24 +411,21 @@ public class SequenceProcessor extends ChadoProcessor {
         if (DEBUG) debugToLog("makeFeatureData: chadoType="+chadoType+" interMineType="+interMineType);
 
         OrganismData organismData = getChadoDBConverter().getChadoIdToOrgDataMap().get(new Integer(organismId));
-        String strainName = getChadoDBConverter().getChadoIdToStrainNameMap().get(new Integer(organismId));
 
         Item feature = makeFeature(new Integer(featureId), uniqueName, name, interMineType);
         if (feature == null) {
             return null;
         }
-        String taxonId = organismData.getTaxonId();
         FeatureData fdat = new FeatureData();
-        Item organismItem = getChadoDBConverter().getOrganismItem(taxonId);
-        Item strainItem = getChadoDBConverter().getStrainItem(strainName, taxonId);
+        Item organismItem = getChadoDBConverter().getOrganismItem(new Integer(organismId));
+        Item strainItem = getChadoDBConverter().getStrainItem(new Integer(organismId));
         feature.setReference("organism", organismItem);
-        if (strainItem!=null) feature.setReference("strain", strainItem);
+        feature.setReference("strain", strainItem);
         if (feature.checkAttribute("md5checksum") && md5checksum!=null) {
             feature.setAttribute("md5checksum", md5checksum);
         }
         BioStoreHook.setSOTerm(getChadoDBConverter(), feature, chadoType, getChadoDBConverter().getSequenceOntologyRefId());
         fdat.setFieldExistenceFlags(feature);
-
         fdat.setIntermineObjectId(store(feature));
         fdat.setItemIdentifier(feature.getIdentifier());
         fdat.setUniqueName(uniqueName);
@@ -442,19 +437,19 @@ public class SequenceProcessor extends ChadoProcessor {
     }
 
     /**
-     * Make a new feature, setting chadoFeatureId to the chado.feature.feature_id value
+     * Make a new feature, setting chadoId to the chado.feature.feature_id value
      * @param featureId the chado feature id
      * @param interMineType the InterMine type of the feature
      * @return the new feature
      */
     protected Item makeFeature(Integer featureId, String interMineType) {
         Item feature = getChadoDBConverter().createItem(interMineType);
-        feature.setAttribute("chadoFeatureId", String.valueOf(featureId));
+        feature.setAttribute("chadoId", String.valueOf(featureId));
         return feature;
     }
 
     /**
-     * Make a new feature, setting chadoFeatureId to the chado.feature.feature_id value
+     * Make a new feature, setting chadoId to the chado.feature.feature_id value
      * @param featureId the chado feature.id
      * @param name the chado feature.name
      * @param uniqueName the chado feature.uniquename
@@ -463,7 +458,7 @@ public class SequenceProcessor extends ChadoProcessor {
      */
     protected Item makeFeature(Integer featureId, String uniqueName, String name, String interMineType) {
         Item feature = getChadoDBConverter().createItem(interMineType);
-        feature.setAttribute("chadoFeatureId", String.valueOf(featureId));
+        feature.setAttribute("chadoId", String.valueOf(featureId));
 	feature.setAttribute("chadoUniqueName", uniqueName);
 	feature.setAttribute("chadoName", name);
         return feature;
@@ -741,7 +736,8 @@ public class SequenceProcessor extends ChadoProcessor {
      * Create collections and references for the Item given by chadoSubjectId.
      * @param collectionWarnings
      */
-    private boolean processCollectionData(Integer chadoSubjectId, Map<String, Map<String, List<FeatureData>>> relTypeMap, int collectionWarnings, boolean subjectIsFirst) throws ObjectStoreException {
+    private boolean processCollectionData(Integer chadoSubjectId, Map<String,Map<String,List<FeatureData>>> relTypeMap, int collectionWarnings, boolean subjectIsFirst)
+        throws ObjectStoreException {
         FeatureData subjectData = featureMap.get(chadoSubjectId);
         if (subjectData == null) {
             if (collectionWarnings<20) LOG.warn("unknown feature " + chadoSubjectId + " passed to processCollectionData - ignoring");

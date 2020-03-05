@@ -123,7 +123,7 @@ public class MarkerQTLFileConverter extends BioFileConverter {
 			phenotype = phenotypeMap.get(phenotypeID);
 		    } else {
 			phenotype = createItem("Phenotype");
-			phenotype.setAttribute("primaryIdentifier", phenotypeID);
+			phenotype.setAttribute("name", phenotypeID);
 			store(phenotype);
 			phenotypeMap.put(phenotypeID, phenotype);
 			LOG.info("Stored phenotype "+phenotypeID);

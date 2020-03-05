@@ -160,18 +160,18 @@ public class QTLFileConverter extends BioFileConverter {
                     LOG.info("Storing mapping population:"+mappingPopulationName);
                     if (mappingPopulationName.contains("_x_")) {
                         // add parents
-                        String[] strainNames = mappingPopulationName.split("_x_");
-                        for (String strainName : strainNames) {
-                            if (strainMap.containsKey(strainName)) {
-                                Item parent = strainMap.get(strainName);
+                        String[] strainIdentifiers = mappingPopulationName.split("_x_");
+                        for (String strainIdentifier : strainIdentifiers) {
+                            if (strainMap.containsKey(strainIdentifier)) {
+                                Item parent = strainMap.get(strainIdentifier);
                                 mappingPopulation.addToCollection("parents", parent);
                             } else {
                                 Item parent = createItem("Strain");
-                                parent.setAttribute("primaryIdentifier", strainName);
+                                parent.setAttribute("identifier", strainIdentifier);
                                 parent.setReference("organism", organism);
                                 store(parent);
-                                strainMap.put(strainName, parent);
-                                LOG.info("Stored parent: "+strainName);
+                                strainMap.put(strainIdentifier, parent);
+                                LOG.info("Stored parent: "+strainIdentifier);
                                 mappingPopulation.addToCollection("parents", parent);
                             }
                         }
@@ -243,7 +243,7 @@ public class QTLFileConverter extends BioFileConverter {
                         phenotype = phenotypeMap.get(phenotypeName);
                     } else {
                         phenotype = createItem("Phenotype");
-                        phenotype.setAttribute("primaryIdentifier", phenotypeName);
+                        phenotype.setAttribute("name", phenotypeName);
                         phenotypeMap.put(phenotypeName, phenotype);
                     }
                     qtl.setReference("phenotype", phenotype);

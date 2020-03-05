@@ -80,7 +80,7 @@ public class GermplasmFileConverter extends BioFileConverter {
         
         // the fields
         String taxonId = null; // cannot be null
-        String strainName = null;  // cannot be null
+        String strainIdentifier = null;  // cannot be null
         String alternateStrainName = null;
         String description = null;
         String patentNumber = null;
@@ -95,7 +95,7 @@ public class GermplasmFileConverter extends BioFileConverter {
                 String field = parts[0].toLowerCase();
                 String value = parts[1];
                 if (field.equals("taxonid")) taxonId = value;
-                if (field.equals("strain")) strainName = value;
+                if (field.equals("strain")) strainIdentifier = value;
                 if (field.equals("alternatestrainname")) alternateStrainName = value;
                 if (field.equals("description")) description = value;
                 if (field.equals("patentnumber")) patentNumber = value;
@@ -118,8 +118,8 @@ public class GermplasmFileConverter extends BioFileConverter {
             }
         }
 
-        // store the organism (if new) and strain if strainName given
-        if (taxonId!=null && strainName!=null) {
+        // store the organism (if new) and strain if strainIdentifier given
+        if (taxonId!=null && strainIdentifier!=null) {
 	    Item organism;
 	    if (organismMap.containsKey(taxonId)) {
 		organism = organismMap.get(taxonId);
@@ -130,9 +130,9 @@ public class GermplasmFileConverter extends BioFileConverter {
 		organismMap.put(taxonId, organism);
 	    }
 	    Item strain = createItem("Strain");
-	    strain.setAttribute("primaryIdentifier", strainName);
+	    strain.setAttribute("identifier", strainIdentifier);
 	    strain.setReference("organism", organism);
-            if (alternateStrainName!=null) strain.setAttribute("name", alternateStrainName);
+            if (alternateStrainName!=null) strain.setAttribute("alternateName", alternateStrainName);
             if (description!=null) strain.setAttribute("description", description);
             if (patentNumber!=null) strain.setAttribute("patentNumber", patentNumber);
             if (url!=null) strain.setAttribute("url", url);

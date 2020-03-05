@@ -102,15 +102,15 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
 		}
 
             } else if (parts[0].toLowerCase().equals("#strain")) {
-                String strainName = parts[1];
-		if (strainMap.containsKey(strainName)) {
-		    strain = strainMap.get(strainName);
+                String strainIdentifier = parts[1];
+		if (strainMap.containsKey(strainIdentifier)) {
+		    strain = strainMap.get(strainIdentifier);
 		} else {
 		    strain = createItem("Strain");
-		    strain.setAttribute("primaryIdentifier", strainName);
+		    strain.setAttribute("identifier", strainIdentifier);
 		    strain.setReference("organism", organism);
 		    store(strain);
-		    LOG.info("Stored strain "+strainName);
+		    LOG.info("Stored strain "+strainIdentifier);
 		}
                 
             } else if (line.startsWith("#")) {

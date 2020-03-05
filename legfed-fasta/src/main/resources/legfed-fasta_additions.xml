@@ -6,14 +6,10 @@
     <attribute name="abbreviation" type="java.lang.String"/>
   </class>
 
-  <!-- add supercontigs/scaffolds as standalone sequence features so they don't clutter chromosome space -->
-  <class name="Supercontig" extends="SequenceFeature" is-interface="true"/>
-
-  <!-- supercontig and supercontigLocation to all SequenceFeature subclasses -->
-  <class name="SequenceFeature" is-interface="true">
-    <reference name="supercontig" referenced-type="Supercontig" />
-    <reference name="supercontigLocation" referenced-type="Location" />
+  <!-- Protein, CDS and Transcript loaded from files with "primaryTranscript" in the file name get flagged with primaryTranscript=true -->
+  <!-- HOWEVER this has to be attached to BioEntity because that's what the FASTA loader operates on -->
+  <class name="BioEntity" is-interface="true">
+    <attribute name="primaryTranscript" type="java.lang.Boolean"/>
   </class>
 
 </classes>
-
