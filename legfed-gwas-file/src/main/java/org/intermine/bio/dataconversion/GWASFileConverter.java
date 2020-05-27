@@ -71,13 +71,16 @@ public class GWASFileConverter extends BioFileConverter {
      */
     @Override
     public void process(Reader reader) throws Exception {
-
         // don't process README files
         if (getCurrentFile().getName().contains("README")) return;
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
+        DatastoreUtils datastoreUtils = new DatastoreUtils();
+
         // persistent items
+        String taxonId = null;
+        String strainIdentifier = null;
         Item organism = null;
         Item strain = null;
         Item gwas = null;
@@ -96,7 +99,7 @@ public class GWASFileConverter extends BioFileConverter {
             String value = parts[1];
 
             if (key.toLowerCase().equals("taxonid")) {
-                String taxonId = value;
+                taxonId = value;
                 if (organismMap.containsKey(taxonId)) {
                     organism = organismMap.get(taxonId);
                 } else {
@@ -108,7 +111,7 @@ public class GWASFileConverter extends BioFileConverter {
                 }
 
             } else if (key.toLowerCase().equals("strain")) {
-                String strainIdentifier = value;
+                strainIdentifier = value;
                 if (strainMap.containsKey(strainIdentifier)) {
                     strain = strainMap.get(strainIdentifier);
                 } else {
@@ -193,7 +196,7 @@ public class GWASFileConverter extends BioFileConverter {
                     marker.setAttribute("primaryIdentifier", rec.marker);
                     marker.setAttribute("type", rec.type);
                     // set the chromosome or supercontig reference
-                    boolean isSupercontig = DatastoreUtils.isSupercontig(rec.chromosome);
+                    boolean isSupercontig = datastoreUtils.isSupercontig(taxonId, strainIdentifier, rec.chromosome);
                     Item chromosome = null;
                     if (chromosomeMap.containsKey(rec.chromosome)) {
                         chromosome = chromosomeMap.get(rec.chromosome);

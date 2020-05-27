@@ -21,7 +21,7 @@ ext {
 
 subprojects {
   group = 'org.intermine'
-  version = '4.1.2'
+  version = '4.1.3'
 
   apply plugin: 'java'
   apply plugin: 'maven'
@@ -130,7 +130,7 @@ subprojects {
   tasks.compileTestJava.dependsOn ':bio-model:copyMineProperties'
 
   if (it.name != 'bio-source-legfed-datastore') {
-      dependencies {compile project(':bio-source-legfed-datastore')}
+     dependencies {compile project(':bio-source-legfed-datastore')}
   }
 
 }

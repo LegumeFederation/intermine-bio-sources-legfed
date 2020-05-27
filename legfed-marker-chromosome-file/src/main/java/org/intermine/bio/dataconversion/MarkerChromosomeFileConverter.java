@@ -63,7 +63,11 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
 
         LOG.info("Processing file "+getCurrentFile().getName()+"...");
 
+        DatastoreUtils datastoreUtils = new DatastoreUtils();
+
         // organism/strain for this file
+        String taxonId = null;
+        String strainIdentifier = null;
         Item organism = null;
 	Item strain = null;
 
@@ -77,7 +81,7 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
 		
                 // organism and strain lines at top
                 if (key.toLowerCase().equals("taxonid")) {
-                    String taxonId = parts[1];
+                    taxonId = parts[1];
                     if (organismMap.containsKey(taxonId)) {
                         organism = organismMap.get(taxonId);
                     } else {
@@ -89,7 +93,7 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
                     }
                     
                 } else if (key.toLowerCase().equals("strain")) {
-                    String strainIdentifier = parts[1];
+                    strainIdentifier = parts[1];
                     if (strainMap.containsKey(strainIdentifier)) {
                         strain = strainMap.get(strainIdentifier);
                     } else {
@@ -124,7 +128,7 @@ public class MarkerChromosomeFileConverter extends BioFileConverter {
                     if (rec.type.length()>0) marker.setAttribute("type", rec.type);
                     if (rec.motif!=null && rec.motif.length()>0) marker.setAttribute("motif", rec.motif);
                     // set the chromosome or supercontig reference
-                    boolean isSupercontig = DatastoreUtils.isSupercontig(rec.chromosome);
+                    boolean isSupercontig = datastoreUtils.isSupercontig(taxonId, strainIdentifier, rec.chromosome);
                     Item chromosome = null;
                     if (chromosomeMap.containsKey(rec.chromosome)) {
                         chromosome = chromosomeMap.get(rec.chromosome);

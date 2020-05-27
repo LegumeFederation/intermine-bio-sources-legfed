@@ -75,7 +75,11 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
      */
     @Override
     public void process(Reader reader) throws Exception {
+        DatastoreUtils datastoreUtils = new DatastoreUtils();
 
+        String taxonId = null;
+        String strainIdentifier = null;
+        
         // this file's organism and strain
         Item organism = null;
 	Item strain = null;
@@ -90,7 +94,7 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
 
             // header stuff
             if (parts[0].toLowerCase().equals("#taxonid")) {
-		String taxonId = parts[1];
+		taxonId = parts[1];
 		if (organismMap.containsKey(taxonId)) {
 		    organism = organismMap.get(taxonId);
 		} else {
@@ -102,7 +106,7 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
 		}
 
             } else if (parts[0].toLowerCase().equals("#strain")) {
-                String strainIdentifier = parts[1];
+                strainIdentifier = parts[1];
 		if (strainMap.containsKey(strainIdentifier)) {
 		    strain = strainMap.get(strainIdentifier);
 		} else {
@@ -145,7 +149,7 @@ public class GeneticMarkerGFFConverter extends BioFileConverter {
 		
                 Item sequence;
                 String sequenceName = gff.getSequenceID();
-                boolean isSupercontig = DatastoreUtils.isSupercontig(sequenceName);
+                boolean isSupercontig = datastoreUtils.isSupercontig(taxonId, strainIdentifier, sequenceName);
                 if (isSupercontig) sequenceName = sequenceName.toLowerCase();
                 if (sequenceMap.containsKey(sequenceName)) {
                     sequence = sequenceMap.get(sequenceName);

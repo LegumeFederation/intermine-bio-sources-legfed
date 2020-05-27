@@ -1,0 +1,338 @@
+package org.intermine.bio.task;
+
+/*
+ * Copyright (C) 2002-2019 FlyMine
+ *
+ * This code may be freely distributed and modified under the
+ * terms of the GNU Lesser General Public Licence.  This should
+ * be distributed with the code.  See the LICENSE file for more
+ * information or http://www.gnu.org/copyleft/lesser.html.
+ *
+ */
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.File;
+
+import org.intermine.objectstore.ObjectStoreWriterFactory;
+import org.intermine.objectstore.ObjectStoreWriter;
+import org.intermine.bio.dataconversion.LegfedGFF3Converter;
+import org.intermine.bio.dataconversion.GFF3RecordHandler;
+import org.intermine.bio.dataconversion.GFF3SeqHandler;
+import org.intermine.bio.io.gff3.GFF3Parser;
+import org.intermine.dataconversion.ItemWriter;
+import org.intermine.dataconversion.ObjectStoreItemWriter;
+import org.intermine.metadata.Model;
+
+
+import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.DirectoryScanner;
+import org.apache.tools.ant.types.FileSet;
+import org.apache.tools.ant.Task;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
+
+
+/**
+ * Task to convert gff3 data
+ *
+ * @author Wenyan Ji
+ * @author Sam Hokin
+ */
+public class LegfedGFF3ConverterTask extends GFF3ConverterTask
+{
+    protected static final Logger LOG = Logger.getLogger(LegfedGFF3ConverterTask.class);
+
+    protected FileSet fileSet;
+    protected String converter, targetAlias, seqClsName, orgTaxonId, strainIdentifier, assemblyVersion, annotationVersion;
+    protected String seqDataSourceName, model, handlerClassName;
+    protected GFF3Parser parser;
+
+    private String dataSourceName, dataSourceDescription, dataSourceUrl;
+
+    private String dataSetTitle, dataSetDescription, dataSetUrl, dataSetVersion, licence;
+
+    private String seqHandlerClassName;
+
+    private boolean dontCreateLocations = false;
+
+    /**
+     * Set the data fileset
+     * @param fs the fileset
+     */
+    public void addFileSet(FileSet fs) {
+        this.fileSet = fs;
+    }
+
+    /**
+     * Set the converter
+     * @param converter the converter
+     */
+    public void setConverter(String converter) {
+        this.converter = converter;
+    }
+
+
+    /**
+     * Set the target ObjectStore alias
+     * @param targetAlias the targetAlias
+     */
+    public void setTarget(String targetAlias) {
+        this.targetAlias = targetAlias;
+    }
+
+
+    /**
+     * Set the sequenceClassName
+     * @param seqClsName the seqClsName;
+     */
+    public void setSeqClsName(String seqClsName) {
+        this.seqClsName = seqClsName;
+    }
+
+
+    /**
+     * Set the organism taxon id
+     * @param orgTaxonId the organism taxon id
+     */
+    public void setOrgTaxonId(String orgTaxonId) {
+        this.orgTaxonId = orgTaxonId;
+    }
+
+    /**
+     * Set the strain identifier
+     * @param strainIdentifier the strain.identifier
+     */
+    public void setStrainIdentifier(String strainIdentifier) {
+        this.strainIdentifier = strainIdentifier;
+    }
+
+    /**
+     * Set the assembly version
+     * @param assemblyVersion the assembly version
+     */
+    public void setAssemblyVersion(String assemblyVersion) {
+        this.assemblyVersion = assemblyVersion;
+    }
+
+    /**
+     * Set the annotation version
+     * @param annotationVersion the annotation version
+     */
+    public void setAnnotationVersion(String annotationVersion) {
+        this.annotationVersion = annotationVersion;
+    }
+
+    /**
+     * Set the dataSourceName
+     * @param dataSourceName the dataSourceName
+     */
+    public void setDataSourceName(String dataSourceName) {
+        this.dataSourceName = dataSourceName;
+    }
+
+    /**
+     * Set the dataSourceDescription
+     * @param dataSourceDescription the dataSourceDescription
+     */
+    public void setDataSourceDescription(String dataSourceDescription) {
+        this.dataSourceDescription = dataSourceDescription;
+    }
+
+    /**
+     * Set the dataSourceUrl
+     * @param dataSourceUrl the dataSourceUrl
+     */
+    public void setDataSourceUrl(String dataSourceUrl) {
+        this.dataSourceUrl = dataSourceUrl;
+    }
+
+    /**
+     * Set the seqDataSourceName
+     * @param seqDataSourceName the seqDataSourceName
+     */
+    public void setSeqDataSourceName(String seqDataSourceName) {
+	this.seqDataSourceName = seqDataSourceName;
+    }
+
+    /**
+     * Set the dataSetTitle
+     * @param dataSetTitle the DataSet title
+     */
+    public void setDataSetTitle(String dataSetTitle) {
+	this.dataSetTitle = dataSetTitle;
+    }
+
+    /**
+     * Set the licence
+     * @param licence URL to the licence for this dataset.
+     */
+    public void setLicence(String licence) {
+        this.licence = licence;
+    }
+
+    /**
+     * Set the dataSetUrl
+     * @param dataSetUrl the DataSet URL
+     */
+    public void setDataSetUrl(String dataSetUrl) {
+        this.dataSetUrl = dataSetUrl;
+    }
+
+    /**
+     * Set the dataSetVersion
+     * @param dataSetVersion the DataSet version
+     */
+    public void setDataSetVersion(String dataSetVersion) {
+        this.dataSetVersion = dataSetVersion;
+    }
+
+    /**
+     * Set the dataSetDescription
+     * @param dataSetDescription the DataSet description
+     */
+    public void setDataSetDescription(String dataSetDescription) {
+        this.dataSetDescription = dataSetDescription;
+    }
+
+    /**
+     * Set the name of model to create data in
+     * @param model name of model
+     */
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    /**
+     * Set the name of GFF3RecordHandler class to use when processing.
+     * @param handlerClassName the name of the handler
+     */
+    public void setHandlerClassName(String handlerClassName) {
+        this.handlerClassName = handlerClassName;
+    }
+
+    /**
+     * Set the name of GFF3SeqHandler to use when processing.
+     * @param seqHandlerClassName the name of the handler
+     */
+    public void setSeqHandlerClassName(String seqHandlerClassName) {
+        this.seqHandlerClassName = seqHandlerClassName;
+    }
+
+    /**
+     * Set the dontCreateLocations flag, the default is false - create locations.
+     * @param dontCreateLocations if false, create Locations of features on chromosomes
+     * while processing
+     */
+    public void setDontCreateLocations(boolean dontCreateLocations) {
+        this.dontCreateLocations = dontCreateLocations;
+    }
+
+    /**
+     * @see Task#execute()
+     */
+    @Override
+    public void execute() {
+        if (fileSet == null) {
+            throw new BuildException("fileSet must be specified");
+        }
+        if (converter == null) {
+            throw new BuildException("converter attribute not set");
+        }
+        if (targetAlias == null) {
+            throw new BuildException("targetAlias attribute not set");
+        }
+        if (seqClsName == null) {
+            throw new BuildException("seqClsName attribute not set");
+        }
+        if (orgTaxonId == null) {
+            throw new BuildException("orgTaxonId attribute not set");
+        }
+        if (strainIdentifier == null) {
+            throw new BuildException("strainIdentifier attribute not set");
+        }
+        if (dataSourceName == null) {
+            throw new BuildException("dataSourceName attribute not set");
+        }
+        if (dataSetTitle == null) {
+            throw new BuildException("dataSetTitle attribute not set");
+        }
+        if (model == null) {
+            throw new BuildException("model attribute not set");
+        }
+
+        ObjectStoreWriter osw = null;
+        ItemWriter writer = null;
+        try {
+            osw = ObjectStoreWriterFactory.getObjectStoreWriter(targetAlias);
+            writer = new ObjectStoreItemWriter(osw);
+            Model tgtModel = Model.getInstanceByName(model);
+            GFF3RecordHandler recordHandler;
+            if (handlerClassName == null) {
+                recordHandler = new GFF3RecordHandler(tgtModel);
+            } else {
+                Class<?> handlerClass;
+                try {
+                    handlerClass = Class.forName(handlerClassName);
+                } catch (ClassNotFoundException e) {
+                    throw new BuildException("Class not found for " + handlerClassName, e);
+                }
+                Class<?> [] types = new Class[] {Model.class};
+                Object [] args = new Object[] {tgtModel};
+                recordHandler = (GFF3RecordHandler) handlerClass.getConstructor(types).newInstance(args);
+            }
+            GFF3SeqHandler sequenceHandler;
+            if (StringUtils.isEmpty(seqHandlerClassName)) {
+                sequenceHandler = new GFF3SeqHandler();
+            } else {
+                Class<?> handlerClass;
+                try {
+                    handlerClass = Class.forName(seqHandlerClassName);
+                } catch (ClassNotFoundException e) {
+                    throw new BuildException("Class not found for " + seqHandlerClassName, e);
+                }
+                Class<?> [] types = new Class[] {};
+                Object [] args = new Object[] {};
+                sequenceHandler = (GFF3SeqHandler) handlerClass.getConstructor(types).newInstance(args);
+            }
+
+            LegfedGFF3Converter gff3converter = new LegfedGFF3Converter(writer, seqClsName,
+									orgTaxonId, strainIdentifier, assemblyVersion, annotationVersion,
+									dataSourceName, dataSourceUrl,
+									dataSetTitle, dataSetUrl, dataSetVersion, dataSetDescription,
+									tgtModel, recordHandler, sequenceHandler, licence);
+            if (dontCreateLocations) {
+                gff3converter.setDontCreateLocations(dontCreateLocations);
+            }
+            DirectoryScanner ds = fileSet.getDirectoryScanner(getProject());
+            String[] files = ds.getIncludedFiles();
+            if (files.length == 0) {
+                throw new BuildException("No GFF files found in: " + fileSet.getDir(getProject()));
+            }
+            for (int i = 0; i < files.length; i++) {
+                File f = new File(ds.getBasedir(), files[i]);
+                System.err .println("Processing file: " + f.getName());
+                gff3converter.parse(new BufferedReader(new FileReader(f)));
+            }
+            gff3converter.storeAll();
+            gff3converter.close();
+        } catch (Exception e) {
+            throw new BuildException(e);
+        } finally {
+            try {
+                if (writer != null) {
+                    writer.close();
+                }
+                if (osw != null) {
+                    osw.close();
+                }
+            } catch (Exception e) {
+                throw new BuildException(e);
+            }
+
+        }
+
+    }
+
+}
